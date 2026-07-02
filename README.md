@@ -1,6 +1,6 @@
 # Los Angeles Housing Public-Data Database
 
-This repository builds a reproducible, source-vintaged housing database for Los Angeles County research. It downloads or imports public source files, preserves immutable raw vintages, normalizes observations to Parquet, builds county and postal-ZIP analytical panels, materializes DuckDB tables, and publishes QA, coverage, and CSV exports.
+This repository builds a reproducible, source-vintaged housing database for Los Angeles housing research. It downloads or imports official public source files, preserves immutable raw vintages, normalizes observations to Parquet, builds geography- and frequency-correct analytical panels, materializes one integrated DuckDB database, and publishes QA, coverage, catalog, and CSV outputs.
 
 The database is a static snapshot. It is not continuously connected to any provider. New source data enter the analytical tables only when the relevant pipeline stages are run.
 
@@ -12,15 +12,25 @@ Primary outputs:
 - `data/final/fact_housing_observation.parquet`
 - `data/final/county_monthly_panel.parquet`
 - `data/final/zip_monthly_panel.parquet`
+- `data/final/metro_monthly_controls.parquet`
 - `data/final/state_quarterly_panel.parquet`
+- `data/final/metro_quarterly_panel.parquet`
+- `data/final/county_annual_structural.parquet`
+- `data/final/zcta_annual_structural.parquet`
 - `output/exports/la_county_monthly_panel.csv`
 - `output/exports/la_zip_monthly_panel.csv`
+- CSV exports for every additional analytical panel under `output/exports/`
 - `output/qa/qa_summary.csv`
 - `output/qa/qa_failures.csv`
+- `output/qa/raw_repository_completeness.csv`
+- `metadata/data_catalog.csv`
+- `metadata/data_catalog.xlsx`
+- `metadata/data_gap_analysis.csv`
+- `metadata/data_gap_analysis.xlsx`
 - coverage reports under `output/coverage/`
 - source, variable, transformation, geography, and raw-vintage metadata under `metadata/`
 
-`analytics.state_quarterly_panel` is currently a typed empty Phase 2 table. The repository does not fabricate unimplemented quarterly observations.
+The canonical database remains one integrated database. Homeowner, renter, overall-market, and macro organization is provided through views and variable classifications—not disconnected databases.
 
 ## Implemented data sources
 
@@ -33,9 +43,19 @@ Primary outputs:
 | `redfin_county_monthly` | Redfin Housing Market Tracker | County | Monthly | Official Redfin data object |
 | `redfin_zip_monthly` | Redfin Housing Market Tracker Key Metrics | Postal ZIP | Rolling three months, dated monthly | Manual official Data Center CSV import |
 | `bls_laus_la_county` | BLS Local Area Unemployment Statistics | Los Angeles County | Monthly | Official BLS API |
+| `bls_ces_la_metro` | BLS CES total nonfarm payroll employment, SA | Los Angeles-Long Beach-Anaheim MSA | Monthly | Official BLS time-series file |
+| `bls_cpi_la_metro` | BLS CPI-U All Items, NSA | Los Angeles published CPI area | Monthly | Official BLS time-series file |
 | `freddie_mac_pmms` | Freddie Mac Primary Mortgage Market Survey, 30-year fixed rate | United States | Weekly | Official Freddie Mac CSV |
 | `census_bps_county` | Census Building Permits Survey archive | Los Angeles County | Monthly | Official Census ASCII archive |
 | `census_bps_state` | Census Building Permits Survey archive | California | Monthly | Official Census ASCII archive |
+| `fhfa_hpi_state_purchase_only` | FHFA Purchase-Only HPI, SA and NSA | California | Quarterly | Official FHFA text file |
+| `fhfa_hpi_metro_purchase_only` | FHFA Purchase-Only HPI, SA and NSA | LA-Long Beach-Glendale Metropolitan Division 31084 | Quarterly | Official FHFA text file |
+| `fhfa_hpi_county_annual` | FHFA developmental All-Transactions HPI | Los Angeles County | Annual | Official FHFA workbook |
+| `bea_state_personal_income` | BEA SQINC1 personal and per-capita income | California | Quarterly | Official `SQINC.zip` |
+| `bea_county_personal_income` | BEA CAINC1 personal and per-capita income | Los Angeles County | Annual | Official `CAINC1.zip` |
+| `census_hvs_state_rental_vacancy` | HVS rental vacancy rate and margin of error | California | Quarterly | Official Census workbook |
+| `census_hvs_metro_rental_vacancy_*` | HVS rental vacancy rate and margin of error | Published Los Angeles MSA | Quarterly | Three official Census vintage-range workbooks |
+| `census_acs_5year_*` | ACS B11001, B19013, B25001, B25002, B25003, B25064, B25077, and B25081 | Los Angeles County and selected Census ZCTA codes | Annual 5-year estimate | Official 2024 table-based summary files |
 
 Exact source pages, endpoints, formats, enabled status, methodology notes, and revision notes are defined in `config/sources.yaml`. Variable definitions and units are in `config/variables.yaml`.
 
@@ -43,6 +63,12 @@ Important product semantics:
 
 - Analytical `zori` means Zillow ZORI (Smoothed, Seasonally Adjusted), All Homes Plus Multifamily. No non-seasonally-adjusted ZORI is active.
 - BLS LAUS county values are not seasonally adjusted.
+- BLS CES is an establishment-based MSA series and is not interchangeable with residence-based county LAUS employment.
+- BLS CPI uses current series `CUURS49ASA0`; the current S49A published geography is distinct from discontinued A421.
+- FHFA state/metropolitan-division HPI is quarterly; FHFA county HPI is annual and developmental. Neither replaces Zillow ZHVI.
+- BEA state income is quarterly and seasonally adjusted at annual rates; county income is annual.
+- HVS state and MSA vacancy rates retain their published margins of error.
+- ACS 2024 five-year values represent the pooled 2020-2024 period. They are annual structural estimates, not monthly observations.
 - Redfin ZIP Key Metrics are overlapping rolling-three-month windows, not independent single-month observations.
 - Redfin ZIP `ACTIVE LISTINGS` remains `active_listings`; it is not relabeled as inventory.
 - Building permits are authorizations, not housing starts or completions.
@@ -136,14 +162,15 @@ Available stages:
 
 | Stage | Behavior |
 |---|---|
-| `discover` | Writes `metadata/data_catalog.csv`; performs endpoint HEAD checks unless `--offline` is supplied. |
+| `discover` | Writes `metadata/source_discovery.csv`; performs endpoint HEAD checks unless `--offline` is supplied. |
 | `download` | Acquires immutable raw vintages and updates the raw manifest. Successful downloads also refresh DuckDB source-registry tables when the database exists. |
 | `clean` | Selects a local raw vintage and runs the source-specific cleaner. |
 | `harmonize` | Unions clean observations, selects latest values, builds the fact table and panels, calculates features, and writes final Parquet. |
 | `build-database` | Materializes metadata, raw-manifest, clean, analytics, and empty quality tables in DuckDB. |
+| `catalog` | Generates the canonical CSV/XLSX catalog and gap-analysis workbook, checks raw-repository completeness, and updates DuckDB metadata/quality tables. |
 | `validate` | Runs structural and warning-level QA, writes reports, and updates DuckDB quality tables. |
-| `export` | Writes county and ZIP modeling CSVs from final Parquet. |
-| `all` | Runs `discover`, `download`, `clean`, `harmonize`, `build-database`, `validate`, and `export` in that order. |
+| `export` | Writes CSVs for all materialized analytical panels from final Parquet. |
+| `all` | Runs `discover`, `download`, `clean`, `harmonize`, `build-database`, `catalog`, `validate`, and `export` in that order. |
 
 Examples:
 
@@ -152,6 +179,7 @@ python run_pipeline.py --stage discover --offline
 python run_pipeline.py --stage clean --source bls_laus_la_county
 python run_pipeline.py --stage harmonize
 python run_pipeline.py --stage build-database
+python run_pipeline.py --stage catalog
 python run_pipeline.py --stage validate
 python run_pipeline.py --stage export
 ```
@@ -193,24 +221,89 @@ python run_pipeline.py --stage all --offline
 
 The import copies the national CSV unchanged to immutable raw storage. Cleaning uses DuckDB projection and filtering, joins against the versioned LA County ZIP reference, saves only the LA subset to `data/clean/redfin_zip_monthly_la_county.parquet`, and caches that result by raw checksum.
 
+## Refreshing the added official sources
+
+Each command below creates a new immutable provider payload and manifest row. Run the commands independently so a provider failure is explicit and does not obscure other sources.
+
+```powershell
+python run_pipeline.py --stage download --source bls_ces_la_metro --force-download
+python run_pipeline.py --stage download --source bls_cpi_la_metro --force-download
+python run_pipeline.py --stage download --source fhfa_hpi_state_purchase_only --force-download
+python run_pipeline.py --stage download --source fhfa_hpi_metro_purchase_only --force-download
+python run_pipeline.py --stage download --source fhfa_hpi_county_annual --force-download
+python run_pipeline.py --stage download --source bea_state_personal_income --force-download
+python run_pipeline.py --stage download --source bea_county_personal_income --force-download
+python run_pipeline.py --stage download --source census_hvs_state_rental_vacancy --force-download
+python run_pipeline.py --stage download --source census_hvs_metro_rental_vacancy_2005_2014 --force-download
+python run_pipeline.py --stage download --source census_hvs_metro_rental_vacancy_2015_2025 --force-download
+python run_pipeline.py --stage download --source census_hvs_metro_rental_vacancy_2026 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b11001 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b19013 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25001 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25002 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25003 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25064 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25077 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25081 --force-download
+```
+
+CES and CPI use official BLS bulk time-series files so their refreshes do not depend on an API key or the unauthenticated API daily request quota. ACS uses the official 2024 table-based five-year summary files because the Census API currently requires a key; the raw `.dat` files are retained in full, while cleaning selects Los Angeles County and ZCTA codes separately.
+
+After any source refresh, rebuild from the local archive:
+
+```powershell
+python run_pipeline.py --stage all --offline
+```
+
+## Data catalog and raw-repository completeness
+
+The catalog is generated from source/variable configuration, the immutable raw manifest, DuckDB source and variable metadata, database coverage, and the gap analysis:
+
+```powershell
+python run_pipeline.py --stage catalog
+```
+
+This regenerates:
+
+- `metadata/data_catalog.csv`
+- `metadata/data_catalog.xlsx`
+- `metadata/data_gap_analysis.csv`
+- `metadata/data_gap_analysis.xlsx`
+- `output/qa/raw_repository_completeness.csv`
+- `metadata.data_catalog`
+- `metadata.data_gap_analysis`
+- `quality.raw_repository_completeness`
+
+The catalog CSV begins with the required `Source`, `Frequency`, `Geography`, and `Key variables` fields. The Excel workbook contains Data Catalog, Variable Dictionary, Raw File Inventory, Geography-Frequency Matrix, Coverage Summary, Unavailable and Deferred, Update Commands, and Gap Analysis sheets.
+
+Catalog generation fails if any active source lacks a raw snapshot, manifest/registry record, checksum, retrieval timestamp, official URL, frequency, geography, or key-variable list. Check the report directly with:
+
+```powershell
+python run_pipeline.py --stage catalog
+```
+
 ## Storage and provenance
 
 | Location | Contents |
 |---|---|
-| `data/raw/<provider>/` | Immutable provider payloads. Filenames include source ID, UTC retrieval timestamp, and checksum prefix. |
+| `data/raw/zillow/`, `redfin/`, `bls/`, `bls_ces/`, `bls_cpi/`, `freddie_mac/` | Immutable monthly/weekly provider payloads. |
+| `data/raw/census_bps/`, `census_hvs/`, `census_acs/` | Immutable Census archive, workbook, and table-based summary-file payloads. |
+| `data/raw/fhfa/`, `bea/`, `geography/` | Immutable structural and geography source payloads. |
 | `data/archive/deprecated_zori_nsa/` | Deprecated NSA ZORI files and their archive manifest; excluded from active ingestion. |
 | `data/interim/` | Reusable intermediate observations, currently the long-form Redfin ZIP extract. |
 | `data/clean/` | Latest selected source-specific normalized Parquet and geography tables. |
 | `data/final/` | Long fact table and analytical panels in Parquet. |
 | `database/housing.duckdb` | Integrated query database. |
 | `metadata/raw_file_manifest.csv` | Raw URL/API endpoint, retrieval, filename, byte size, checksum, source vintage, and source-specific request metadata. |
-| `metadata/data_catalog.csv` | Configured source inventory and discovery results. |
+| `metadata/source_discovery.csv` | Endpoint discovery status. |
+| `metadata/data_catalog.csv` / `.xlsx` | Generated implemented/unavailable source catalog. |
+| `metadata/data_gap_analysis.csv` / `.xlsx` | Requested-variable implementation audit. |
 | `metadata/data_dictionary.csv` | Variable definitions and methods. |
 | `metadata/transformation_log.csv` | Executed transformations and output paths. |
 | `metadata/pipeline_run_log.csv` | Stage requests, filters, status, and errors. |
 | `output/coverage/` | Source, time, ZIP, BPS archive, and Redfin ZIP coverage reports. |
-| `output/qa/` | QA summary and bounded failure samples. |
-| `output/exports/` | Modeling-friendly county and ZIP CSVs. |
+| `output/qa/` | QA summary, bounded failure samples, and raw-repository completeness. |
+| `output/exports/` | Modeling-friendly monthly, quarterly, and annual CSVs. |
 
 The operational `source_vintage` is the UTC retrieval date. Provider observation dates and period boundaries remain separate. Raw payloads are never overwritten. Clean and analytical tables use the latest selected local vintage, while raw manifests retain earlier acquisitions.
 
@@ -223,6 +316,8 @@ The operational `source_vintage` is the UTC retrieval date. Provider observation
 - `metadata.source_registry`
 - `metadata.variable_dictionary`
 - `metadata.geography`
+- `metadata.data_catalog`
+- `metadata.data_gap_analysis`
 
 ### `raw`
 
@@ -239,9 +334,17 @@ This table stores provenance rows, not copies of provider payloads.
 - `clean.redfin_county_monthly`
 - `clean.redfin_zip_monthly`
 - `clean.bls_laus_la_county`
+- `clean.bls_ces_la_metro`
+- `clean.bls_cpi_la_metro`
 - `clean.freddie_mac_pmms`
 - `clean.census_bps_county`
 - `clean.census_bps_state`
+- `clean.fhfa_hpi` plus the three source-product clean tables
+- `clean.bea_state_personal_income`
+- `clean.bea_county_personal_income`
+- `clean.census_hvs_rental_vacancy` plus its state/vintage-range source tables
+- `clean.acs_county_annual`
+- `clean.acs_zcta_annual`
 
 The national Redfin ZIP CSV is not loaded into DuckDB. `clean.redfin_zip_monthly` contains only the verified Los Angeles County subset.
 
@@ -250,7 +353,15 @@ The national Redfin ZIP CSV is not loaded into DuckDB. `clean.redfin_zip_monthly
 - `analytics.fact_housing_observation`
 - `analytics.county_monthly_panel`
 - `analytics.zip_monthly_panel`
+- `analytics.metro_monthly_controls`
 - `analytics.state_quarterly_panel`
+- `analytics.metro_quarterly_panel`
+- `analytics.county_annual_structural`
+- `analytics.zcta_annual_structural`
+- `analytics.homeowner_market_view`
+- `analytics.renter_market_view`
+- `analytics.overall_market_view`
+- `analytics.macro_controls_monthly_view`
 
 The fact observation contract retains observation/source dates, geography IDs, state/county FIPS, variable ID, value, reported value where available, units, provider, native/final frequency, source vintage, retrieval timestamp, source filename, transformation ID, adjustment/imputation/interpolation flags, and quality flags.
 
@@ -258,10 +369,20 @@ The fact observation contract retains observation/source dates, geography IDs, s
 
 `analytics.zip_monthly_panel` keeps the Zillow ZIP-month spine, seasonally adjusted `zori`, ZHVI, Redfin rolling-three-month Key Metrics, provider and calculated YoY fields, methodology fields, and availability flags. Redfin is left-joined and cannot remove Zillow ZIP-months.
 
+Quarterly and annual observations are never inserted into the county monthly panel. `analytics.metro_monthly_controls` holds CES and CPI with explicit source geographies. State and metro quarterly panels hold FHFA, BEA, and HVS at native frequency. County and ZCTA annual structural panels hold FHFA/BEA/ACS observations and annual affordability/turnover constructions.
+
+The four market-segment views are query-oriented projections of the canonical tables:
+
+- `homeowner_market_view`: values, sales, listings, supply, mortgage rates/payments, and one-unit permits.
+- `renter_market_view`: ZORI, rent growth, price/payment-to-rent, and multifamily permits. It deliberately has no rental-inventory column.
+- `overall_market_view`: valuation, sales/inventory, tightness, market time, price drops, and selected supply/affordability fields.
+- `macro_controls_monthly_view`: explicitly labeled LA County LAUS, LA metro CES, LA-area CPI, and U.S. mortgage-rate controls.
+
 ### `quality`
 
 - `quality.qa_summary`
 - `quality.qa_failures`
+- `quality.raw_repository_completeness`
 
 Structural error checks stop validation. Warning checks preserve plausible source gaps, revisions, and economic outliers for review.
 
@@ -271,7 +392,9 @@ Structural error checks stop validation. Warning checks preserve plausible sourc
 - Source dates and source period boundaries are preserved.
 - California FIPS is `"06"` and Los Angeles County FIPS is `"06037"`.
 - Provider ZIPs use `geo_id="ZIP_#####"` and `postal_zip="#####"`.
-- ZIPs are not silently treated as ZCTAs.
+- ACS ZCTAs use `geo_id="ZCTA_#####"` and a separate `zcta="#####"` field. ZCTA codes selected for the local panel are not claimed to be equivalent to provider postal ZIP geographies.
+- The CES/HVS metro uses `METRO_31080`; the FHFA metropolitan division uses `METRODIV_31084`. Metro data are never labeled county data.
+- Quarterly dates are quarter ends. Annual dates are survey/calendar year ends.
 - Missing values remain null.
 - The pipeline does not interpolate housing or labor data.
 - ZIP values are not filled from county values.
@@ -287,9 +410,12 @@ County features include:
 - one- and twelve-month fractional growth for ZHVI, SA ZORI, and active inventory;
 - price-to-rent: `ZHVI / (12 * ZORI)`;
 - inventory-to-sales;
+- sales-to-inventory, explicitly distinct from housing-stock turnover;
 - principal-and-interest mortgage payments for configured 10% and 20% down-payment scenarios;
 - mortgage-payment-to-rent ratios; and
 - a market-tightness index based on available oriented z-score components.
+
+Annual structural features include ACS median-home-value-to-income, annualized median-gross-rent-to-income, and calendar-year homes sold divided by ACS total housing units. These remain annual. FHFA-versus-Zillow growth comparisons preserve their different methods and geographies rather than treating the indexes as interchangeable.
 
 Mortgage estimates use the national Freddie Mac monthly-average 30-year rate and Redfin county median sale price. They exclude property tax, insurance, HOA dues, maintenance, and mortgage insurance.
 
@@ -303,12 +429,13 @@ Run validation:
 python run_pipeline.py --stage validate
 ```
 
-QA covers duplicate keys, missing identifiers, geography formats, prohibited negative levels, BPS fixed-width FIPS, BLS/fact frequency gaps, ZORI product identity, clean-to-panel equality, Redfin ZIP rolling-window semantics and county eligibility, provider/calculated YoY differences, stale endpoints, economic movement warnings, county/ZIP plausibility, and Freddie Mac monthly aggregation.
+QA covers fact/dictionary mappings, duplicate fact and panel keys, fixed-width FIPS/ZIP/ZCTA identifiers, metro-versus-county labels, native annual/quarterly frequency preservation, prohibited negative levels, BPS fixed-width FIPS, BLS/fact frequency gaps, ZORI product identity, clean-to-panel equality, Redfin ZIP rolling-window semantics and county eligibility, raw-repository completeness, catalog structure, provider/calculated YoY differences, stale endpoints, economic movement warnings, county/ZIP plausibility, and Freddie Mac monthly aggregation.
 
 Core reports:
 
 - `output/qa/qa_summary.csv`
 - `output/qa/qa_failures.csv`
+- `output/qa/raw_repository_completeness.csv`
 - `output/coverage/source_coverage.csv`
 - `output/coverage/time_coverage.csv`
 - `output/coverage/zip_coverage.csv`
@@ -400,7 +527,12 @@ ORDER BY postal_zip;
 - Redfin ZIP observations are overlapping three-month windows. They must not be summed across adjacent period ends or interpreted as single-month flows.
 - Redfin's provider `MEDIAN DAYS ON MARKET YOY (%)` values can differ materially from percentage changes calculated from level values; both are retained and compared.
 - The geography table records provider postal ZIP assignments but does not invent Census ZCTA equivalence or fractional county allocation.
-- The California quarterly panel is intentionally empty pending implementation of official Phase 2 sources.
+- No verified official public Los Angeles rental-listing inventory series is implemented. ZORI is not used as a substitute.
+- ACS structural coverage currently uses the official 2024 five-year release (pooled 2020-2024). Earlier table-based/sequence-based formats are not silently mixed.
+- HVS estimates have substantial sampling uncertainty. Published margins of error are separate variables, and MSA labels/definitions can change across vintages.
+- FHFA products have different methods and frequencies: state and metropolitan-division purchase-only indexes are quarterly, while county all-transactions HPI is developmental and annual.
+- The CPI S49A history is the currently published Los Angeles-Long Beach-Anaheim series. The discontinued A421 geography is documented but not spliced in as if it were identical.
+- BEA current-dollar income is not a real-income series. State quarterly estimates and county annual estimates remain separate.
 - Row-level revision reports across archived provider vintages are not yet generated.
 
 ## Adding or changing a source

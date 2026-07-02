@@ -164,7 +164,11 @@ def build_database(
         "analytics.fact_housing_observation": "fact_housing_observation.parquet",
         "analytics.county_monthly_panel": "county_monthly_panel.parquet",
         "analytics.zip_monthly_panel": "zip_monthly_panel.parquet",
+        "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
         "analytics.state_quarterly_panel": "state_quarterly_panel.parquet",
+        "analytics.metro_quarterly_panel": "metro_quarterly_panel.parquet",
+        "analytics.county_annual_structural": "county_annual_structural.parquet",
+        "analytics.zcta_annual_structural": "zcta_annual_structural.parquet",
     }
     final_dir = config.root / "data" / "final"
     for table, filename in parquet_tables.items():
@@ -185,6 +189,44 @@ def build_database(
             f"CREATE OR REPLACE TABLE clean.{name} AS "
             f"SELECT * FROM read_parquet('{clean_path}')"
         )
+    union_tables = {
+        "clean.fhfa_hpi": [
+            "clean.fhfa_hpi_state_purchase_only",
+            "clean.fhfa_hpi_metro_purchase_only",
+            "clean.fhfa_hpi_county_annual",
+        ],
+        "clean.census_hvs_rental_vacancy": [
+            "clean.census_hvs_state_rental_vacancy",
+            "clean.census_hvs_metro_rental_vacancy_2005_2014",
+            "clean.census_hvs_metro_rental_vacancy_2015_2025",
+            "clean.census_hvs_metro_rental_vacancy_2026",
+        ],
+        "clean.acs_county_annual": [
+            f"clean.{path.stem}"
+            for path in sorted(
+                (config.root / "data" / "clean").glob(
+                    "acs_county_annual_*.parquet"
+                )
+            )
+        ],
+        "clean.acs_zcta_annual": [
+            f"clean.{path.stem}"
+            for path in sorted(
+                (config.root / "data" / "clean").glob(
+                    "acs_zcta_annual_*.parquet"
+                )
+            )
+        ],
+    }
+    for destination, source_tables in union_tables.items():
+        if not source_tables:
+            continue
+        union_sql = " UNION ALL BY NAME ".join(
+            f"SELECT * FROM {table}" for table in source_tables
+        )
+        connection.execute(
+            f"CREATE OR REPLACE TABLE {destination} AS {union_sql}"
+        )
     connection.execute(
         "CREATE OR REPLACE TABLE raw.file_manifest AS "
         "SELECT * FROM metadata.source_registry WHERE source_filename IS NOT NULL"
@@ -192,6 +234,86 @@ def build_database(
     connection.execute(
         "CREATE OR REPLACE TABLE quality.qa_summary "
         "(check_id VARCHAR, severity VARCHAR, status VARCHAR, failure_count BIGINT, detail VARCHAR)"
+    )
+    connection.execute(
+        """
+        CREATE OR REPLACE VIEW analytics.homeowner_market_view AS
+        SELECT
+            date,
+            county_fips,
+            zhvi,
+            zhvi_growth_mom,
+            zhvi_growth_yoy,
+            median_sale_price,
+            active_inventory,
+            months_of_supply,
+            new_listings,
+            homes_sold,
+            pending_sales,
+            days_on_market,
+            price_drop_share,
+            sale_to_list_ratio,
+            mortgage_rate_30y_monthly_average AS us_mortgage_rate_30y_monthly_average,
+            permits_1_unit,
+            mortgage_payment_10pct_down,
+            mortgage_payment_20pct_down
+        FROM analytics.county_monthly_panel
+        """
+    )
+    connection.execute(
+        """
+        CREATE OR REPLACE VIEW analytics.renter_market_view AS
+        SELECT
+            date,
+            county_fips,
+            zori,
+            zori_growth_mom,
+            zori_growth_yoy,
+            price_to_rent_ratio,
+            mortgage_payment_to_rent_10pct_down,
+            mortgage_payment_to_rent_20pct_down,
+            permits_2_to_4_units,
+            permits_5_plus_units
+        FROM analytics.county_monthly_panel
+        """
+    )
+    connection.execute(
+        """
+        CREATE OR REPLACE VIEW analytics.overall_market_view AS
+        SELECT
+            date,
+            county_fips,
+            price_to_rent_ratio,
+            inventory_to_sales_ratio,
+            sales_to_inventory_ratio,
+            market_tightness_index,
+            market_tightness_components,
+            days_on_market,
+            price_drop_share,
+            months_of_supply,
+            permits_total,
+            mortgage_payment_to_rent_10pct_down,
+            mortgage_payment_to_rent_20pct_down
+        FROM analytics.county_monthly_panel
+        """
+    )
+    connection.execute(
+        """
+        CREATE OR REPLACE VIEW analytics.macro_controls_monthly_view AS
+        SELECT
+            c.date,
+            c.unemployment_rate AS la_county_unemployment_rate_nsa,
+            c.employment AS la_county_laus_employment_nsa,
+            c.unemployment AS la_county_unemployment_nsa,
+            c.labor_force AS la_county_labor_force_nsa,
+            m.ces_total_nonfarm_employment_sa AS la_metro_total_nonfarm_employment_sa,
+            m.ces_total_nonfarm_employment_growth_yoy AS la_metro_payroll_employment_growth_yoy,
+            m.cpi_u_all_items_la_nsa AS la_area_cpi_u_all_items_nsa,
+            m.cpi_inflation_yoy AS la_area_cpi_inflation_yoy,
+            c.mortgage_rate_30y_monthly_average AS us_mortgage_rate_30y_monthly_average
+        FROM analytics.county_monthly_panel c
+        LEFT JOIN analytics.metro_monthly_controls m USING (date)
+        """
     )
     counts = {
         table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]

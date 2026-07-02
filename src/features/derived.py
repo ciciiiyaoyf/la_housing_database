@@ -94,6 +94,10 @@ def add_panel_features(
         result["inventory_to_sales_ratio"] = inventory_to_sales_ratio(
             result["active_inventory"], result["homes_sold"]
         )
+        result["sales_to_inventory_ratio"] = (
+            result["homes_sold"]
+            / result["active_inventory"].replace(0, np.nan)
+        )
     if {
         "median_sale_price",
         "mortgage_rate_30y_monthly_average",

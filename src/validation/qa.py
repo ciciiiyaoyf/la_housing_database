@@ -58,6 +58,12 @@ def _coverage_reports(
         if str(item).startswith("COUNTY_")
         else "state"
         if str(item).startswith("STATE_")
+        else "zcta"
+        if str(item).startswith("ZCTA_")
+        else "metropolitan_division"
+        if str(item).startswith("METRODIV_")
+        else "metro"
+        if str(item).startswith("METRO_")
         else "national"
     )
     source_coverage = (
@@ -129,6 +135,11 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
     fact = pd.read_parquet(final / "fact_housing_observation.parquet")
     county = pd.read_parquet(final / "county_monthly_panel.parquet")
     zip_panel = pd.read_parquet(final / "zip_monthly_panel.parquet")
+    metro_monthly = pd.read_parquet(final / "metro_monthly_controls.parquet")
+    state_quarterly = pd.read_parquet(final / "state_quarterly_panel.parquet")
+    metro_quarterly = pd.read_parquet(final / "metro_quarterly_panel.parquet")
+    county_annual = pd.read_parquet(final / "county_annual_structural.parquet")
+    zcta_annual = pd.read_parquet(final / "zcta_annual_structural.parquet")
     fact["observation_date"] = pd.to_datetime(fact["observation_date"])
     county["date"] = pd.to_datetime(county["date"])
     if not zip_panel.empty:
@@ -145,6 +156,28 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
     primary_key = ["observation_date", "geo_id", "variable_id", "source_vintage"]
     duplicate_fact = fact.loc[fact.duplicated(primary_key, keep=False), primary_key]
     check("duplicate_fact_primary_key", "error", duplicate_fact, "Fact PK must be unique.")
+    observation_key = ["observation_date", "geo_id", "variable_id"]
+    duplicate_observation = fact.loc[
+        fact.duplicated(observation_key, keep=False), observation_key
+    ]
+    check(
+        "duplicate_fact_observation_key",
+        "error",
+        duplicate_observation,
+        "Selected fact data must have one geography-date-variable observation.",
+    )
+    dictionary_ids = {
+        item["variable_id"] for item in config.variables
+    }
+    unmapped_variables = fact.loc[
+        ~fact["variable_id"].isin(dictionary_ids), ["variable_id"]
+    ].drop_duplicates()
+    check(
+        "fact_variable_dictionary_mapping",
+        "error",
+        unmapped_variables,
+        "Every fact variable must map to the variable dictionary.",
+    )
     active_zori = fact.loc[
         fact["variable_id"].astype(str).str.startswith("zori")
     ]
@@ -190,7 +223,10 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
     missing_key = fact.loc[fact[primary_key[:3]].isna().any(axis=1), primary_key]
     check("missing_fact_key", "error", missing_key, "Dates and geography/variable IDs are required.")
     invalid_geo = fact.loc[
-        ~fact["geo_id"].astype(str).str.match(r"^(US|STATE_\d{2}|COUNTY_\d{5}|ZIP_\d{5})$"),
+        ~fact["geo_id"].astype(str).str.match(
+            r"^(US|STATE_\d{2}|COUNTY_\d{5}|ZIP_\d{5}|"
+            r"ZCTA_\d{5}|METRO_\d{5}|METRODIV_\d{5})$"
+        ),
         primary_key,
     ]
     check("geography_format", "error", invalid_geo, "FIPS and ZIP IDs must retain fixed widths.")
@@ -240,6 +276,160 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
         else pd.DataFrame(),
         "ZIP panel must contain one row per postal ZIP-month.",
     )
+    panel_key_checks = [
+        (
+            "duplicate_metro_month",
+            metro_monthly,
+            ["date"],
+        ),
+        (
+            "duplicate_state_quarter",
+            state_quarterly,
+            ["quarter_end", "state_fips"],
+        ),
+        (
+            "duplicate_metro_quarter",
+            metro_quarterly,
+            ["quarter_end"],
+        ),
+        (
+            "duplicate_county_year",
+            county_annual,
+            ["year_end", "county_fips"],
+        ),
+        (
+            "duplicate_zcta_year",
+            zcta_annual,
+            ["year_end", "zcta"],
+        ),
+    ]
+    for check_id, panel, key in panel_key_checks:
+        check(
+            check_id,
+            "error",
+            panel.loc[panel.duplicated(key, keep=False), key],
+            f"Panel key must be unique: {key}.",
+        )
+    invalid_zcta = zcta_annual.loc[
+        ~zcta_annual["zcta"].astype(str).str.fullmatch(r"\d{5}")
+    ]
+    check(
+        "zcta_identifier_format",
+        "error",
+        invalid_zcta,
+        "Census ZCTA identifiers must remain five-character strings.",
+    )
+    metro_variables = fact["variable_id"].str.startswith(
+        ("ces_", "cpi_", "hvs_rental_vacancy_rate_la_", "fhfa_hpi_la_metropolitan_")
+    )
+    mislabeled_metro = fact.loc[
+        metro_variables
+        & ~fact["geo_id"].str.startswith(("METRO_", "METRODIV_"))
+    ]
+    check(
+        "metro_geography_not_county",
+        "error",
+        mislabeled_metro,
+        "Metro and metropolitan-division variables cannot be labeled as county.",
+    )
+    annual_ids = {
+        item["variable_id"]
+        for item in config.variables
+        if item.get("final_frequency") == "annual"
+    }
+    annual_expanded = fact.loc[
+        fact["variable_id"].isin(annual_ids)
+        & ~fact["final_frequency"].eq("annual")
+    ]
+    check(
+        "annual_not_expanded_to_monthly",
+        "error",
+        annual_expanded,
+        "Annual variables must remain annual.",
+    )
+    quarterly_ids = {
+        item["variable_id"]
+        for item in config.variables
+        if item.get("final_frequency") == "quarterly"
+    }
+    quarterly_expanded = fact.loc[
+        fact["variable_id"].isin(quarterly_ids)
+        & ~fact["final_frequency"].eq("quarterly")
+    ]
+    check(
+        "quarterly_not_expanded_to_monthly",
+        "error",
+        quarterly_expanded,
+        "Quarterly variables must remain quarterly.",
+    )
+    rental_inventory_mislabel = fact.loc[
+        fact["variable_id"].str.contains("rental_inventory", na=False)
+        | (
+            fact["variable_id"].eq("zori_smoothed_sa")
+            & fact["unit"].str.contains("inventory", case=False, na=False)
+        )
+    ]
+    check(
+        "zori_not_rental_inventory",
+        "error",
+        rental_inventory_mislabel,
+        "ZORI must never be labeled as rental inventory.",
+    )
+    catalog_path = config.root / "metadata" / "data_catalog.csv"
+    if catalog_path.exists():
+        catalog = pd.read_csv(catalog_path, dtype=str)
+        expected_first = [
+            "Source",
+            "Frequency",
+            "Geography",
+            "Key variables",
+        ]
+        invalid_catalog_columns = (
+            pd.DataFrame()
+            if catalog.columns[:4].tolist() == expected_first
+            else pd.DataFrame(
+                [{"actual": "|".join(catalog.columns[:4])}]
+            )
+        )
+        check(
+            "catalog_first_four_columns",
+            "error",
+            invalid_catalog_columns,
+            "Catalog first four columns must match the assignment contract.",
+        )
+        missing_catalog_sources = pd.DataFrame(
+            {
+                "source_id": sorted(
+                    {
+                        source.source_id
+                        for source in config.sources
+                        if source.enabled
+                    }
+                    - set(catalog["source_id"])
+                )
+            }
+        )
+        check(
+            "active_source_catalog_mapping",
+            "error",
+            missing_catalog_sources,
+            "Every active configured source must have a catalog row.",
+        )
+    raw_completeness_path = (
+        config.root / "output" / "qa" / "raw_repository_completeness.csv"
+    )
+    if raw_completeness_path.exists():
+        raw_completeness = pd.read_csv(
+            raw_completeness_path, dtype=str
+        )
+        check(
+            "raw_repository_completeness",
+            "error",
+            raw_completeness.loc[
+                ~raw_completeness["completeness_status"].eq("PASS")
+            ],
+            "Every active implemented source must pass raw completeness.",
+        )
     redfin_zip_path = (
         config.root
         / "data"

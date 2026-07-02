@@ -63,16 +63,20 @@ def test_database_contains_only_active_sa_zori_contract():
         }.isdisjoint(source_ids)
 
         dictionary_variables = {
-            row[0]
+            row[0]: row[1]
             for row in connection.execute(
                 """
-                SELECT variable_id
+                SELECT variable_id, is_observed
                 FROM metadata.variable_dictionary
                 WHERE variable_id LIKE 'zori%'
                 """
             ).fetchall()
         }
-        assert dictionary_variables == {"zori_smoothed_sa"}
+        assert dictionary_variables == {
+            "zori_smoothed_sa": True,
+            "zori_growth_mom": False,
+            "zori_growth_yoy": False,
+        }
 
 
 def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():

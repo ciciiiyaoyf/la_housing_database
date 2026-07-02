@@ -1,4 +1,4 @@
-"""Verify configured source endpoints and publish the data catalog."""
+"""Verify configured source endpoints and publish a discovery report."""
 
 from __future__ import annotations
 
@@ -29,7 +29,12 @@ def discover_sources(
                     source.download_url,
                     timeout=timeout,
                     allow_redirects=True,
-                    headers={"User-Agent": "UCLA housing research data pipeline/0.1"},
+                    headers={
+                        "User-Agent": (
+                            "UCLA housing research data pipeline "
+                            "yifan@g.ucla.edu"
+                        )
+                    },
                 )
                 status = (
                     "verified"
@@ -69,5 +74,7 @@ def discover_sources(
             }
         )
     frame = pd.DataFrame(records)
-    frame.to_csv(config.root / "metadata" / "data_catalog.csv", index=False)
+    frame.to_csv(
+        config.root / "metadata" / "source_discovery.csv", index=False
+    )
     return frame

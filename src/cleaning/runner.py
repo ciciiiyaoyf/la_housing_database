@@ -9,6 +9,13 @@ import pandas as pd
 from src.cleaning.bls import clean_bls
 from src.cleaning.census_bps import clean_bps_archive
 from src.cleaning.freddie import clean_freddie
+from src.cleaning.official import (
+    clean_acs_table,
+    clean_bea,
+    clean_bls_added,
+    clean_fhfa,
+    clean_hvs,
+)
 from src.cleaning.redfin import clean_redfin
 from src.cleaning.redfin_zip import clean_redfin_zip_key_metrics
 from src.cleaning.zillow import clean_zillow
@@ -98,8 +105,50 @@ def clean_sources(
                     )
                 elif source.source_id == "bls_laus_la_county":
                     frame = clean_bls(path, record, output_path)
+                elif source.source_id in {
+                    "bls_ces_la_metro",
+                    "bls_cpi_la_metro",
+                }:
+                    frame = clean_bls_added(
+                        path, record, source.source_id, output_path
+                    )
                 elif source.source_id == "freddie_mac_pmms":
                     frame = clean_freddie(path, record, output_path)
+                elif source.source_id.startswith("fhfa_hpi_"):
+                    frame = clean_fhfa(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id.startswith("bea_"):
+                    frame = clean_bea(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id.startswith("census_hvs_"):
+                    frame = clean_hvs(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id.startswith("census_acs_5year_"):
+                    table_id = source.source_id.rsplit("_", 1)[-1]
+                    county_output = (
+                        config.root
+                        / "data"
+                        / "clean"
+                        / f"acs_county_annual_{table_id}.parquet"
+                    )
+                    zcta_output = (
+                        config.root
+                        / "data"
+                        / "clean"
+                        / f"acs_zcta_annual_{table_id}.parquet"
+                    )
+                    frame = clean_acs_table(
+                        path,
+                        record,
+                        source.source_id,
+                        config.root / "data" / "clean" / "geography.parquet",
+                        county_output,
+                        zcta_output,
+                    )
+                    output_path = county_output
                 else:
                     logger.warning(
                         "No cleaner registered for %s", source.source_id
