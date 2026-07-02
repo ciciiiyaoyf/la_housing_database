@@ -1,0 +1,38 @@
+geographies:
+  - geo_id: US
+    geo_type: country
+    geo_name: United States
+    state_fips: null
+    county_fips: null
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project
+    source_region_id: US
+    valid_from: null
+    valid_to: null
+  - geo_id: STATE_06
+    geo_type: state
+    geo_name: California
+    state_fips: "06"
+    county_fips: null
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project
+    source_region_id: "06"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06037
+    geo_type: county
+    geo_name: Los Angeles County
+    state_fips: "06"
+    county_fips: "06037"
+    cbsa_code: "31080"
+    postal_zip: null
+    zcta: null
+    source: project
+    source_region_id: "06037"
+    valid_from: null
+    valid_to: null
+crosswalk_version: "2026-07-01"

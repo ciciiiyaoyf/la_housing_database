@@ -1,0 +1,154 @@
+verified_at: "2026-07-01"
+sources:
+  - source_id: zillow_county_zhvi
+    provider: Zillow Research
+    dataset_name: County ZHVI, all homes, middle tier, smoothed and seasonally adjusted
+    source_page_url: https://www.zillow.com/research/data/
+    download_url: https://files.zillowstatic.com/research/public_csvs/zhvi/County_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
+    native_frequency: monthly
+    geography_levels: [county]
+    file_format: csv
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Zillow Research data; use with source attribution and review provider terms.
+    revision_notes: Full history may be revised with each monthly release; Zillow notes download paths can change.
+  - source_id: zillow_zip_zhvi
+    provider: Zillow Research
+    dataset_name: ZIP ZHVI, all homes, middle tier, smoothed and seasonally adjusted
+    source_page_url: https://www.zillow.com/research/data/
+    download_url: https://files.zillowstatic.com/research/public_csvs/zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
+    native_frequency: monthly
+    geography_levels: [postal_zip]
+    file_format: csv
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Zillow Research data; provider regions are postal ZIP codes, not Census ZCTAs.
+    revision_notes: Full history may be revised with each monthly release.
+  - source_id: zillow_county_zori_smoothed_sa
+    provider: Zillow Research
+    dataset_name: County ZORI, all homes plus multifamily, smoothed and seasonally adjusted
+    source_page_url: https://www.zillow.com/research/data/
+    download_url: https://files.zillowstatic.com/research/public_csvs/zori/County_zori_uc_sfrcondomfr_sm_sa_month.csv
+    native_frequency: monthly
+    geography_levels: [county]
+    file_format: csv
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Official Zillow Research ZORI smoothed and seasonally adjusted product.
+    revision_notes: Full history may be revised with each monthly release; this is the sole active ZORI product.
+  - source_id: zillow_zip_zori_smoothed_sa
+    provider: Zillow Research
+    dataset_name: ZIP ZORI, all homes plus multifamily, smoothed and seasonally adjusted
+    source_page_url: https://www.zillow.com/research/data/
+    download_url: https://files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_sa_month.csv
+    native_frequency: monthly
+    geography_levels: [postal_zip]
+    file_format: csv
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Official Zillow Research ZORI smoothed and seasonally adjusted product; provider ZIPs are not Census ZCTAs.
+    revision_notes: Full history may be revised with each monthly release; this is the sole active ZORI product.
+  - source_id: redfin_county_monthly
+    provider: Redfin Data Center
+    dataset_name: Housing Market Tracker monthly county data
+    source_page_url: https://www.redfin.com/news/data-center/downloads/
+    download_url: https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/county_market_tracker.tsv000.gz
+    native_frequency: monthly
+    geography_levels: [county]
+    file_format: tsv.gz
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Official Redfin public-data object linked to the Data Center product.
+    revision_notes: Subject to revision. Redfin changed the Data Center pipeline in May 2026; cleaner retains seasonal-adjustment fields.
+  - source_id: redfin_zip_monthly
+    provider: Redfin Data Center
+    dataset_name: Housing Market Tracker ZIP Key Metrics, rolling three months
+    source_page_url: https://www.redfin.com/news/data-center/downloads/
+    download_url: https://www.redfin.com/news/data-center/downloads/
+    native_frequency: rolling_3_months
+    geography_levels: [postal_zip]
+    file_format: csv
+    enabled: true
+    auto_download: false
+    manual_reason: Redfin does not publish a verified stable direct endpoint for the user-selected ZIP Key Metrics CSV. Import the official Data Center download with --local-file.
+    manual_filename: redfin_housing_market_monthly_all_zips_key_metrics_2019_Jan_to_2026_May.csv
+    selected_start_date: "2019-01-01"
+    selected_end_date: "2026-05-31"
+    rolling_window_months: 3
+    expected_columns:
+      - LAST UPDATED
+      - FREQUENCY
+      - PERIOD BEGIN
+      - PERIOD END
+      - REGION ID
+      - REGION TYPE
+      - REGION NAME
+      - METRO
+      - HOMES SOLD
+      - HOMES SOLD YOY (%)
+      - MEDIAN SALE PRICE NSA ($)
+      - MEDIAN SALE PRICE NSA YOY (%)
+      - MEDIAN DAYS ON MARKET (DAYS)
+      - MEDIAN DAYS ON MARKET YOY (%)
+      - NEW LISTINGS
+      - NEW LISTINGS YOY (%)
+      - ACTIVE LISTINGS
+      - ACTIVE LISTINGS YOY (%)
+      - PENDING SALES
+      - PENDING SALES YOY (%)
+    methodology_notes: Key Metrics download dated by PERIOD END; every observation is an overlapping Rolling 3 Months window. Only ZIPs verified to primary county FIPS 06037 are loaded into clean analytics.
+    license_or_use_notes: Official Redfin Data Center manual download; the complete national file remains immutable raw data and provider postal ZIPs are not Census ZCTAs.
+    revision_notes: Historical values can be revised. Provider YoY percentages are retained as percentage points and active listings are not relabeled as inventory.
+  - source_id: bls_laus_la_county
+    provider: U.S. Bureau of Labor Statistics
+    dataset_name: Local Area Unemployment Statistics, Los Angeles County
+    source_page_url: https://www.bls.gov/lau/data-overview.htm
+    download_url: https://api.bls.gov/publicAPI/v2/timeseries/data/
+    native_frequency: monthly
+    geography_levels: [county]
+    file_format: json
+    enabled: true
+    auto_download: true
+    series_ids:
+      - LAUCN060370000000003
+      - LAUCN060370000000004
+      - LAUCN060370000000005
+      - LAUCN060370000000006
+    license_or_use_notes: U.S. government public data; citation requested.
+    revision_notes: County estimates are not seasonally adjusted and are revised; archived API responses preserve retrieval vintages.
+  - source_id: freddie_mac_pmms
+    provider: Freddie Mac
+    dataset_name: Primary Mortgage Market Survey, weekly rates since 1971
+    source_page_url: https://www.freddiemac.com/pmms/pmms_archives
+    download_url: https://www.freddiemac.com/pmms/docs/PMMS_history.csv
+    native_frequency: weekly
+    geography_levels: [national]
+    file_format: csv
+    enabled: true
+    auto_download: true
+    license_or_use_notes: National PMMS rate; use with proper Freddie Mac attribution.
+    revision_notes: Methodology changed over time; see the official consolidated readme and archive.
+  - source_id: census_bps_county
+    provider: U.S. Census Bureau
+    dataset_name: Building Permits Survey county monthly archive
+    source_page_url: https://www.census.gov/construction/bps/index.html
+    download_url: https://www2.census.gov/econ/bps/County/co2605c.txt
+    native_frequency: monthly
+    geography_levels: [county]
+    file_format: txt
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Permits are authorizations for new privately owned residential construction, not starts or completions.
+    revision_notes: Monthly current-period archive files are loaded from January 2000 forward. Reported-unit fields are retained; the January 2022 methodology change is flagged explicitly.
+  - source_id: census_bps_state
+    provider: U.S. Census Bureau
+    dataset_name: Building Permits Survey state monthly archive
+    source_page_url: https://www.census.gov/construction/bps/index.html
+    download_url: https://www2.census.gov/econ/bps/State/st2605c.txt
+    native_frequency: monthly
+    geography_levels: [state]
+    file_format: txt
+    enabled: true
+    auto_download: true
+    license_or_use_notes: Permits are authorizations, not starts or completions.
+    revision_notes: Monthly current-period archive files are loaded from January 2000 forward. Reported-unit fields are retained; the January 2022 methodology change is flagged explicitly.

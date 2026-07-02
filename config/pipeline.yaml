@@ -1,0 +1,23 @@
+project_name: la_housing_database
+database_path: database/housing.duckdb
+request_timeout_seconds: 120
+download_chunk_bytes: 1048576
+default_start_date: "2000-01-01"
+stale_after_days: 120
+extreme_mom_threshold: 0.25
+extreme_yoy_threshold: 0.60
+market_tightness_min_components: 3
+census_bps:
+  archive_start_date: "2000-01-01"
+  methodology_change_date: "2022-01-01"
+  download_workers: 4
+mortgage:
+  annual_rate_scale: 100.0
+  loan_term_years: 30
+  down_payment_scenarios: [0.10, 0.20]
+  excluded_costs:
+    - property tax
+    - homeowners insurance
+    - HOA
+    - maintenance
+    - mortgage insurance
