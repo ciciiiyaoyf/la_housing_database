@@ -12,6 +12,33 @@ import pandas as pd
 from src.common.config import ProjectConfig
 
 
+UNION_CLEAN_TABLES = {
+    "clean.fhfa_hpi",
+    "clean.census_hvs_rental_vacancy",
+}
+
+
+def _clean_table_name(source_id: str, configured: str) -> str:
+    if configured and configured not in UNION_CLEAN_TABLES:
+        return configured
+    return f"clean.{re.sub(r'[^a-z0-9_]', '_', source_id.lower())}"
+
+
+def _clean_parquet_sources(config: ProjectConfig) -> dict[str, Path]:
+    clean_dir = config.root / "data" / "clean"
+    tables: dict[str, Path] = {}
+    for source in config.selected_sources():
+        if source.source_id == "redfin_zip_monthly":
+            path = clean_dir / "redfin_zip_monthly_la_county.parquet"
+        elif source.source_id.startswith("census_acs_5year_"):
+            continue
+        else:
+            path = clean_dir / f"{source.source_id}.parquet"
+        if path.exists():
+            tables[_clean_table_name(source.source_id, source.destination_clean_table)] = path
+    return tables
+
+
 def _source_registry(config: ProjectConfig) -> pd.DataFrame:
     manifest_path = config.root / "metadata" / "raw_file_manifest.csv"
     if manifest_path.exists():
@@ -139,6 +166,8 @@ def build_database(
         database_path = config.root / database_path
     database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = duckdb.connect(str(database_path))
+    for schema in ("metadata", "raw", "clean", "analytics", "quality"):
+        connection.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
     connection.execute((config.root / "sql" / "create_schema.sql").read_text())
     frames = {
         "source_registry_frame": _source_registry(config),
@@ -167,8 +196,7 @@ def build_database(
         "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
         "analytics.state_quarterly_panel": "state_quarterly_panel.parquet",
         "analytics.metro_quarterly_panel": "metro_quarterly_panel.parquet",
-        "analytics.county_annual_structural": "county_annual_structural.parquet",
-        "analytics.zcta_annual_structural": "zcta_annual_structural.parquet",
+        "analytics.county_annual_controls": "county_annual_controls.parquet",
     }
     final_dir = config.root / "data" / "final"
     for table, filename in parquet_tables.items():
@@ -176,17 +204,10 @@ def build_database(
         connection.execute(
             f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM read_parquet('{path}')"
         )
-    for path in (config.root / "data" / "clean").glob("*.parquet"):
-        if path.name in {"geography.parquet", "geography_crosswalk.parquet"}:
-            continue
-        name = (
-            "redfin_zip_monthly"
-            if path.name == "redfin_zip_monthly_la_county.parquet"
-            else re.sub(r"[^a-z0-9_]", "_", path.stem.lower())
-        )
+    for table, path in _clean_parquet_sources(config).items():
         clean_path = path.as_posix().replace("'", "''")
         connection.execute(
-            f"CREATE OR REPLACE TABLE clean.{name} AS "
+            f"CREATE OR REPLACE TABLE {table} AS "
             f"SELECT * FROM read_parquet('{clean_path}')"
         )
     union_tables = {
@@ -201,24 +222,19 @@ def build_database(
             "clean.census_hvs_metro_rental_vacancy_2015_2025",
             "clean.census_hvs_metro_rental_vacancy_2026",
         ],
-        "clean.acs_county_annual": [
-            f"clean.{path.stem}"
-            for path in sorted(
-                (config.root / "data" / "clean").glob(
-                    "acs_county_annual_*.parquet"
-                )
-            )
-        ],
-        "clean.acs_zcta_annual": [
-            f"clean.{path.stem}"
-            for path in sorted(
-                (config.root / "data" / "clean").glob(
-                    "acs_zcta_annual_*.parquet"
-                )
-            )
-        ],
     }
     for destination, source_tables in union_tables.items():
+        existing_tables = {
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT table_schema || '.' || table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'clean'
+                """
+            ).fetchall()
+        }
+        source_tables = [table for table in source_tables if table in existing_tables]
         if not source_tables:
             continue
         union_sql = " UNION ALL BY NAME ".join(
@@ -237,7 +253,7 @@ def build_database(
     )
     connection.execute(
         """
-        CREATE OR REPLACE VIEW analytics.homeowner_market_view AS
+        CREATE OR REPLACE VIEW analytics.homeowner_market_monthly AS
         SELECT
             date,
             county_fips,
@@ -249,10 +265,8 @@ def build_database(
             months_of_supply,
             new_listings,
             homes_sold,
-            pending_sales,
             days_on_market,
             price_drop_share,
-            sale_to_list_ratio,
             mortgage_rate_30y_monthly_average AS us_mortgage_rate_30y_monthly_average,
             permits_1_unit,
             mortgage_payment_10pct_down,
@@ -262,7 +276,7 @@ def build_database(
     )
     connection.execute(
         """
-        CREATE OR REPLACE VIEW analytics.renter_market_view AS
+        CREATE OR REPLACE VIEW analytics.renter_market_monthly AS
         SELECT
             date,
             county_fips,
@@ -272,14 +286,13 @@ def build_database(
             price_to_rent_ratio,
             mortgage_payment_to_rent_10pct_down,
             mortgage_payment_to_rent_20pct_down,
-            permits_2_to_4_units,
             permits_5_plus_units
         FROM analytics.county_monthly_panel
         """
     )
     connection.execute(
         """
-        CREATE OR REPLACE VIEW analytics.overall_market_view AS
+        CREATE OR REPLACE VIEW analytics.overall_market_monthly AS
         SELECT
             date,
             county_fips,
@@ -291,7 +304,6 @@ def build_database(
             days_on_market,
             price_drop_share,
             months_of_supply,
-            permits_total,
             mortgage_payment_to_rent_10pct_down,
             mortgage_payment_to_rent_20pct_down
         FROM analytics.county_monthly_panel
@@ -299,7 +311,7 @@ def build_database(
     )
     connection.execute(
         """
-        CREATE OR REPLACE VIEW analytics.macro_controls_monthly_view AS
+        CREATE OR REPLACE VIEW analytics.macro_controls_monthly AS
         SELECT
             c.date,
             c.unemployment_rate AS la_county_unemployment_rate_nsa,

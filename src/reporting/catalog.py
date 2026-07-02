@@ -1,4 +1,4 @@
-"""Generate the data catalog and raw-repository completeness deliverables."""
+﻿"""Generate the data catalog and raw-repository completeness deliverables."""
 
 from __future__ import annotations
 
@@ -71,17 +71,18 @@ UNAVAILABLE_ROWS = [
         ),
     },
     {
-        "Source": "Occupied-apartment growth",
-        "Frequency": "Annual at best",
-        "Geography": "Los Angeles County or metro",
-        "Key variables": "occupied_apartment_growth",
-        "source_id": "proxy_occupied_apartment_growth",
-        "provider": "No verified exact public series",
-        "product": "Occupied-apartment growth",
-        "active_status": "Proxy only",
+        "Source": "Income-based affordability ratios",
+        "Frequency": "Annual or mixed",
+        "Geography": "Los Angeles County or ZIP",
+        "Key variables": "price_to_income|rent_to_income",
+        "source_id": "deferred_income_affordability_ratios",
+        "provider": "Requires explicit income denominator decision",
+        "product": "Price-to-income and rent-to-income ratios",
+        "active_status": "Deferred",
         "known_limitations": (
-            "ACS renter-occupied units include non-apartment rentals and cannot "
-            "be relabeled as occupied-apartment growth."
+            "The current active stage uses rent/payment affordability metrics. "
+            "Income-denominator ratios are later-stage work and are not exposed "
+            "as active variables."
         ),
     },
     {
@@ -101,6 +102,9 @@ UNAVAILABLE_ROWS = [
 def _manifest(config: ProjectConfig) -> pd.DataFrame:
     path = config.root / "metadata" / "raw_file_manifest.csv"
     frame = pd.read_csv(path, dtype=str) if path.exists() else pd.DataFrame()
+    if not frame.empty:
+        active_ids = {source.source_id for source in config.sources}
+        frame = frame.loc[frame["source_id"].isin(active_ids)].copy()
     if not frame.empty:
         frame["_retrieved"] = pd.to_datetime(
             frame["retrieved_at"], utc=True, errors="coerce", format="mixed"
@@ -279,8 +283,6 @@ def _variable_text(config: ProjectConfig, variable_ids: tuple[str, ...]) -> dict
 def _geography_description(source_id: str, levels: tuple[str, ...]) -> tuple[str, str]:
     if "zillow_zip" in source_id or source_id == "redfin_zip_monthly":
         return "Los Angeles County postal ZIPs", "POSTAL_ZIP"
-    if source_id.startswith("census_acs_"):
-        return "Los Angeles County and selected ZCTAs", "06037|ZCTA"
     if "county" in levels:
         return "Los Angeles County", "06037"
     if "state" in levels:
@@ -360,9 +362,7 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
             else "python run_pipeline.py --stage download --source "
             f"{source.source_id} --local-file PATH_TO_OFFICIAL_FILE"
         )
-        if source.source_id.startswith("census_acs_5year_"):
-            provider_vintage = "2024 ACS 5-Year (2020-2024)"
-        elif end_date:
+        if end_date:
             provider_vintage = f"data through {str(end_date)[:10]}"
         else:
             provider_vintage = raw.get("data_vintage", "")
@@ -429,108 +429,73 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
     return pd.DataFrame(rows).reindex(columns=CATALOG_COLUMNS)
 
 
-def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
-    path = config.root / "metadata" / "data_gap_analysis.csv"
-    gap = pd.read_csv(path, dtype=str).fillna("")
-    updates = {
-        "FHFA HPI": (
-            "Implemented",
-            "analytics.state_quarterly_panel|analytics.metro_quarterly_panel|analytics.county_annual_structural",
-            "FHFA HPI columns",
-            "1975-12-31",
-            "2026-03-31",
-        ),
-        "price-to-income": (
-            "Constructed variable",
-            "analytics.county_annual_structural|analytics.zcta_annual_structural",
-            "annual_price_to_income_ratio",
-            "2024-12-31",
-            "2024-12-31",
-        ),
-        "housing turnover": (
-            "Constructed variable",
-            "analytics.county_annual_structural",
-            "sales_to_housing_stock_turnover",
-            "2024-12-31",
-            "2024-12-31",
-        ),
-        "rental vacancy": (
-            "Implemented",
-            "analytics.state_quarterly_panel|analytics.metro_quarterly_panel",
-            "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro",
-            "2005-03-31",
-            "2026-03-31",
-        ),
-        "renter household counts": (
-            "Implemented",
-            "analytics.county_annual_structural|analytics.zcta_annual_structural",
-            "acs_households",
-            "2024-12-31",
-            "2024-12-31",
-        ),
-        "renter-occupied units": (
-            "Implemented",
-            "analytics.county_annual_structural|analytics.zcta_annual_structural",
-            "acs_renter_occupied_units",
-            "2024-12-31",
-            "2024-12-31",
-        ),
-        "rent-to-income": (
-            "Constructed variable",
-            "analytics.county_annual_structural|analytics.zcta_annual_structural",
-            "annual_rent_to_income_ratio",
-            "2024-12-31",
-            "2024-12-31",
-        ),
-        "CES payroll employment": (
-            "Implemented",
-            "analytics.metro_monthly_controls",
-            "ces_total_nonfarm_employment_sa",
-            "2005-01-31",
-            "2026-05-31",
-        ),
-        "personal income": (
-            "Implemented",
-            "analytics.state_quarterly_panel|analytics.county_annual_structural",
-            "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual",
-            "1948-03-31",
-            "2026-03-31",
-        ),
-        "CPI / inflation": (
-            "Implemented",
-            "analytics.metro_monthly_controls",
-            "cpi_u_all_items_la_nsa|cpi_inflation_yoy",
-            "1914-12-31",
-            "2026-05-31",
-        ),
+def _gap_row(
+    variable_name: str,
+    market_segment: str,
+    variable_role: str,
+    requested_source: str,
+    official_source_found: str,
+    implementation_status: str,
+    current_database_table: str,
+    current_database_column: str,
+    native_frequency: str,
+    geography: str,
+    available_start_date: str = "",
+    available_end_date: str = "",
+    limitation: str = "",
+    recommended_action: str = "",
+) -> dict[str, str]:
+    return {
+        "variable_name": variable_name,
+        "market_segment": market_segment,
+        "variable_role": variable_role,
+        "requested_source": requested_source,
+        "official_source_found": official_source_found,
+        "implementation_status": implementation_status,
+        "current_database_table": current_database_table,
+        "current_database_column": current_database_column,
+        "native_frequency": native_frequency,
+        "geography": geography,
+        "available_start_date": available_start_date,
+        "available_end_date": available_end_date,
+        "limitation": limitation,
+        "recommended_action": recommended_action,
     }
-    for variable_name, values in updates.items():
-        matches = gap["variable_name"].eq(variable_name)
-        (
-            status,
-            table,
-            column,
-            start,
-            end,
-        ) = values
-        gap.loc[matches, "implementation_status"] = status
-        gap.loc[matches, "current_database_table"] = table
-        gap.loc[matches, "current_database_column"] = column
-        gap.loc[matches, "available_start_date"] = start
-        gap.loc[matches, "available_end_date"] = end
-        gap.loc[matches, "recommended_action"] = (
-            "Retain at native frequency and rebuild through the pipeline."
-        )
-    affordability = gap["variable_name"].eq("affordability metrics")
-    gap.loc[affordability, "implementation_status"] = "Implemented"
-    gap.loc[affordability, "current_database_table"] = (
-        "analytics.county_monthly_panel|analytics.county_annual_structural"
-    )
-    gap.loc[affordability, "current_database_column"] = (
-        "price_to_rent_ratio|mortgage_payment_to_rent_10pct_down|"
-        "mortgage_payment_to_rent_20pct_down|annual_price_to_income_ratio|"
-        "annual_rent_to_income_ratio"
-    )
+
+
+def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
+    rows = [
+        _gap_row("ZHVI", "Homeowner", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zhvi", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Provider modeled index; histories can be revised.", "Keep as the local home-value index."),
+        _gap_row("FHFA HPI", "Homeowner", "Benchmark", "FHFA", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel|analytics.county_annual_controls", "FHFA HPI columns", "quarterly and annual", "California; Los Angeles metro; Los Angeles County", "1975-12-31", "2026-03-31", "Products differ by geography, frequency, method, and seasonal adjustment.", "Retain at native frequency."),
+        _gap_row("median sale price", "Homeowner", "Outcome", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel", "median_sale_price", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "Transaction mix can change the median.", "Retain as a transaction-price indicator."),
+        _gap_row("inventory", "Homeowner", "Supply", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel", "active_inventory", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "For-sale inventory only; not rental inventory.", "Keep the label explicit."),
+        _gap_row("active listings", "Homeowner", "Supply", "Redfin Data Center", "Yes", "Implemented", "analytics.zip_monthly_panel", "active_listings", "rolling 3 months", "Los Angeles County postal ZIPs", "2019-06-30", "2026-05-31", "ZIP product uses overlapping rolling-three-month windows.", "Keep separate from county inventory."),
+        _gap_row("months of supply", "Homeowner", "Supply", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel", "months_of_supply", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "Provider ratio; not additive.", "Retain provider value."),
+        _gap_row("new listings", "Homeowner", "Leading indicator", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "new_listings", "monthly and rolling 3 months", "Los Angeles County and postal ZIPs", "2012-01-31", "2026-05-31", "ZIP observations are rolling windows.", "Use county monthly for time-series models."),
+        _gap_row("homes sold", "Homeowner", "Demand", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "homes_sold", "monthly and rolling 3 months", "Los Angeles County and postal ZIPs", "2012-01-31", "2026-05-31", "Closed-sales flow; ZIP observations are rolling windows.", "Use with inventory ratios."),
+        _gap_row("days on market", "Overall housing market", "Market time", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "days_on_market|median_days_on_market", "monthly and rolling 3 months", "Los Angeles County and postal ZIPs", "2012-01-31", "2026-05-31", "Median; not additive.", "Expose as market-time indicator."),
+        _gap_row("share with price drops", "Overall housing market", "Leading indicator", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel", "price_drop_share", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "Share, not count.", "Retain nulls and document coverage."),
+        _gap_row("30-year mortgage rate", "Homeowner", "Control", "Freddie Mac PMMS", "Yes", "Implemented", "analytics.county_monthly_panel", "mortgage_rate_30y_monthly_average", "weekly aggregated to monthly", "United States", "1971-04-02", "2026-06-25", "National rate; not local.", "Keep U.S. geography explicit."),
+        _gap_row("single-family permits", "Homeowner", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_1_unit", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not starts or completions.", "Retain as the single-family supply proxy."),
+        _gap_row("monthly mortgage payment", "Homeowner", "Constructed indicator", "Redfin and Freddie Mac", "Yes", "Constructed variable", "analytics.county_monthly_panel", "mortgage_payment_10pct_down|mortgage_payment_20pct_down", "monthly", "Los Angeles County with U.S. rate", "2012-01-31", "2026-05-31", "Principal-and-interest scenarios exclude taxes, insurance, HOA, maintenance, and mortgage insurance.", "Keep scenario assumptions visible."),
+        _gap_row("ZORI", "Renter", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zori", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Smoothed seasonally adjusted rent index; not inventory.", "Use as primary rent index."),
+        _gap_row("rent growth", "Renter", "Constructed indicator", "Zillow ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "monthly", "Los Angeles County", "2015-02-28", "2026-05-31", "Depends on the active SA ZORI vintage.", "Rebuild when ZORI refreshes."),
+        _gap_row("rental inventory", "Renter", "Supply", "No verified official public source", "No", "Missing — no verified public source", "", "", "unknown", "Los Angeles County or ZIPs", "", "", "ZORI measures rent levels and cannot serve as rental inventory.", "Leave unavailable until a documented public source is verified."),
+        _gap_row("rental vacancy", "Renter", "Supply", "Census HVS", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "quarterly", "California and published metro geographies", "2005-03-31", "2026-03-31", "Los Angeles County is not an HVS published geography; sampling uncertainty is retained.", "Retain native geography/frequency."),
+        _gap_row("multifamily permits", "Renter", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_5_plus_units", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not completed or occupied rental units.", "Retain as multifamily supply proxy."),
+        _gap_row("price-to-rent", "Overall housing market", "Constructed indicator", "Zillow ZHVI and ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "price_to_rent_ratio", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Index-based valuation ratio.", "Keep explicit formula."),
+        _gap_row("inventory-to-sales", "Overall housing market", "Constructed indicator", "Redfin Data Center", "Yes", "Constructed variable", "analytics.county_monthly_panel", "inventory_to_sales_ratio|sales_to_inventory_ratio", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "Uses for-sale inventory and sales, not total housing stock.", "Keep both orientations clearly named."),
+        _gap_row("market tightness", "Overall housing market", "Constructed indicator", "Redfin Data Center", "Yes", "Constructed variable", "analytics.county_monthly_panel", "market_tightness_index|market_tightness_components", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "Composite, not official provider statistic.", "Retain component-count metadata."),
+        _gap_row("affordability metrics", "Overall housing market", "Affordability", "Zillow, Redfin, Freddie Mac", "Yes", "Implemented", "analytics.county_monthly_panel", "price_to_rent_ratio|mortgage_payment_to_rent_10pct_down|mortgage_payment_to_rent_20pct_down", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Income-based ratios are deferred at this active stage.", "Do not expose ACS-derived affordability columns until requested."),
+        _gap_row("LAUS unemployment rate", "Macro", "Control", "BLS LAUS", "Yes", "Implemented", "analytics.county_monthly_panel", "unemployment_rate", "monthly", "Los Angeles County", "1990-01-31", "2026-05-31", "County series is not seasonally adjusted and may be revised.", "Archive API responses."),
+        _gap_row("LAUS labor force", "Macro", "Control", "BLS LAUS", "Yes", "Implemented", "analytics.county_monthly_panel", "labor_force", "monthly", "Los Angeles County", "1990-01-31", "2026-05-31", "County series is not seasonally adjusted and may be revised.", "Archive API responses."),
+        _gap_row("CES payroll employment", "Macro", "Control", "BLS CES", "Yes", "Implemented", "analytics.metro_monthly_controls", "ces_total_nonfarm_employment_sa", "monthly", "Los Angeles metro", "2005-01-31", "2026-05-31", "Metro establishment series; not county LAUS employment.", "Retain geography label."),
+        _gap_row("personal income", "Macro", "Control", "BEA", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.county_annual_controls", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "quarterly and annual", "California and Los Angeles County", "1948-03-31", "2026-03-31", "State quarterly and county annual products differ.", "Retain native frequency."),
+        _gap_row("CPI / inflation", "Macro", "Control", "BLS CPI", "Yes", "Implemented", "analytics.metro_monthly_controls", "cpi_u_all_items_la_nsa|cpi_inflation_yoy", "monthly with historical gaps", "Los Angeles published area", "1914-12-31", "2026-05-31", "Local CPI is not seasonally adjusted and has historical publication gaps.", "Preserve gaps."),
+        _gap_row("price-to-income", "Homeowner", "Affordability", "ACS or BEA", "Yes", "Deferred", "", "", "annual or mixed", "Los Angeles County or ZIP", "", "", "Not part of the current active available-variable set.", "Add later only with an explicit denominator choice."),
+    ]
+    gap = pd.DataFrame(rows)
+    path = config.root / "metadata" / "data_gap_analysis.csv"
     gap.to_csv(path, index=False)
     return gap
 

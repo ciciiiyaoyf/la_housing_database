@@ -34,7 +34,7 @@ def test_redfin_zip_clean_and_fact_contract():
                           OR frequency != 'Rolling 3 Months'
                           OR rolling_window_months != 3
                    ) AS invalid_rows
-            FROM clean.redfin_zip_monthly
+            FROM clean.redfin_zip_for_sale_market
             """
         ).fetchone()
         assert summary[0] > 0
@@ -53,15 +53,13 @@ def test_redfin_zip_clean_and_fact_contract():
                 """
             ).fetchall()
         }
-        assert len(variables) == 12
-        assert {
+        assert variables == {
             "redfin_zip_homes_sold_rolling_3m",
             "redfin_zip_median_sale_price_nsa_rolling_3m",
             "redfin_zip_median_days_on_market_rolling_3m",
             "redfin_zip_new_listings_rolling_3m",
             "redfin_zip_active_listings_rolling_3m",
-            "redfin_zip_pending_sales_rolling_3m",
-        }.issubset(variables)
+        }
         invalid_fact_geographies = connection.execute(
             """
             SELECT count(*)
@@ -94,7 +92,7 @@ def test_redfin_left_join_preserves_zillow_spine_and_values():
         redfin_mismatches = connection.execute(
             """
             SELECT count(*)
-            FROM clean.redfin_zip_monthly AS clean
+            FROM clean.redfin_zip_for_sale_market AS clean
             LEFT JOIN analytics.zip_monthly_panel AS panel
               ON panel.postal_zip = clean.postal_zip
              AND panel.date = clean.period_end
@@ -106,7 +104,6 @@ def test_redfin_left_join_preserves_zillow_spine_and_values():
                     IS DISTINCT FROM clean.median_days_on_market
                OR panel.new_listings IS DISTINCT FROM clean.new_listings
                OR panel.active_listings IS DISTINCT FROM clean.active_listings
-               OR panel.pending_sales IS DISTINCT FROM clean.pending_sales
             """
         ).fetchone()[0]
         assert redfin_mismatches == 0

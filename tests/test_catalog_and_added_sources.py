@@ -91,20 +91,22 @@ def test_added_tables_views_fact_dictionary_and_keys():
             ("clean", "bea_state_personal_income"),
             ("clean", "bea_county_personal_income"),
             ("clean", "census_hvs_rental_vacancy"),
-            ("clean", "acs_county_annual"),
-            ("clean", "acs_zcta_annual"),
+            ("clean", "redfin_county_for_sale_market"),
+            ("clean", "redfin_zip_for_sale_market"),
+            ("clean", "zillow_county_home_values"),
+            ("clean", "zillow_county_rent_index"),
             ("analytics", "metro_monthly_controls"),
             ("analytics", "state_quarterly_panel"),
             ("analytics", "metro_quarterly_panel"),
-            ("analytics", "county_annual_structural"),
-            ("analytics", "zcta_annual_structural"),
-            ("analytics", "homeowner_market_view"),
-            ("analytics", "renter_market_view"),
-            ("analytics", "overall_market_view"),
-            ("analytics", "macro_controls_monthly_view"),
+            ("analytics", "county_annual_controls"),
+            ("analytics", "homeowner_market_monthly"),
+            ("analytics", "renter_market_monthly"),
+            ("analytics", "overall_market_monthly"),
+            ("analytics", "macro_controls_monthly"),
             ("quality", "raw_repository_completeness"),
         }
         assert expected.issubset(objects)
+        assert not any(name.startswith("acs_") for schema, name in objects if schema == "clean")
         assert (
             connection.execute(
                 """
@@ -157,7 +159,6 @@ def test_added_geographies_frequencies_and_no_silent_expansion():
                 SELECT count(*)
                 FROM analytics.fact_housing_observation
                 WHERE variable_id LIKE 'acs_%'
-                  AND final_frequency != 'annual'
                 """
             ).fetchone()[0]
             == 0
@@ -192,10 +193,6 @@ def test_added_geographies_frequencies_and_no_silent_expansion():
             ).fetchone()[0]
             == 0
         )
-        zcta = connection.execute(
-            "SELECT zcta FROM analytics.zcta_annual_structural"
-        ).fetch_df()
-        assert zcta["zcta"].astype(str).str.fullmatch(r"\d{5}").all()
 
 
 def test_new_panel_parquet_csv_and_duckdb_row_counts_agree():
@@ -203,8 +200,7 @@ def test_new_panel_parquet_csv_and_duckdb_row_counts_agree():
         "metro_monthly_controls",
         "state_quarterly_panel",
         "metro_quarterly_panel",
-        "county_annual_structural",
-        "zcta_annual_structural",
+        "county_annual_controls",
     ]
     with duckdb.connect(str(DATABASE), read_only=True) as connection:
         for stem in stems:
@@ -237,7 +233,6 @@ def test_readme_refresh_commands_match_cli():
         "bea_state_personal_income",
         "bea_county_personal_income",
         "census_hvs_state_rental_vacancy",
-        "census_acs_5year_b25081",
     ):
         assert (
             "python run_pipeline.py --stage download --source "

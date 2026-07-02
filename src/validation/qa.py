@@ -138,8 +138,7 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
     metro_monthly = pd.read_parquet(final / "metro_monthly_controls.parquet")
     state_quarterly = pd.read_parquet(final / "state_quarterly_panel.parquet")
     metro_quarterly = pd.read_parquet(final / "metro_quarterly_panel.parquet")
-    county_annual = pd.read_parquet(final / "county_annual_structural.parquet")
-    zcta_annual = pd.read_parquet(final / "zcta_annual_structural.parquet")
+    county_annual = pd.read_parquet(final / "county_annual_controls.parquet")
     fact["observation_date"] = pd.to_datetime(fact["observation_date"])
     county["date"] = pd.to_datetime(county["date"])
     if not zip_panel.empty:
@@ -243,7 +242,6 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
                 "active_inventory",
                 "new_listings",
                 "homes_sold",
-                "pending_sales",
                 "months_of_supply",
                 "days_on_market",
                 "unemployment_rate",
@@ -253,9 +251,7 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
                 "mortgage_rate_30y_weekly",
                 "mortgage_rate_30y_monthly_average",
                 "mortgage_rate_30y_month_end",
-                "permits_total",
                 "permits_1_unit",
-                "permits_2_to_4_units",
                 "permits_5_plus_units",
             }
         )
@@ -297,11 +293,6 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             county_annual,
             ["year_end", "county_fips"],
         ),
-        (
-            "duplicate_zcta_year",
-            zcta_annual,
-            ["year_end", "zcta"],
-        ),
     ]
     for check_id, panel, key in panel_key_checks:
         check(
@@ -310,15 +301,6 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             panel.loc[panel.duplicated(key, keep=False), key],
             f"Panel key must be unique: {key}.",
         )
-    invalid_zcta = zcta_annual.loc[
-        ~zcta_annual["zcta"].astype(str).str.fullmatch(r"\d{5}")
-    ]
-    check(
-        "zcta_identifier_format",
-        "error",
-        invalid_zcta,
-        "Census ZCTA identifiers must remain five-character strings.",
-    )
     metro_variables = fact["variable_id"].str.startswith(
         ("ces_", "cpi_", "hvs_rental_vacancy_rate_la_", "fhfa_hpi_la_metropolitan_")
     )
@@ -504,7 +486,6 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             "median_days_on_market",
             "new_listings",
             "active_listings",
-            "pending_sales",
         ]
         invalid_redfin_levels = redfin_zip.loc[
             redfin_zip[redfin_levels].lt(0).any(axis=1)
@@ -588,7 +569,6 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             "median_days_on_market": "median_days_on_market",
             "new_listings": "new_listings",
             "active_listings": "active_listings",
-            "pending_sales": "pending_sales",
         }
         for clean_column, panel_column in panel_pairs.items():
             clean_values = redfin_panel[f"{clean_column}_clean"]
@@ -610,57 +590,6 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             if panel_mismatch_rows
             else pd.DataFrame(),
             "ZIP panel Redfin levels must exactly match clean Key Metrics values.",
-        )
-        yoy_pairs = {
-            "homes_sold": (
-                "homes_sold_yoy_pct_provider",
-                "homes_sold_yoy_calculated",
-            ),
-            "median_sale_price_nsa": (
-                "median_sale_price_nsa_yoy_pct_provider",
-                "median_sale_price_yoy_calculated",
-            ),
-            "median_days_on_market": (
-                "median_days_on_market_yoy_pct_provider",
-                "median_days_on_market_yoy_calculated",
-            ),
-            "new_listings": (
-                "new_listings_yoy_pct_provider",
-                "new_listings_yoy_calculated",
-            ),
-            "active_listings": (
-                "active_listings_yoy_pct_provider",
-                "active_listings_yoy_calculated",
-            ),
-            "pending_sales": (
-                "pending_sales_yoy_pct_provider",
-                "pending_sales_yoy_calculated",
-            ),
-        }
-        yoy_discrepancies = []
-        for metric, (provider_column, calculated_column) in yoy_pairs.items():
-            comparable = zip_panel.loc[
-                zip_panel[provider_column].notna()
-                & zip_panel[calculated_column].notna(),
-                ["date", "postal_zip", provider_column, calculated_column],
-            ].copy()
-            comparable["absolute_difference_pp"] = (
-                comparable[provider_column]
-                - comparable[calculated_column]
-            ).abs()
-            material = comparable.loc[
-                comparable["absolute_difference_pp"].gt(1.0)
-            ].copy()
-            if not material.empty:
-                material["metric"] = metric
-                yoy_discrepancies.append(material)
-        check(
-            "redfin_zip_provider_calculated_yoy",
-            "warning",
-            pd.concat(yoy_discrepancies, ignore_index=True)
-            if yoy_discrepancies
-            else pd.DataFrame(),
-            "Provider and exact 12-month calculated YoY values differing by over one percentage point require review.",
         )
     sa_fact = (
         fact.loc[fact["variable_id"].eq("zori_smoothed_sa")]

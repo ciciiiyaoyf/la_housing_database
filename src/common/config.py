@@ -101,12 +101,12 @@ def _classified_variable(raw: dict[str, Any]) -> dict[str, Any]:
     variable = dict(raw)
     variable_id = str(variable["variable_id"])
     constructed = (
-        "growth_" in variable_id
+        str(variable.get("provider", "")).lower() == "constructed"
+        or "growth_" in variable_id
         or variable_id
         in {
             "mortgage_rate_30y_monthly_average",
             "mortgage_rate_30y_month_end",
-            "permits_2_to_4_units",
         }
     )
     if variable_id.endswith("_moe"):

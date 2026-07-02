@@ -23,8 +23,7 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
         "metro_monthly_controls": "metro_monthly_controls.csv",
         "state_quarterly_panel": "state_quarterly_panel.csv",
         "metro_quarterly_panel": "metro_quarterly_panel.csv",
-        "county_annual_structural": "county_annual_structural.csv",
-        "zcta_annual_structural": "zcta_annual_structural.csv",
+        "county_annual_controls": "county_annual_controls.csv",
     }
     for stem, filename in additional.items():
         frame = pd.read_parquet(final / f"{stem}.parquet")

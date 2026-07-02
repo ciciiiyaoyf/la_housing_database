@@ -1,96 +1,994 @@
 variables:
-  - {variable_id: zhvi, display_name: Zillow Home Value Index, definition: Typical home value for the 35th-65th percentile, provider: Zillow Research, original_field: value, unit: USD, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: seasonally adjusted, smoothing: smoothed, transformation: wide-to-long and month-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Middle-tier all-homes ZHVI product.}
-  - {variable_id: zori_smoothed_sa, display_name: Zillow Observed Rent Index - smoothed seasonally adjusted, definition: Typical observed market-rate rent for all homes plus multifamily with smoothing and seasonal adjustment, provider: Zillow Research, original_field: value, unit: USD/month, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: seasonally adjusted, smoothing: smoothed, transformation: wide-to-long and month-end normalization, missing_value_policy: preserve null without substitution, revision_policy: archive every retrieval, methodological_notes: Sole active rent index; exposed as zori in analytical panels.}
-  - {variable_id: redfin_zip_homes_sold_rolling_3m, display_name: Redfin ZIP homes sold - rolling 3 months, definition: Closed home sales observed over an overlapping three-calendar-month window, provider: Redfin Data Center, original_field: HOMES SOLD, unit: count, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: source value dated by period end, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Key Metrics product; do not sum adjacent rolling observations or interpret as single-month sales.}
-  - {variable_id: redfin_zip_median_sale_price_nsa_rolling_3m, display_name: Redfin ZIP median sale price NSA - rolling 3 months, definition: Median closed-sale price over an overlapping three-calendar-month window, provider: Redfin Data Center, original_field: MEDIAN SALE PRICE NSA ($), unit: USD, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: source value dated by period end, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Transaction-price indicator; not a substitute for ZHVI.}
-  - {variable_id: redfin_zip_median_days_on_market_rolling_3m, display_name: Redfin ZIP median days on market - rolling 3 months, definition: Median listing-to-contract days over an overlapping three-calendar-month window, provider: Redfin Data Center, original_field: MEDIAN DAYS ON MARKET (DAYS), unit: days, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: source value dated by period end, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Key Metrics product; adjacent observations overlap.}
-  - {variable_id: redfin_zip_new_listings_rolling_3m, display_name: Redfin ZIP new listings - rolling 3 months, definition: New listings observed over an overlapping three-calendar-month window, provider: Redfin Data Center, original_field: NEW LISTINGS, unit: count, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: source value dated by period end, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Do not sum adjacent rolling observations.}
-  - {variable_id: redfin_zip_active_listings_rolling_3m, display_name: Redfin ZIP active listings - rolling 3 months, definition: Provider active-listings metric for an overlapping three-calendar-month window, provider: Redfin Data Center, original_field: ACTIVE LISTINGS, unit: count, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: source value dated by period end, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept as active_listings and never relabeled as active_inventory.}
-  - {variable_id: redfin_zip_pending_sales_rolling_3m, display_name: Redfin ZIP pending sales - rolling 3 months, definition: Pending sales observed over an overlapping three-calendar-month window, provider: Redfin Data Center, original_field: PENDING SALES, unit: count, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: source value dated by period end, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Do not sum adjacent rolling observations.}
-  - {variable_id: redfin_zip_homes_sold_yoy_pct_provider_rolling_3m, display_name: Redfin ZIP homes sold provider YoY - rolling 3 months, definition: Provider-reported year-over-year change in rolling-three-month homes sold, provider: Redfin Data Center, original_field: HOMES SOLD YOY (%), unit: percentage_points, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: retain provider percentage-point value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept separate from pipeline-calculated YoY.}
-  - {variable_id: redfin_zip_median_sale_price_nsa_yoy_pct_provider_rolling_3m, display_name: Redfin ZIP median sale price NSA provider YoY - rolling 3 months, definition: Provider-reported year-over-year change in rolling-three-month NSA median sale price, provider: Redfin Data Center, original_field: MEDIAN SALE PRICE NSA YOY (%), unit: percentage_points, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: retain provider percentage-point value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept separate from pipeline-calculated YoY.}
-  - {variable_id: redfin_zip_median_days_on_market_yoy_pct_provider_rolling_3m, display_name: Redfin ZIP median days on market provider YoY - rolling 3 months, definition: Provider-reported year-over-year change in rolling-three-month median days on market, provider: Redfin Data Center, original_field: MEDIAN DAYS ON MARKET YOY (%), unit: percentage_points, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: retain provider percentage-point value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept separate from pipeline-calculated YoY.}
-  - {variable_id: redfin_zip_new_listings_yoy_pct_provider_rolling_3m, display_name: Redfin ZIP new listings provider YoY - rolling 3 months, definition: Provider-reported year-over-year change in rolling-three-month new listings, provider: Redfin Data Center, original_field: NEW LISTINGS YOY (%), unit: percentage_points, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: retain provider percentage-point value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept separate from pipeline-calculated YoY.}
-  - {variable_id: redfin_zip_active_listings_yoy_pct_provider_rolling_3m, display_name: Redfin ZIP active listings provider YoY - rolling 3 months, definition: Provider-reported year-over-year change in rolling-three-month active listings, provider: Redfin Data Center, original_field: ACTIVE LISTINGS YOY (%), unit: percentage_points, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: retain provider percentage-point value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept separate from pipeline-calculated YoY and never relabeled as inventory.}
-  - {variable_id: redfin_zip_pending_sales_yoy_pct_provider_rolling_3m, display_name: Redfin ZIP pending sales provider YoY - rolling 3 months, definition: Provider-reported year-over-year change in rolling-three-month pending sales, provider: Redfin Data Center, original_field: PENDING SALES YOY (%), unit: percentage_points, native_frequency: rolling_3_months, final_frequency: monthly, geography: postal_zip, seasonal_adjustment: not seasonally adjusted, smoothing: overlapping rolling window, transformation: retain provider percentage-point value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Kept separate from pipeline-calculated YoY.}
-  - {variable_id: median_sale_price, display_name: Median sale price, definition: Median closed-sale price, provider: Redfin Data Center, original_field: median_sale_price, unit: USD, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: All Residential property type.}
-  - {variable_id: homes_sold, display_name: Homes sold, definition: Closed home sales, provider: Redfin Data Center, original_field: homes_sold, unit: count, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Provider monthly series; weekly rolling windows are not aggregated.}
-  - {variable_id: active_inventory, display_name: Active inventory, definition: Provider inventory metric, provider: Redfin Data Center, original_field: inventory, unit: count, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly stock value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: County stock measure; ZIP Key Metrics active listings use a separate variable and are never mapped here.}
-  - {variable_id: new_listings, display_name: New listings, definition: Newly listed homes, provider: Redfin Data Center, original_field: new_listings, unit: count, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly flow value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Flow measure.}
-  - {variable_id: pending_sales, display_name: Pending sales, definition: Homes going pending, provider: Redfin Data Center, original_field: pending_sales, unit: count, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly value, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Loaded only when supplied consistently.}
-  - {variable_id: months_of_supply, display_name: Months of supply, definition: Inventory relative to sales pace, provider: Redfin Data Center, original_field: months_of_supply, unit: months, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly ratio, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Provider ratio; not summed.}
-  - {variable_id: days_on_market, display_name: Median days on market, definition: Median days from listing to contract, provider: Redfin Data Center, original_field: median_dom, unit: days, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly median, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Provider median; not averaged across source rows.}
-  - {variable_id: price_drop_share, display_name: Share with price drops, definition: Share of active listings with a price drop, provider: Redfin Data Center, original_field: price_drops, unit: proportion, native_frequency: monthly, final_frequency: monthly, geography: county|postal_zip, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly share, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Ratio; not summed.}
-  - {variable_id: sale_to_list_ratio, display_name: Average sale-to-list ratio, definition: Sale price divided by list price, provider: Redfin Data Center, original_field: avg_sale_to_list, unit: ratio, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: product field retained, smoothing: none, transformation: provider monthly ratio, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Ratio; not summed.}
-  - {variable_id: unemployment_rate, display_name: Unemployment rate, definition: Unemployed share of civilian labor force, provider: U.S. Bureau of Labor Statistics, original_field: LAUCN060370000000003, unit: percent, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: API value and month-end normalization, missing_value_policy: preserve null, revision_policy: archive API response, methodological_notes: LA County FIPS 06037.}
-  - {variable_id: unemployment, display_name: Unemployed persons, definition: Number unemployed in the civilian labor force, provider: U.S. Bureau of Labor Statistics, original_field: LAUCN060370000000004, unit: persons, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: API value and month-end normalization, missing_value_policy: preserve null, revision_policy: archive API response, methodological_notes: LA County FIPS 06037.}
-  - {variable_id: employment, display_name: Employed persons, definition: Number employed, provider: U.S. Bureau of Labor Statistics, original_field: LAUCN060370000000005, unit: persons, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: API value and month-end normalization, missing_value_policy: preserve null, revision_policy: archive API response, methodological_notes: LA County FIPS 06037.}
-  - {variable_id: labor_force, display_name: Civilian labor force, definition: Employed plus unemployed persons, provider: U.S. Bureau of Labor Statistics, original_field: LAUCN060370000000006, unit: persons, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: API value and month-end normalization, missing_value_policy: preserve null, revision_policy: archive API response, methodological_notes: LA County FIPS 06037.}
-  - {variable_id: mortgage_rate_30y_weekly, display_name: 30-year fixed mortgage rate weekly, definition: U.S. weekly PMMS average, provider: Freddie Mac, original_field: pmms30, unit: percent, native_frequency: weekly, final_frequency: weekly, geography: national, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: none, missing_value_policy: preserve null, revision_policy: archive file, methodological_notes: National rate; never label as a Los Angeles rate.}
-  - {variable_id: mortgage_rate_30y_monthly_average, display_name: 30-year fixed mortgage rate monthly average, definition: Arithmetic average of weekly PMMS observations in a calendar month, provider: Freddie Mac, original_field: pmms30, unit: percent, native_frequency: weekly, final_frequency: monthly, geography: national, seasonal_adjustment: not seasonally adjusted, smoothing: monthly mean, transformation: arithmetic mean by calendar month, missing_value_policy: preserve null, revision_policy: archive file, methodological_notes: National rate.}
-  - {variable_id: mortgage_rate_30y_month_end, display_name: 30-year fixed mortgage rate month end, definition: Last weekly PMMS observation in a calendar month, provider: Freddie Mac, original_field: pmms30, unit: percent, native_frequency: weekly, final_frequency: monthly, geography: national, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: last available weekly observation, missing_value_policy: preserve null, revision_policy: archive file, methodological_notes: National rate.}
-  - {variable_id: permits_total, display_name: Total housing units permitted, definition: Units authorized by building permits across structure sizes, provider: U.S. Census Bureau, original_field: sum of units fields, unit: units, native_frequency: monthly, final_frequency: monthly, geography: county|state, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: sum structure-type units, missing_value_policy: preserve null, revision_policy: archive every monthly file, methodological_notes: Authorizations not starts or completions; pre-2022 county values are sampled-jurisdiction tallies and 2022 onward uses the full current universe with imputation.}
-  - {variable_id: permits_1_unit, display_name: One-unit housing permits, definition: Units authorized in one-unit structures, provider: U.S. Census Bureau, original_field: 1-unit Units, unit: units, native_frequency: monthly, final_frequency: monthly, geography: county|state, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: none, missing_value_policy: preserve null, revision_policy: archive every monthly file, methodological_notes: Reported units and total estimates are retained separately; methodology regime is flagged at January 2022.}
-  - {variable_id: permits_2_to_4_units, display_name: Two-to-four-unit housing permits, definition: Units authorized in two-unit and three-to-four-unit structures, provider: U.S. Census Bureau, original_field: 2-units Units + 3-4 units Units, unit: units, native_frequency: monthly, final_frequency: monthly, geography: county|state, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: sum two structure categories, missing_value_policy: preserve null, revision_policy: archive every monthly file, methodological_notes: Authorizations not starts or completions; reported units and total estimates are retained separately.}
-  - {variable_id: permits_5_plus_units, display_name: Five-or-more-unit housing permits, definition: Units authorized in structures with five or more units, provider: U.S. Census Bureau, original_field: 5+ units Units, unit: units, native_frequency: monthly, final_frequency: monthly, geography: county|state, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: none, missing_value_policy: preserve null, revision_policy: archive every monthly file, methodological_notes: Authorizations not starts or completions; reported units and total estimates are retained separately.}
-  - {variable_id: fhfa_hpi_ca_purchase_only_nsa, display_name: FHFA California Purchase-Only HPI NSA, definition: Repeat-sales house-price index for eligible single-family mortgage purchases in California, provider: Federal Housing Finance Agency, original_field: index_nsa, unit: index, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: quarter-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Benchmark series; does not replace monthly Zillow ZHVI.}
-  - {variable_id: fhfa_hpi_ca_purchase_only_sa, display_name: FHFA California Purchase-Only HPI SA, definition: Seasonally adjusted repeat-sales house-price index for eligible single-family mortgage purchases in California, provider: Federal Housing Finance Agency, original_field: index_sa, unit: index, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: seasonally adjusted, smoothing: none, transformation: quarter-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: State benchmark; not Los Angeles data.}
-  - {variable_id: fhfa_hpi_la_metropolitan_division_purchase_only_nsa, display_name: FHFA LA Metropolitan Division Purchase-Only HPI NSA, definition: Repeat-sales purchase-only HPI for Los Angeles-Long Beach-Glendale metropolitan division 31084, provider: Federal Housing Finance Agency, original_field: index_nsa, unit: index, native_frequency: quarterly, final_frequency: quarterly, geography: metropolitan_division, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: quarter-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Metropolitan-division benchmark; never labeled as Los Angeles County.}
-  - {variable_id: fhfa_hpi_la_metropolitan_division_purchase_only_sa, display_name: FHFA LA Metropolitan Division Purchase-Only HPI SA, definition: Seasonally adjusted repeat-sales purchase-only HPI for Los Angeles-Long Beach-Glendale metropolitan division 31084, provider: Federal Housing Finance Agency, original_field: index_sa, unit: index, native_frequency: quarterly, final_frequency: quarterly, geography: metropolitan_division, seasonal_adjustment: seasonally adjusted, smoothing: none, transformation: quarter-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Metropolitan-division benchmark; never labeled as Los Angeles County.}
-  - {variable_id: fhfa_hpi_la_county_all_transactions_nsa_annual, display_name: FHFA Los Angeles County Developmental All-Transactions HPI, definition: Developmental annual all-transactions repeat-sales HPI for Los Angeles County with 2000 base, provider: Federal Housing Finance Agency, original_field: HPI with 2000 base, unit: index_2000_100, native_frequency: annual, final_frequency: annual, geography: county, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: year-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Annual developmental series; not expanded to monthly and does not replace ZHVI.}
-  - {variable_id: ces_total_nonfarm_employment_sa, display_name: LA Metro Total Nonfarm Payroll Employment SA, definition: Seasonally adjusted establishment payroll employment in the Los Angeles-Long Beach-Anaheim MSA, provider: U.S. Bureau of Labor Statistics, original_field: SMS06310800000000001, unit: thousands_of_jobs, native_frequency: monthly, final_frequency: monthly, geography: metro, seasonal_adjustment: seasonally adjusted, smoothing: none, transformation: official bulk file filter and month-end normalization, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Establishment-based MSA series; not Los Angeles County and not interchangeable with LAUS employment.}
-  - {variable_id: cpi_u_all_items_la_nsa, display_name: Los Angeles Area CPI-U All Items NSA, definition: CPI for All Urban Consumers all items for the Los Angeles-Long Beach-Anaheim published area, provider: U.S. Bureau of Labor Statistics, original_field: CUURS49ASA0, unit: index_1982_84_100, native_frequency: monthly, final_frequency: monthly, geography: metro_area, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: official bulk file filter and month-end normalization, missing_value_policy: preserve publication gaps, revision_policy: archive every retrieval, methodological_notes: Current S49A published geography; the 2018 geographic revision is documented and the discontinued A421 series is not substituted.}
-  - {variable_id: bea_ca_personal_income_q_sa, display_name: California Quarterly Personal Income SAAR, definition: California current-dollar personal income seasonally adjusted at annual rates, provider: U.S. Bureau of Economic Analysis, original_field: SQINC1 line 1, unit: millions_of_current_dollars_saar, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: seasonally adjusted annual rate, smoothing: none, transformation: official bulk table reshape, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: State quarterly series; not Los Angeles County income.}
-  - {variable_id: bea_ca_per_capita_personal_income_q_sa, display_name: California Quarterly Per-Capita Personal Income SAAR, definition: California current-dollar per-capita personal income at seasonally adjusted annual rates, provider: U.S. Bureau of Economic Analysis, original_field: SQINC1 line 3, unit: current_dollars_per_person_saar, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: seasonally adjusted annual rate, smoothing: none, transformation: official bulk table reshape, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: State quarterly series; not Los Angeles County income.}
-  - {variable_id: bea_la_county_personal_income_annual, display_name: Los Angeles County Annual Personal Income, definition: Los Angeles County current-dollar personal income, provider: U.S. Bureau of Economic Analysis, original_field: CAINC1 line 1, unit: thousands_of_current_dollars, native_frequency: annual, final_frequency: annual, geography: county, seasonal_adjustment: not applicable, smoothing: none, transformation: official bulk table reshape, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Annual county series; never interpolated to monthly or quarterly.}
-  - {variable_id: bea_la_county_per_capita_personal_income_annual, display_name: Los Angeles County Annual Per-Capita Personal Income, definition: Los Angeles County current-dollar per-capita personal income, provider: U.S. Bureau of Economic Analysis, original_field: CAINC1 line 3, unit: current_dollars_per_person, native_frequency: annual, final_frequency: annual, geography: county, seasonal_adjustment: not applicable, smoothing: none, transformation: official bulk table reshape, missing_value_policy: preserve null, revision_policy: archive every retrieval, methodological_notes: Annual county series; never interpolated to monthly or quarterly.}
-  - {variable_id: hvs_rental_vacancy_rate_ca, display_name: California HVS Rental Vacancy Rate, definition: Published Housing Vacancy Survey rental vacancy rate for California, provider: U.S. Census Bureau, original_field: quarterly state estimate, unit: percent, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: workbook block parsing and quarter-end normalization, missing_value_policy: preserve unpublished quarters, revision_policy: archive every workbook, methodological_notes: Survey estimate with sampling uncertainty; not Los Angeles data.}
-  - {variable_id: hvs_rental_vacancy_rate_ca_moe, display_name: California HVS Rental Vacancy Rate Margin of Error, definition: Published margin of error for the California rental vacancy rate, provider: U.S. Census Bureau, original_field: Margin of Error, unit: percentage_points, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: not applicable, smoothing: none, transformation: retained separately from estimate, missing_value_policy: preserve null, revision_policy: archive every workbook, methodological_notes: Uncertainty measure; never treated as the vacancy-rate estimate.}
-  - {variable_id: hvs_rental_vacancy_rate_la_metro, display_name: LA MSA HVS Rental Vacancy Rate, definition: Published Housing Vacancy Survey rental vacancy rate for the Los Angeles MSA label used by each vintage, provider: U.S. Census Bureau, original_field: quarterly MSA estimate, unit: percent, native_frequency: quarterly, final_frequency: quarterly, geography: metro, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: workbook block parsing and quarter-end normalization, missing_value_policy: preserve unpublished quarters, revision_policy: archive every workbook, methodological_notes: Survey estimate for a published MSA; never labeled Los Angeles County and vintage geography labels may change.}
-  - {variable_id: hvs_rental_vacancy_rate_la_metro_moe, display_name: LA MSA HVS Rental Vacancy Rate Margin of Error, definition: Published margin of error for the Los Angeles MSA rental vacancy rate, provider: U.S. Census Bureau, original_field: Margin of Error, unit: percentage_points, native_frequency: quarterly, final_frequency: quarterly, geography: metro, seasonal_adjustment: not applicable, smoothing: none, transformation: retained separately from estimate, missing_value_policy: preserve null, revision_policy: archive every workbook, methodological_notes: Uncertainty measure; never treated as the vacancy-rate estimate.}
-  - {variable_id: acs_households, display_name: ACS Households, definition: Total households in the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B11001_E001, unit: households, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Survey-year label is the 5-year period end; not a single-year monthly count.}
-  - {variable_id: acs_households_moe, display_name: ACS Households Margin of Error, definition: Margin of error for total households, provider: U.S. Census Bureau, original_field: B11001_M001, unit: households, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_median_household_income, display_name: ACS Median Household Income, definition: Median household income in current dollars for the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B19013_E001, unit: current_dollars, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Used only for annual structural affordability without interpolation.}
-  - {variable_id: acs_median_household_income_moe, display_name: ACS Median Household Income Margin of Error, definition: Margin of error for median household income, provider: U.S. Census Bureau, original_field: B19013_M001, unit: current_dollars, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_total_housing_units, display_name: ACS Total Housing Units, definition: Total housing units in the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25001_E001, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Annual structural denominator; not interpolated.}
-  - {variable_id: acs_total_housing_units_moe, display_name: ACS Total Housing Units Margin of Error, definition: Margin of error for total housing units, provider: U.S. Census Bureau, original_field: B25001_M001, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_vacant_housing_units, display_name: ACS Vacant Housing Units, definition: Vacant housing units in the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25002_E003, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Broad housing vacancy count; not HVS rental vacancy and not rental listing inventory.}
-  - {variable_id: acs_vacant_housing_units_moe, display_name: ACS Vacant Housing Units Margin of Error, definition: Margin of error for vacant housing units, provider: U.S. Census Bureau, original_field: B25002_M003, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_owner_occupied_units, display_name: ACS Owner-Occupied Housing Units, definition: Owner-occupied housing units in the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25003_E002, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Annual structural tenure estimate.}
-  - {variable_id: acs_owner_occupied_units_moe, display_name: ACS Owner-Occupied Units Margin of Error, definition: Margin of error for owner-occupied housing units, provider: U.S. Census Bureau, original_field: B25003_M002, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_renter_occupied_units, display_name: ACS Renter-Occupied Housing Units, definition: Renter-occupied housing units in the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25003_E003, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Broader than apartments and never labeled occupied-apartment growth.}
-  - {variable_id: acs_renter_occupied_units_moe, display_name: ACS Renter-Occupied Units Margin of Error, definition: Margin of error for renter-occupied housing units, provider: U.S. Census Bureau, original_field: B25003_M003, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_median_gross_rent, display_name: ACS Median Gross Rent, definition: Median gross rent in current dollars for the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25064_E001, unit: current_dollars_per_month, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Structural survey estimate; distinct from monthly Zillow ZORI.}
-  - {variable_id: acs_median_gross_rent_moe, display_name: ACS Median Gross Rent Margin of Error, definition: Margin of error for median gross rent, provider: U.S. Census Bureau, original_field: B25064_M001, unit: current_dollars_per_month, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_median_home_value, display_name: ACS Median Home Value, definition: Median owner-occupied home value in current dollars for the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25077_E001, unit: current_dollars, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Structural survey estimate; distinct from monthly Zillow ZHVI.}
-  - {variable_id: acs_median_home_value_moe, display_name: ACS Median Home Value Margin of Error, definition: Margin of error for median home value, provider: U.S. Census Bureau, original_field: B25077_M001, unit: current_dollars, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: acs_owner_units_with_mortgage, display_name: ACS Owner Units with a Mortgage, definition: Owner-occupied housing units with a mortgage contract to purchase or similar debt in the ACS 2020-2024 pooled estimate, provider: U.S. Census Bureau, original_field: B25081_E002, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: filter official table-based summary file, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Annual structural estimate; not a monthly mortgage-originations count.}
-  - {variable_id: acs_owner_units_with_mortgage_moe, display_name: ACS Owner Units with Mortgage Margin of Error, definition: Margin of error for owner units with a mortgage, provider: U.S. Census Bureau, original_field: B25081_M002, unit: housing_units, native_frequency: annual_5_year_estimate, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: 5-year pooled estimate, transformation: retain MOE separately, missing_value_policy: preserve null, revision_policy: archive release, methodological_notes: Uncertainty measure for the 2020-2024 estimate.}
-  - {variable_id: annual_price_to_income_ratio, display_name: Annual Price-to-Income Ratio, definition: ACS median home value divided by ACS median household income for the same 5-year release, provider: Constructed, original_field: acs_median_home_value / acs_median_household_income, unit: ratio, native_frequency: annual, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: none, transformation: same-release ratio, missing_value_policy: require both components, revision_policy: rebuild with source vintages, methodological_notes: No monthly interpolation.}
-  - {variable_id: annual_rent_to_income_ratio, display_name: Annual Rent-to-Income Ratio, definition: Annualized ACS median gross rent divided by ACS median household income for the same 5-year release, provider: Constructed, original_field: 12 * acs_median_gross_rent / acs_median_household_income, unit: ratio, native_frequency: annual, final_frequency: annual, geography: county|zcta, seasonal_adjustment: not applicable, smoothing: none, transformation: same-release ratio, missing_value_policy: require both components, revision_policy: rebuild with source vintages, methodological_notes: No monthly interpolation.}
-  - {variable_id: sales_to_housing_stock_turnover, display_name: Sales-to-Housing-Stock Turnover, definition: Annual homes sold divided by ACS total housing units, provider: Constructed, original_field: annualized homes_sold / acs_total_housing_units, unit: ratio, native_frequency: mixed, final_frequency: annual, geography: county, seasonal_adjustment: mixed, smoothing: annual aggregation, transformation: calendar-year sales divided by annual structural stock, missing_value_policy: require both components, revision_policy: rebuild with source vintages, methodological_notes: Distinct from sales-to-inventory.}
-  - {variable_id: sales_to_inventory_ratio, display_name: Sales-to-Inventory Ratio, definition: Monthly homes sold divided by active for-sale inventory, provider: Constructed, original_field: homes_sold / active_inventory, unit: ratio, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: source fields retained, smoothing: none, transformation: monthly ratio, missing_value_policy: require nonzero inventory, revision_policy: rebuild with source vintages, methodological_notes: Distinct from housing-stock turnover.}
-  - {variable_id: zhvi_growth_mom, display_name: ZHVI Month-over-Month Growth, definition: Fractional change in ZHVI from the prior month, provider: Constructed, original_field: zhvi pct_change 1, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from ZHVI, smoothing: inherited from ZHVI, transformation: exact one-month percent change, missing_value_policy: require current and prior value, revision_policy: rebuild with source vintages, methodological_notes: Constructed from active SA ZHVI., is_observed: false, is_constructed: true}
-  - {variable_id: zhvi_growth_yoy, display_name: ZHVI Year-over-Year Growth, definition: Fractional change in ZHVI from twelve months earlier, provider: Constructed, original_field: zhvi pct_change 12, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from ZHVI, smoothing: inherited from ZHVI, transformation: exact twelve-month percent change, missing_value_policy: require current and lagged value, revision_policy: rebuild with source vintages, methodological_notes: Constructed from active SA ZHVI., is_observed: false, is_constructed: true}
-  - {variable_id: zori_growth_mom, display_name: ZORI Month-over-Month Growth, definition: Fractional change in SA ZORI from the prior month, provider: Constructed, original_field: zori pct_change 1, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from SA ZORI, smoothing: inherited from ZORI, transformation: exact one-month percent change, missing_value_policy: require current and prior value, revision_policy: rebuild with source vintages, methodological_notes: Constructed only from zori_smoothed_sa., is_observed: false, is_constructed: true}
-  - {variable_id: zori_growth_yoy, display_name: ZORI Year-over-Year Growth, definition: Fractional change in SA ZORI from twelve months earlier, provider: Constructed, original_field: zori pct_change 12, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from SA ZORI, smoothing: inherited from ZORI, transformation: exact twelve-month percent change, missing_value_policy: require current and lagged value, revision_policy: rebuild with source vintages, methodological_notes: Constructed only from zori_smoothed_sa., is_observed: false, is_constructed: true}
-  - {variable_id: inventory_growth_mom, display_name: Active Inventory Month-over-Month Growth, definition: Fractional change in active for-sale inventory from the prior month, provider: Constructed, original_field: active_inventory pct_change 1, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from source field, smoothing: none, transformation: exact one-month percent change, missing_value_policy: require current and prior value, revision_policy: rebuild with source vintages, methodological_notes: For-sale inventory; not rental inventory., is_observed: false, is_constructed: true}
-  - {variable_id: inventory_growth_yoy, display_name: Active Inventory Year-over-Year Growth, definition: Fractional change in active for-sale inventory from twelve months earlier, provider: Constructed, original_field: active_inventory pct_change 12, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from source field, smoothing: none, transformation: exact twelve-month percent change, missing_value_policy: require current and lagged value, revision_policy: rebuild with source vintages, methodological_notes: For-sale inventory; not rental inventory., is_observed: false, is_constructed: true}
-  - {variable_id: price_to_rent_ratio, display_name: Price-to-Rent Ratio, definition: ZHVI divided by twelve times monthly SA ZORI, provider: Constructed, original_field: zhvi / (12 * zori), unit: ratio, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from components, smoothing: inherited from Zillow indexes, transformation: monthly ratio, missing_value_policy: require both components and nonzero rent, revision_policy: rebuild with source vintages, methodological_notes: Index valuation ratio; not a cap rate., is_observed: false, is_constructed: true}
-  - {variable_id: inventory_to_sales_ratio, display_name: Inventory-to-Sales Ratio, definition: Active for-sale inventory divided by monthly homes sold, provider: Constructed, original_field: active_inventory / homes_sold, unit: ratio, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: inherited from source fields, smoothing: none, transformation: monthly ratio, missing_value_policy: require nonzero sales, revision_policy: rebuild with source vintages, methodological_notes: Reciprocal orientation of sales-to-inventory and not housing-stock turnover., is_observed: false, is_constructed: true}
-  - {variable_id: mortgage_payment_10pct_down, display_name: Mortgage Payment with 10 Percent Down, definition: Monthly principal and interest on the county median sale price with 10 percent down, provider: Constructed, original_field: median_sale_price and PMMS rate, unit: current_dollars_per_month, native_frequency: monthly, final_frequency: monthly, geography: county with national rate, seasonal_adjustment: mixed, smoothing: none, transformation: 30-year amortization formula, missing_value_policy: require price and rate, revision_policy: rebuild with source vintages, methodological_notes: Excludes tax insurance HOA maintenance and mortgage insurance., is_observed: false, is_constructed: true}
-  - {variable_id: mortgage_payment_20pct_down, display_name: Mortgage Payment with 20 Percent Down, definition: Monthly principal and interest on the county median sale price with 20 percent down, provider: Constructed, original_field: median_sale_price and PMMS rate, unit: current_dollars_per_month, native_frequency: monthly, final_frequency: monthly, geography: county with national rate, seasonal_adjustment: mixed, smoothing: none, transformation: 30-year amortization formula, missing_value_policy: require price and rate, revision_policy: rebuild with source vintages, methodological_notes: Excludes tax insurance HOA maintenance and mortgage insurance., is_observed: false, is_constructed: true}
-  - {variable_id: mortgage_payment_to_rent_10pct_down, display_name: Mortgage Payment-to-Rent with 10 Percent Down, definition: Constructed 10-percent-down principal-and-interest payment divided by monthly SA ZORI, provider: Constructed, original_field: mortgage_payment_10pct_down / zori, unit: ratio, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: mixed, smoothing: inherited from ZORI, transformation: monthly ratio, missing_value_policy: require both components, revision_policy: rebuild with source vintages, methodological_notes: Payment scenario compared with an observed rent index., is_observed: false, is_constructed: true}
-  - {variable_id: mortgage_payment_to_rent_20pct_down, display_name: Mortgage Payment-to-Rent with 20 Percent Down, definition: Constructed 20-percent-down principal-and-interest payment divided by monthly SA ZORI, provider: Constructed, original_field: mortgage_payment_20pct_down / zori, unit: ratio, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: mixed, smoothing: inherited from ZORI, transformation: monthly ratio, missing_value_policy: require both components, revision_policy: rebuild with source vintages, methodological_notes: Payment scenario compared with an observed rent index., is_observed: false, is_constructed: true}
-  - {variable_id: market_tightness_index, display_name: Market Tightness Index, definition: Mean of available oriented z-scores for supply market-time inventory-growth and price-drop components, provider: Constructed, original_field: component z-scores, unit: standard_deviation_index, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: mixed, smoothing: none, transformation: oriented z-score mean, missing_value_policy: require configured minimum component count, revision_policy: rebuild with source vintages, methodological_notes: Higher values indicate a tighter market; not an official provider statistic., is_observed: false, is_constructed: true}
-  - {variable_id: market_tightness_components, display_name: Market Tightness Component Count, definition: Number of nonmissing components entering the market tightness index, provider: Constructed, original_field: nonnull component count, unit: count, native_frequency: monthly, final_frequency: monthly, geography: county, seasonal_adjustment: not applicable, smoothing: none, transformation: nonnull count, missing_value_policy: zero when no component is present, revision_policy: rebuild with source vintages, methodological_notes: Data-quality companion to market_tightness_index., is_observed: false, is_constructed: true}
-  - {variable_id: ces_total_nonfarm_employment_growth_mom, display_name: LA Metro Payroll Employment MoM Growth, definition: Fractional change in SA total nonfarm payroll employment from the prior month, provider: Constructed, original_field: ces_total_nonfarm_employment_sa pct_change 1, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: metro, seasonal_adjustment: seasonally adjusted, smoothing: none, transformation: exact one-month percent change, missing_value_policy: require current and prior value, revision_policy: rebuild with source vintages, methodological_notes: MSA control; not county LAUS employment., is_observed: false, is_constructed: true}
-  - {variable_id: ces_total_nonfarm_employment_growth_yoy, display_name: LA Metro Payroll Employment YoY Growth, definition: Fractional change in SA total nonfarm payroll employment from twelve months earlier, provider: Constructed, original_field: ces_total_nonfarm_employment_sa pct_change 12, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: metro, seasonal_adjustment: seasonally adjusted, smoothing: none, transformation: exact twelve-month percent change, missing_value_policy: require current and lagged value, revision_policy: rebuild with source vintages, methodological_notes: MSA control; not county LAUS employment., is_observed: false, is_constructed: true}
-  - {variable_id: cpi_inflation_yoy, display_name: LA Area CPI Inflation YoY, definition: Fractional change in LA-area CPI-U All Items NSA from twelve months earlier, provider: Constructed, original_field: cpi_u_all_items_la_nsa pct_change 12, unit: fraction, native_frequency: monthly, final_frequency: monthly, geography: metro_area, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: exact twelve-month percent change, missing_value_policy: preserve publication gaps, revision_policy: rebuild with source vintages, methodological_notes: Uses current S49A series only., is_observed: false, is_constructed: true}
-  - {variable_id: bea_ca_personal_income_growth_qoq, display_name: California Personal Income QoQ Growth, definition: Fractional change in quarterly SAAR personal income from the prior quarter, provider: Constructed, original_field: bea_ca_personal_income_q_sa pct_change 1, unit: fraction, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: seasonally adjusted annual rate, smoothing: none, transformation: exact one-quarter percent change, missing_value_policy: require current and prior value, revision_policy: rebuild with source vintages, methodological_notes: State control; not Los Angeles County income., is_observed: false, is_constructed: true}
-  - {variable_id: bea_ca_personal_income_growth_yoy, display_name: California Personal Income YoY Growth, definition: Fractional change in quarterly SAAR personal income from four quarters earlier, provider: Constructed, original_field: bea_ca_personal_income_q_sa pct_change 4, unit: fraction, native_frequency: quarterly, final_frequency: quarterly, geography: state, seasonal_adjustment: seasonally adjusted annual rate, smoothing: none, transformation: exact four-quarter percent change, missing_value_policy: require current and lagged value, revision_policy: rebuild with source vintages, methodological_notes: State control; not Los Angeles County income., is_observed: false, is_constructed: true}
-  - {variable_id: bea_personal_income_growth_yoy, display_name: LA County Personal Income Annual Growth, definition: Fractional change in annual county personal income from the prior year, provider: Constructed, original_field: bea_la_county_personal_income_annual pct_change 1, unit: fraction, native_frequency: annual, final_frequency: annual, geography: county, seasonal_adjustment: not applicable, smoothing: none, transformation: exact annual percent change, missing_value_policy: require adjacent annual values, revision_policy: rebuild with source vintages, methodological_notes: Remains annual and is not interpolated., is_observed: false, is_constructed: true}
-  - {variable_id: hvs_rental_vacancy_change_yoy_pp, display_name: HVS Rental Vacancy YoY Change, definition: Percentage-point change in the published rental vacancy rate from four quarters earlier, provider: Constructed, original_field: hvs rental vacancy rate diff 4, unit: percentage_points, native_frequency: quarterly, final_frequency: quarterly, geography: state|metro, seasonal_adjustment: not seasonally adjusted, smoothing: none, transformation: exact four-quarter difference, missing_value_policy: preserve publication gaps, revision_policy: rebuild with source vintages, methodological_notes: Sampling uncertainty remains in separate MOE columns., is_observed: false, is_constructed: true}
-  - {variable_id: fhfa_hpi_growth_yoy, display_name: FHFA HPI Year-over-Year Growth, definition: Fractional change in the relevant FHFA HPI from the prior year or four quarters earlier, provider: Constructed, original_field: FHFA HPI percent change, unit: fraction, native_frequency: quarterly|annual, final_frequency: quarterly|annual, geography: metropolitan_division|county, seasonal_adjustment: product-specific, smoothing: none, transformation: native-frequency year-over-year change, missing_value_policy: require native lag, revision_policy: rebuild with source vintages, methodological_notes: Method and geography remain explicit in the containing panel., is_observed: false, is_constructed: true}
-  - {variable_id: zhvi_growth_yoy_year_end, display_name: ZHVI December-to-December Growth, definition: Fractional change in December county ZHVI from the prior December, provider: Constructed, original_field: December zhvi pct_change 1 year, unit: fraction, native_frequency: monthly, final_frequency: annual, geography: county, seasonal_adjustment: seasonally adjusted, smoothing: smoothed, transformation: retain December and calculate annual change, missing_value_policy: require both Decembers, revision_policy: rebuild with source vintages, methodological_notes: No partial-year value is labeled year-end., is_observed: false, is_constructed: true}
-  - {variable_id: fhfa_vs_zhvi_growth_gap_yoy, display_name: FHFA-versus-Zillow Annual Growth Gap, definition: FHFA county annual HPI growth minus December-to-December county ZHVI growth, provider: Constructed, original_field: fhfa_hpi_growth_yoy - zhvi_growth_yoy_year_end, unit: fraction_difference, native_frequency: annual, final_frequency: annual, geography: county, seasonal_adjustment: mixed, smoothing: mixed, transformation: annual growth-rate difference, missing_value_policy: require both growth rates, revision_policy: rebuild with source vintages, methodological_notes: Benchmark comparison only; the indexes have different methods and universes., is_observed: false, is_constructed: true}
+- variable_id: zhvi
+  display_name: Zillow Home Value Index
+  definition: Typical home value for the 35th-65th percentile
+  provider: Zillow Research
+  original_field: value
+  unit: USD
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: seasonally adjusted
+  smoothing: smoothed
+  transformation: wide-to-long and month-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Middle-tier all-homes ZHVI product.
+- variable_id: zori_smoothed_sa
+  display_name: Zillow Observed Rent Index - smoothed seasonally adjusted
+  definition: Typical observed market-rate rent for all homes plus multifamily with smoothing and seasonal adjustment
+  provider: Zillow Research
+  original_field: value
+  unit: USD/month
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: seasonally adjusted
+  smoothing: smoothed
+  transformation: wide-to-long and month-end normalization
+  missing_value_policy: preserve null without substitution
+  revision_policy: archive every retrieval
+  methodological_notes: Sole active rent index; exposed as zori in analytical panels.
+- variable_id: redfin_zip_homes_sold_rolling_3m
+  display_name: Redfin ZIP homes sold - rolling 3 months
+  definition: Closed home sales observed over an overlapping three-calendar-month window
+  provider: Redfin Data Center
+  original_field: HOMES SOLD
+  unit: count
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: source value dated by period end
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Key Metrics product; do not sum adjacent rolling observations or interpret as single-month sales.
+- variable_id: redfin_zip_median_sale_price_nsa_rolling_3m
+  display_name: Redfin ZIP median sale price NSA - rolling 3 months
+  definition: Median closed-sale price over an overlapping three-calendar-month window
+  provider: Redfin Data Center
+  original_field: MEDIAN SALE PRICE NSA ($)
+  unit: USD
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: source value dated by period end
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Transaction-price indicator; not a substitute for ZHVI.
+- variable_id: redfin_zip_median_days_on_market_rolling_3m
+  display_name: Redfin ZIP median days on market - rolling 3 months
+  definition: Median listing-to-contract days over an overlapping three-calendar-month window
+  provider: Redfin Data Center
+  original_field: MEDIAN DAYS ON MARKET (DAYS)
+  unit: days
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: source value dated by period end
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Key Metrics product; adjacent observations overlap.
+- variable_id: redfin_zip_new_listings_rolling_3m
+  display_name: Redfin ZIP new listings - rolling 3 months
+  definition: New listings observed over an overlapping three-calendar-month window
+  provider: Redfin Data Center
+  original_field: NEW LISTINGS
+  unit: count
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: source value dated by period end
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Do not sum adjacent rolling observations.
+- variable_id: redfin_zip_active_listings_rolling_3m
+  display_name: Redfin ZIP active listings - rolling 3 months
+  definition: Provider active-listings metric for an overlapping three-calendar-month ZIP window; not rental inventory.
+  provider: Redfin Data Center
+  original_field: ACTIVE LISTINGS
+  unit: count
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: source value dated by period end
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept as active_listings and never relabeled as active_inventory.
+- variable_id: median_sale_price
+  display_name: Median sale price
+  definition: Median closed-sale price
+  provider: Redfin Data Center
+  original_field: median_sale_price
+  unit: USD
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: All Residential property type.
+- variable_id: homes_sold
+  display_name: Homes sold
+  definition: Closed home sales
+  provider: Redfin Data Center
+  original_field: homes_sold
+  unit: count
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Provider monthly series; weekly rolling windows are not aggregated.
+- variable_id: active_inventory
+  display_name: For-sale active inventory
+  definition: Redfin county active for-sale inventory metric.
+  provider: Redfin Data Center
+  original_field: inventory
+  unit: count
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly stock value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: County stock measure; ZIP Key Metrics active listings use a separate variable and are never mapped here.
+- variable_id: new_listings
+  display_name: New listings
+  definition: Newly listed homes
+  provider: Redfin Data Center
+  original_field: new_listings
+  unit: count
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly flow value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Flow measure.
+- variable_id: months_of_supply
+  display_name: Months of supply
+  definition: Inventory relative to sales pace
+  provider: Redfin Data Center
+  original_field: months_of_supply
+  unit: months
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly ratio
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Provider ratio; not summed.
+- variable_id: days_on_market
+  display_name: Median days on market
+  definition: Median days from listing to contract
+  provider: Redfin Data Center
+  original_field: median_dom
+  unit: days
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly median
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Provider median; not averaged across source rows.
+- variable_id: price_drop_share
+  display_name: Share with price drops
+  definition: Share of active listings with a price drop
+  provider: Redfin Data Center
+  original_field: price_drops
+  unit: proportion
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|postal_zip
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly share
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Ratio; not summed.
+- variable_id: unemployment_rate
+  display_name: Unemployment rate
+  definition: Unemployed share of civilian labor force
+  provider: U.S. Bureau of Labor Statistics
+  original_field: LAUCN060370000000003
+  unit: percent
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: API value and month-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive API response
+  methodological_notes: LA County FIPS 06037.
+- variable_id: unemployment
+  display_name: Unemployed persons
+  definition: Number unemployed in the civilian labor force
+  provider: U.S. Bureau of Labor Statistics
+  original_field: LAUCN060370000000004
+  unit: persons
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: API value and month-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive API response
+  methodological_notes: LA County FIPS 06037.
+- variable_id: employment
+  display_name: Employed persons
+  definition: Number employed
+  provider: U.S. Bureau of Labor Statistics
+  original_field: LAUCN060370000000005
+  unit: persons
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: API value and month-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive API response
+  methodological_notes: LA County FIPS 06037.
+- variable_id: labor_force
+  display_name: Civilian labor force
+  definition: Employed plus unemployed persons
+  provider: U.S. Bureau of Labor Statistics
+  original_field: LAUCN060370000000006
+  unit: persons
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: API value and month-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive API response
+  methodological_notes: LA County FIPS 06037.
+- variable_id: mortgage_rate_30y_weekly
+  display_name: 30-year fixed mortgage rate weekly
+  definition: U.S. weekly PMMS average
+  provider: Freddie Mac
+  original_field: pmms30
+  unit: percent
+  native_frequency: weekly
+  final_frequency: weekly
+  geography: national
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: none
+  missing_value_policy: preserve null
+  revision_policy: archive file
+  methodological_notes: National rate; never label as a Los Angeles rate.
+- variable_id: mortgage_rate_30y_monthly_average
+  display_name: 30-year fixed mortgage rate monthly average
+  definition: Arithmetic average of weekly PMMS observations in a calendar month
+  provider: Freddie Mac
+  original_field: pmms30
+  unit: percent
+  native_frequency: weekly
+  final_frequency: monthly
+  geography: national
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: monthly mean
+  transformation: arithmetic mean by calendar month
+  missing_value_policy: preserve null
+  revision_policy: archive file
+  methodological_notes: National rate.
+- variable_id: mortgage_rate_30y_month_end
+  display_name: 30-year fixed mortgage rate month end
+  definition: Last weekly PMMS observation in a calendar month
+  provider: Freddie Mac
+  original_field: pmms30
+  unit: percent
+  native_frequency: weekly
+  final_frequency: monthly
+  geography: national
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: last available weekly observation
+  missing_value_policy: preserve null
+  revision_policy: archive file
+  methodological_notes: National rate.
+- variable_id: permits_1_unit
+  display_name: Single-family permit authorizations
+  definition: Housing units authorized in one-unit structures; a permit authorization, not a start or completion.
+  provider: U.S. Census Bureau
+  original_field: 1-unit Units
+  unit: units
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|state
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: none
+  missing_value_policy: preserve null
+  revision_policy: archive every monthly file
+  methodological_notes: Reported units and total estimates are retained separately; methodology regime is flagged at January 2022.
+- variable_id: permits_5_plus_units
+  display_name: Multifamily permit authorizations, 5+ units
+  definition: Housing units authorized in structures with five or more units; a permit authorization, not a start or completion.
+  provider: U.S. Census Bureau
+  original_field: 5+ units Units
+  unit: units
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|state
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: none
+  missing_value_policy: preserve null
+  revision_policy: archive every monthly file
+  methodological_notes: Authorizations not starts or completions; reported units and total estimates are retained separately.
+- variable_id: fhfa_hpi_ca_purchase_only_nsa
+  display_name: FHFA California Purchase-Only HPI NSA
+  definition: Repeat-sales house-price index for eligible single-family mortgage purchases in California
+  provider: Federal Housing Finance Agency
+  original_field: index_nsa
+  unit: index
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: quarter-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Benchmark series; does not replace monthly Zillow ZHVI.
+- variable_id: fhfa_hpi_ca_purchase_only_sa
+  display_name: FHFA California Purchase-Only HPI SA
+  definition: Seasonally adjusted repeat-sales house-price index for eligible single-family mortgage purchases in California
+  provider: Federal Housing Finance Agency
+  original_field: index_sa
+  unit: index
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: seasonally adjusted
+  smoothing: none
+  transformation: quarter-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: State benchmark; not Los Angeles data.
+- variable_id: fhfa_hpi_la_metropolitan_division_purchase_only_nsa
+  display_name: FHFA LA Metropolitan Division Purchase-Only HPI NSA
+  definition: Repeat-sales purchase-only HPI for Los Angeles-Long Beach-Glendale metropolitan division 31084
+  provider: Federal Housing Finance Agency
+  original_field: index_nsa
+  unit: index
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: metropolitan_division
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: quarter-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Metropolitan-division benchmark; never labeled as Los Angeles County.
+- variable_id: fhfa_hpi_la_metropolitan_division_purchase_only_sa
+  display_name: FHFA LA Metropolitan Division Purchase-Only HPI SA
+  definition: Seasonally adjusted repeat-sales purchase-only HPI for Los Angeles-Long Beach-Glendale metropolitan division 31084
+  provider: Federal Housing Finance Agency
+  original_field: index_sa
+  unit: index
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: metropolitan_division
+  seasonal_adjustment: seasonally adjusted
+  smoothing: none
+  transformation: quarter-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Metropolitan-division benchmark; never labeled as Los Angeles County.
+- variable_id: fhfa_hpi_la_county_all_transactions_nsa_annual
+  display_name: FHFA Los Angeles County Developmental All-Transactions HPI
+  definition: Developmental annual all-transactions repeat-sales HPI for Los Angeles County with 2000 base
+  provider: Federal Housing Finance Agency
+  original_field: HPI with 2000 base
+  unit: index_2000_100
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: year-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual developmental series; not expanded to monthly and does not replace ZHVI.
+- variable_id: ces_total_nonfarm_employment_sa
+  display_name: LA Metro Total Nonfarm Payroll Employment SA
+  definition: Seasonally adjusted establishment payroll employment in the Los Angeles-Long Beach-Anaheim MSA
+  provider: U.S. Bureau of Labor Statistics
+  original_field: SMS06310800000000001
+  unit: thousands_of_jobs
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: metro
+  seasonal_adjustment: seasonally adjusted
+  smoothing: none
+  transformation: official bulk file filter and month-end normalization
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Establishment-based MSA series; not Los Angeles County and not interchangeable with LAUS employment.
+- variable_id: cpi_u_all_items_la_nsa
+  display_name: Los Angeles Area CPI-U All Items NSA
+  definition: CPI for All Urban Consumers all items for the Los Angeles-Long Beach-Anaheim published area
+  provider: U.S. Bureau of Labor Statistics
+  original_field: CUURS49ASA0
+  unit: index_1982_84_100
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: metro_area
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: official bulk file filter and month-end normalization
+  missing_value_policy: preserve publication gaps
+  revision_policy: archive every retrieval
+  methodological_notes: Current S49A published geography; the 2018 geographic revision is documented and the discontinued A421 series is not substituted.
+- variable_id: bea_ca_personal_income_q_sa
+  display_name: California Quarterly Personal Income SAAR
+  definition: California current-dollar personal income seasonally adjusted at annual rates
+  provider: U.S. Bureau of Economic Analysis
+  original_field: SQINC1 line 1
+  unit: millions_of_current_dollars_saar
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: seasonally adjusted annual rate
+  smoothing: none
+  transformation: official bulk table reshape
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: State quarterly series; not Los Angeles County income.
+- variable_id: bea_ca_per_capita_personal_income_q_sa
+  display_name: California Quarterly Per-Capita Personal Income SAAR
+  definition: California current-dollar per-capita personal income at seasonally adjusted annual rates
+  provider: U.S. Bureau of Economic Analysis
+  original_field: SQINC1 line 3
+  unit: current_dollars_per_person_saar
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: seasonally adjusted annual rate
+  smoothing: none
+  transformation: official bulk table reshape
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: State quarterly series; not Los Angeles County income.
+- variable_id: bea_la_county_personal_income_annual
+  display_name: Los Angeles County Annual Personal Income
+  definition: Los Angeles County current-dollar personal income
+  provider: U.S. Bureau of Economic Analysis
+  original_field: CAINC1 line 1
+  unit: thousands_of_current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: official bulk table reshape
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual county series; never interpolated to monthly or quarterly.
+- variable_id: bea_la_county_per_capita_personal_income_annual
+  display_name: Los Angeles County Annual Per-Capita Personal Income
+  definition: Los Angeles County current-dollar per-capita personal income
+  provider: U.S. Bureau of Economic Analysis
+  original_field: CAINC1 line 3
+  unit: current_dollars_per_person
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: official bulk table reshape
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual county series; never interpolated to monthly or quarterly.
+- variable_id: hvs_rental_vacancy_rate_ca
+  display_name: California HVS Rental Vacancy Rate
+  definition: Published Housing Vacancy Survey rental vacancy rate for California
+  provider: U.S. Census Bureau
+  original_field: quarterly state estimate
+  unit: percent
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: workbook block parsing and quarter-end normalization
+  missing_value_policy: preserve unpublished quarters
+  revision_policy: archive every workbook
+  methodological_notes: Survey estimate with sampling uncertainty; not Los Angeles data.
+- variable_id: hvs_rental_vacancy_rate_ca_moe
+  display_name: California HVS Rental Vacancy Rate Margin of Error
+  definition: Published margin of error for the California rental vacancy rate
+  provider: U.S. Census Bureau
+  original_field: Margin of Error
+  unit: percentage_points
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: retained separately from estimate
+  missing_value_policy: preserve null
+  revision_policy: archive every workbook
+  methodological_notes: Uncertainty measure; never treated as the vacancy-rate estimate.
+- variable_id: hvs_rental_vacancy_rate_la_metro
+  display_name: LA MSA HVS Rental Vacancy Rate
+  definition: Published Housing Vacancy Survey rental vacancy rate for the Los Angeles MSA label used by each vintage
+  provider: U.S. Census Bureau
+  original_field: quarterly MSA estimate
+  unit: percent
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: metro
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: workbook block parsing and quarter-end normalization
+  missing_value_policy: preserve unpublished quarters
+  revision_policy: archive every workbook
+  methodological_notes: Survey estimate for a published MSA; never labeled Los Angeles County and vintage geography labels may change.
+- variable_id: hvs_rental_vacancy_rate_la_metro_moe
+  display_name: LA MSA HVS Rental Vacancy Rate Margin of Error
+  definition: Published margin of error for the Los Angeles MSA rental vacancy rate
+  provider: U.S. Census Bureau
+  original_field: Margin of Error
+  unit: percentage_points
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: metro
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: retained separately from estimate
+  missing_value_policy: preserve null
+  revision_policy: archive every workbook
+  methodological_notes: Uncertainty measure; never treated as the vacancy-rate estimate.
+- variable_id: sales_to_inventory_ratio
+  display_name: Sales-to-Inventory Ratio
+  definition: Monthly homes sold divided by active for-sale inventory
+  provider: Constructed
+  original_field: homes_sold / active_inventory
+  unit: ratio
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: source fields retained
+  smoothing: none
+  transformation: monthly ratio
+  missing_value_policy: require nonzero inventory
+  revision_policy: rebuild with source vintages
+  methodological_notes: Distinct from housing-stock turnover.
+- variable_id: zhvi_growth_mom
+  display_name: ZHVI Month-over-Month Growth
+  definition: Fractional change in ZHVI from the prior month
+  provider: Constructed
+  original_field: zhvi pct_change 1
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from ZHVI
+  smoothing: inherited from ZHVI
+  transformation: exact one-month percent change
+  missing_value_policy: require current and prior value
+  revision_policy: rebuild with source vintages
+  methodological_notes: Constructed from active SA ZHVI.
+  is_observed: false
+  is_constructed: true
+- variable_id: zhvi_growth_yoy
+  display_name: ZHVI Year-over-Year Growth
+  definition: Fractional change in ZHVI from twelve months earlier
+  provider: Constructed
+  original_field: zhvi pct_change 12
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from ZHVI
+  smoothing: inherited from ZHVI
+  transformation: exact twelve-month percent change
+  missing_value_policy: require current and lagged value
+  revision_policy: rebuild with source vintages
+  methodological_notes: Constructed from active SA ZHVI.
+  is_observed: false
+  is_constructed: true
+- variable_id: zori_growth_mom
+  display_name: ZORI Month-over-Month Growth
+  definition: Fractional change in SA ZORI from the prior month
+  provider: Constructed
+  original_field: zori pct_change 1
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from SA ZORI
+  smoothing: inherited from ZORI
+  transformation: exact one-month percent change
+  missing_value_policy: require current and prior value
+  revision_policy: rebuild with source vintages
+  methodological_notes: Constructed only from zori_smoothed_sa.
+  is_observed: false
+  is_constructed: true
+- variable_id: zori_growth_yoy
+  display_name: ZORI Year-over-Year Growth
+  definition: Fractional change in SA ZORI from twelve months earlier
+  provider: Constructed
+  original_field: zori pct_change 12
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from SA ZORI
+  smoothing: inherited from ZORI
+  transformation: exact twelve-month percent change
+  missing_value_policy: require current and lagged value
+  revision_policy: rebuild with source vintages
+  methodological_notes: Constructed only from zori_smoothed_sa.
+  is_observed: false
+  is_constructed: true
+- variable_id: inventory_growth_mom
+  display_name: Active Inventory Month-over-Month Growth
+  definition: Fractional change in active for-sale inventory from the prior month
+  provider: Constructed
+  original_field: active_inventory pct_change 1
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from source field
+  smoothing: none
+  transformation: exact one-month percent change
+  missing_value_policy: require current and prior value
+  revision_policy: rebuild with source vintages
+  methodological_notes: For-sale inventory; not rental inventory.
+  is_observed: false
+  is_constructed: true
+- variable_id: inventory_growth_yoy
+  display_name: Active Inventory Year-over-Year Growth
+  definition: Fractional change in active for-sale inventory from twelve months earlier
+  provider: Constructed
+  original_field: active_inventory pct_change 12
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from source field
+  smoothing: none
+  transformation: exact twelve-month percent change
+  missing_value_policy: require current and lagged value
+  revision_policy: rebuild with source vintages
+  methodological_notes: For-sale inventory; not rental inventory.
+  is_observed: false
+  is_constructed: true
+- variable_id: price_to_rent_ratio
+  display_name: Price-to-Rent Ratio
+  definition: ZHVI divided by twelve times monthly SA ZORI
+  provider: Constructed
+  original_field: zhvi / (12 * zori)
+  unit: ratio
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from components
+  smoothing: inherited from Zillow indexes
+  transformation: monthly ratio
+  missing_value_policy: require both components and nonzero rent
+  revision_policy: rebuild with source vintages
+  methodological_notes: Index valuation ratio; not a cap rate.
+  is_observed: false
+  is_constructed: true
+- variable_id: inventory_to_sales_ratio
+  display_name: Inventory-to-Sales Ratio
+  definition: Active for-sale inventory divided by monthly homes sold
+  provider: Constructed
+  original_field: active_inventory / homes_sold
+  unit: ratio
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: inherited from source fields
+  smoothing: none
+  transformation: monthly ratio
+  missing_value_policy: require nonzero sales
+  revision_policy: rebuild with source vintages
+  methodological_notes: Reciprocal orientation of sales-to-inventory and not housing-stock turnover.
+  is_observed: false
+  is_constructed: true
+- variable_id: mortgage_payment_10pct_down
+  display_name: Mortgage Payment with 10 Percent Down
+  definition: Monthly principal and interest on the county median sale price with 10 percent down
+  provider: Constructed
+  original_field: median_sale_price and PMMS rate
+  unit: current_dollars_per_month
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county with national rate
+  seasonal_adjustment: mixed
+  smoothing: none
+  transformation: 30-year amortization formula
+  missing_value_policy: require price and rate
+  revision_policy: rebuild with source vintages
+  methodological_notes: Excludes tax insurance HOA maintenance and mortgage insurance.
+  is_observed: false
+  is_constructed: true
+- variable_id: mortgage_payment_20pct_down
+  display_name: Mortgage Payment with 20 Percent Down
+  definition: Monthly principal and interest on the county median sale price with 20 percent down
+  provider: Constructed
+  original_field: median_sale_price and PMMS rate
+  unit: current_dollars_per_month
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county with national rate
+  seasonal_adjustment: mixed
+  smoothing: none
+  transformation: 30-year amortization formula
+  missing_value_policy: require price and rate
+  revision_policy: rebuild with source vintages
+  methodological_notes: Excludes tax insurance HOA maintenance and mortgage insurance.
+  is_observed: false
+  is_constructed: true
+- variable_id: mortgage_payment_to_rent_10pct_down
+  display_name: Mortgage Payment-to-Rent with 10 Percent Down
+  definition: Constructed 10-percent-down principal-and-interest payment divided by monthly SA ZORI
+  provider: Constructed
+  original_field: mortgage_payment_10pct_down / zori
+  unit: ratio
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: mixed
+  smoothing: inherited from ZORI
+  transformation: monthly ratio
+  missing_value_policy: require both components
+  revision_policy: rebuild with source vintages
+  methodological_notes: Payment scenario compared with an observed rent index.
+  is_observed: false
+  is_constructed: true
+- variable_id: mortgage_payment_to_rent_20pct_down
+  display_name: Mortgage Payment-to-Rent with 20 Percent Down
+  definition: Constructed 20-percent-down principal-and-interest payment divided by monthly SA ZORI
+  provider: Constructed
+  original_field: mortgage_payment_20pct_down / zori
+  unit: ratio
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: mixed
+  smoothing: inherited from ZORI
+  transformation: monthly ratio
+  missing_value_policy: require both components
+  revision_policy: rebuild with source vintages
+  methodological_notes: Payment scenario compared with an observed rent index.
+  is_observed: false
+  is_constructed: true
+- variable_id: market_tightness_index
+  display_name: Market Tightness Index
+  definition: Mean of available oriented z-scores for supply market-time inventory-growth and price-drop components
+  provider: Constructed
+  original_field: component z-scores
+  unit: standard_deviation_index
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: mixed
+  smoothing: none
+  transformation: oriented z-score mean
+  missing_value_policy: require configured minimum component count
+  revision_policy: rebuild with source vintages
+  methodological_notes: Higher values indicate a tighter market; not an official provider statistic.
+  is_observed: false
+  is_constructed: true
+- variable_id: market_tightness_components
+  display_name: Market Tightness Component Count
+  definition: Number of nonmissing components entering the market tightness index
+  provider: Constructed
+  original_field: nonnull component count
+  unit: count
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: nonnull count
+  missing_value_policy: zero when no component is present
+  revision_policy: rebuild with source vintages
+  methodological_notes: Data-quality companion to market_tightness_index.
+  is_observed: false
+  is_constructed: true
+- variable_id: ces_total_nonfarm_employment_growth_mom
+  display_name: LA Metro Payroll Employment MoM Growth
+  definition: Fractional change in SA total nonfarm payroll employment from the prior month
+  provider: Constructed
+  original_field: ces_total_nonfarm_employment_sa pct_change 1
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: metro
+  seasonal_adjustment: seasonally adjusted
+  smoothing: none
+  transformation: exact one-month percent change
+  missing_value_policy: require current and prior value
+  revision_policy: rebuild with source vintages
+  methodological_notes: MSA control; not county LAUS employment.
+  is_observed: false
+  is_constructed: true
+- variable_id: ces_total_nonfarm_employment_growth_yoy
+  display_name: LA Metro Payroll Employment YoY Growth
+  definition: Fractional change in SA total nonfarm payroll employment from twelve months earlier
+  provider: Constructed
+  original_field: ces_total_nonfarm_employment_sa pct_change 12
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: metro
+  seasonal_adjustment: seasonally adjusted
+  smoothing: none
+  transformation: exact twelve-month percent change
+  missing_value_policy: require current and lagged value
+  revision_policy: rebuild with source vintages
+  methodological_notes: MSA control; not county LAUS employment.
+  is_observed: false
+  is_constructed: true
+- variable_id: cpi_inflation_yoy
+  display_name: LA Area CPI Inflation YoY
+  definition: Fractional change in LA-area CPI-U All Items NSA from twelve months earlier
+  provider: Constructed
+  original_field: cpi_u_all_items_la_nsa pct_change 12
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: metro_area
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: exact twelve-month percent change
+  missing_value_policy: preserve publication gaps
+  revision_policy: rebuild with source vintages
+  methodological_notes: Uses current S49A series only.
+  is_observed: false
+  is_constructed: true
+- variable_id: bea_ca_personal_income_growth_qoq
+  display_name: California Personal Income QoQ Growth
+  definition: Fractional change in quarterly SAAR personal income from the prior quarter
+  provider: Constructed
+  original_field: bea_ca_personal_income_q_sa pct_change 1
+  unit: fraction
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: seasonally adjusted annual rate
+  smoothing: none
+  transformation: exact one-quarter percent change
+  missing_value_policy: require current and prior value
+  revision_policy: rebuild with source vintages
+  methodological_notes: State control; not Los Angeles County income.
+  is_observed: false
+  is_constructed: true
+- variable_id: bea_ca_personal_income_growth_yoy
+  display_name: California Personal Income YoY Growth
+  definition: Fractional change in quarterly SAAR personal income from four quarters earlier
+  provider: Constructed
+  original_field: bea_ca_personal_income_q_sa pct_change 4
+  unit: fraction
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state
+  seasonal_adjustment: seasonally adjusted annual rate
+  smoothing: none
+  transformation: exact four-quarter percent change
+  missing_value_policy: require current and lagged value
+  revision_policy: rebuild with source vintages
+  methodological_notes: State control; not Los Angeles County income.
+  is_observed: false
+  is_constructed: true
+- variable_id: bea_personal_income_growth_yoy
+  display_name: LA County Personal Income Annual Growth
+  definition: Fractional change in annual county personal income from the prior year
+  provider: Constructed
+  original_field: bea_la_county_personal_income_annual pct_change 1
+  unit: fraction
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: exact annual percent change
+  missing_value_policy: require adjacent annual values
+  revision_policy: rebuild with source vintages
+  methodological_notes: Remains annual and is not interpolated.
+  is_observed: false
+  is_constructed: true
+- variable_id: hvs_rental_vacancy_change_yoy_pp
+  display_name: HVS Rental Vacancy YoY Change
+  definition: Percentage-point change in the published rental vacancy rate from four quarters earlier
+  provider: Constructed
+  original_field: hvs rental vacancy rate diff 4
+  unit: percentage_points
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: state|metro
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: exact four-quarter difference
+  missing_value_policy: preserve publication gaps
+  revision_policy: rebuild with source vintages
+  methodological_notes: Sampling uncertainty remains in separate MOE columns.
+  is_observed: false
+  is_constructed: true
+- variable_id: fhfa_hpi_growth_yoy
+  display_name: FHFA HPI Year-over-Year Growth
+  definition: Fractional change in the relevant FHFA HPI from the prior year or four quarters earlier
+  provider: Constructed
+  original_field: FHFA HPI percent change
+  unit: fraction
+  native_frequency: quarterly|annual
+  final_frequency: quarterly|annual
+  geography: metropolitan_division|county
+  seasonal_adjustment: product-specific
+  smoothing: none
+  transformation: native-frequency year-over-year change
+  missing_value_policy: require native lag
+  revision_policy: rebuild with source vintages
+  methodological_notes: Method and geography remain explicit in the containing panel.
+  is_observed: false
+  is_constructed: true
+- variable_id: zhvi_growth_yoy_year_end
+  display_name: ZHVI December-to-December Growth
+  definition: Fractional change in December county ZHVI from the prior December
+  provider: Constructed
+  original_field: December zhvi pct_change 1 year
+  unit: fraction
+  native_frequency: monthly
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: seasonally adjusted
+  smoothing: smoothed
+  transformation: retain December and calculate annual change
+  missing_value_policy: require both Decembers
+  revision_policy: rebuild with source vintages
+  methodological_notes: No partial-year value is labeled year-end.
+  is_observed: false
+  is_constructed: true
+- variable_id: fhfa_vs_zhvi_growth_gap_yoy
+  display_name: FHFA-versus-Zillow Annual Growth Gap
+  definition: FHFA county annual HPI growth minus December-to-December county ZHVI growth
+  provider: Constructed
+  original_field: fhfa_hpi_growth_yoy - zhvi_growth_yoy_year_end
+  unit: fraction_difference
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: mixed
+  smoothing: mixed
+  transformation: annual growth-rate difference
+  missing_value_policy: require both growth rates
+  revision_policy: rebuild with source vintages
+  methodological_notes: Benchmark comparison only; the indexes have different methods and universes.
+  is_observed: false
+  is_constructed: true
