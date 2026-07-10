@@ -14,9 +14,38 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
     final = config.root / "data" / "final"
     export_dir = config.root / "output" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
-    county = pd.read_parquet(final / "county_monthly_panel.parquet")
-    zip_panel = pd.read_parquet(final / "zip_monthly_panel.parquet")
-    county.to_csv(export_dir / "la_county_monthly_panel.csv", index=False)
-    zip_panel.to_csv(export_dir / "la_zip_monthly_panel.csv", index=False)
-    logger.info("Exported county=%s and ZIP=%s rows", len(county), len(zip_panel))
-    return {"county_rows": len(county), "zip_rows": len(zip_panel)}
+    exports = {
+        "county_monthly_panel": (
+            final / "county_monthly_panel.parquet",
+            export_dir / "la_county_monthly_panel.csv",
+        ),
+        "zip_monthly_panel": (
+            final / "zip_monthly_panel.parquet",
+            export_dir / "la_zip_monthly_panel.csv",
+        ),
+        "state_quarterly_panel": (
+            final / "state_quarterly_panel.parquet",
+            export_dir / "la_state_quarterly_panel.csv",
+        ),
+        "metro_monthly_controls": (
+            final / "metro_monthly_controls.parquet",
+            export_dir / "la_metro_monthly_controls.csv",
+        ),
+        "metro_quarterly_controls": (
+            final / "metro_quarterly_controls.parquet",
+            export_dir / "la_metro_quarterly_controls.csv",
+        ),
+        "county_annual_controls": (
+            final / "county_annual_controls.parquet",
+            export_dir / "la_county_annual_controls.csv",
+        ),
+    }
+    counts: dict[str, int] = {}
+    for name, (parquet_path, csv_path) in exports.items():
+        if not parquet_path.exists():
+            continue
+        frame = pd.read_parquet(parquet_path)
+        frame.to_csv(csv_path, index=False)
+        counts[f"{name}_rows"] = len(frame)
+    logger.info("Exported CSV outputs: %s", counts)
+    return counts

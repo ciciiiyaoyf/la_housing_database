@@ -15,7 +15,7 @@ from src.database import build_database, sync_source_metadata
 from src.harmonization import build_analytical_outputs
 from src.ingestion.discover import discover_sources
 from src.ingestion.download import download_sources
-from src.reporting import export_outputs
+from src.reporting import build_catalog_outputs, export_outputs
 from src.validation import run_qa
 
 STAGES = (
@@ -25,6 +25,7 @@ STAGES = (
     "harmonize",
     "build-database",
     "validate",
+    "catalog",
     "export",
     "all",
 )
@@ -75,6 +76,8 @@ def _run_stage(stage: str, arguments: argparse.Namespace) -> None:
         build_database(config)
     elif stage == "validate":
         run_qa(config)
+    elif stage == "catalog":
+        build_catalog_outputs(config)
     elif stage == "export":
         export_outputs(config)
     else:

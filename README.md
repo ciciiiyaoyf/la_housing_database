@@ -1,176 +1,210 @@
 # Los Angeles Housing Public-Data Database
 
-This repository builds a reproducible, source-vintaged housing database for Los Angeles County research. It downloads or imports public source files, preserves immutable raw vintages, normalizes observations to Parquet, builds county and postal-ZIP analytical panels, materializes DuckDB tables, and publishes QA, coverage, and CSV exports.
+This repository builds a reproducible, source-vintaged public-data database for Los Angeles housing research. It preserves immutable raw files, normalizes source-specific observations to a shared contract, builds DuckDB/Parquet analytical tables, and writes QA, coverage, catalog, and CSV outputs.
 
-The database is a static snapshot. It is not continuously connected to any provider. New source data enter the analytical tables only when the relevant pipeline stages are run.
+The database is a static snapshot. DuckDB is not continuously connected to Census, BLS, Zillow, Redfin, or any other provider. New observations enter the database only when the pipeline is run.
 
-## What the project builds
+## Current generated outputs
 
-Primary outputs:
+The current local build contains 31 active configured source IDs, 112 variable-dictionary rows, and 420,873 long-form fact observations.
 
-- `database/housing.duckdb`
-- `data/final/fact_housing_observation.parquet`
-- `data/final/county_monthly_panel.parquet`
-- `data/final/zip_monthly_panel.parquet`
-- `data/final/state_quarterly_panel.parquet`
-- `output/exports/la_county_monthly_panel.csv`
-- `output/exports/la_zip_monthly_panel.csv`
-- `output/qa/qa_summary.csv`
-- `output/qa/qa_failures.csv`
-- coverage reports under `output/coverage/`
-- source, variable, transformation, geography, and raw-vintage metadata under `metadata/`
+| Output | Rows | Date coverage in current build |
+|---|---:|---|
+| `analytics.fact_housing_observation` / `data/final/fact_housing_observation.parquet` | 420,873 | 1914-12-31 to 2026-06-30 |
+| `analytics.county_monthly_panel` / `data/final/county_monthly_panel.parquet` | 437 | 1990-01-31 to 2026-05-31 |
+| `analytics.zip_monthly_panel` / `data/final/zip_monthly_panel.parquet` | 86,858 | 2000-01-31 to 2026-05-31 |
+| `analytics.state_quarterly_panel` / `data/final/state_quarterly_panel.parquet` | 313 | 1948-03-31 to 2026-03-31 |
+| `analytics.metro_monthly_controls` / `data/final/metro_monthly_controls.parquet` | 1,095 | 1914-12-31 to 2026-05-31 |
+| `analytics.metro_quarterly_controls` / `data/final/metro_quarterly_controls.parquet` | 226 | 1991-03-31 to 2026-03-31 |
+| `analytics.county_annual_controls` / `data/final/county_annual_controls.parquet` | 57 | 1969-12-31 to 2025-12-31 |
 
-`analytics.state_quarterly_panel` is currently a typed empty Phase 2 table. The repository does not fabricate unimplemented quarterly observations.
+CSV exports are written under `output/exports/`:
 
-## Implemented data sources
+- `la_county_monthly_panel.csv`
+- `la_zip_monthly_panel.csv`
+- `la_state_quarterly_panel.csv`
+- `la_metro_monthly_controls.csv`
+- `la_metro_quarterly_controls.csv`
+- `la_county_annual_controls.csv`
 
-| Source ID | Provider and product | Geography | Source frequency | Acquisition |
-|---|---|---|---|---|
-| `zillow_county_zhvi` | Zillow middle-tier all-homes ZHVI, smoothed and seasonally adjusted | County | Monthly | Official Zillow Research CSV |
-| `zillow_zip_zhvi` | Zillow middle-tier all-homes ZHVI, smoothed and seasonally adjusted | Postal ZIP | Monthly | Official Zillow Research CSV |
-| `zillow_county_zori_smoothed_sa` | Zillow ZORI, all homes plus multifamily, smoothed and seasonally adjusted | County | Monthly | Official Zillow Research CSV |
-| `zillow_zip_zori_smoothed_sa` | Zillow ZORI, all homes plus multifamily, smoothed and seasonally adjusted | Postal ZIP | Monthly | Official Zillow Research CSV |
-| `redfin_county_monthly` | Redfin Housing Market Tracker | County | Monthly | Official Redfin data object |
-| `redfin_zip_monthly` | Redfin Housing Market Tracker Key Metrics | Postal ZIP | Rolling three months, dated monthly | Manual official Data Center CSV import |
-| `bls_laus_la_county` | BLS Local Area Unemployment Statistics | Los Angeles County | Monthly | Official BLS API |
-| `freddie_mac_pmms` | Freddie Mac Primary Mortgage Market Survey, 30-year fixed rate | United States | Weekly | Official Freddie Mac CSV |
-| `census_bps_county` | Census Building Permits Survey archive | Los Angeles County | Monthly | Official Census ASCII archive |
-| `census_bps_state` | Census Building Permits Survey archive | California | Monthly | Official Census ASCII archive |
+## Source groups
 
-Exact source pages, endpoints, formats, enabled status, methodology notes, and revision notes are defined in `config/sources.yaml`. Variable definitions and units are in `config/variables.yaml`.
+Exact source pages, download URLs/API endpoints, file formats, source IDs, key variables, and methodology notes live in `config/sources.yaml`. Variable definitions live in `config/variables.yaml`.
 
-Important product semantics:
+| Group | Active source IDs | Main variables |
+|---|---|---|
+| Zillow Research | `zillow_county_zhvi`, `zillow_zip_zhvi`, `zillow_county_zori_smoothed_sa`, `zillow_zip_zori_smoothed_sa` | ZHVI, active SA ZORI |
+| Redfin Data Center | `redfin_county_monthly`, `redfin_zip_monthly` | Sale price, sales volume, listings, days on market, inventory/listing indicators |
+| BLS | `bls_laus_la_county`, `bls_ces_la_metro`, `bls_cpi_la_metro` | LAUS labor force/unemployment, CES payroll employment, LA metro CPI-U |
+| Freddie Mac | `freddie_mac_pmms` | Weekly and monthly 30-year fixed mortgage-rate measures |
+| Census BPS | `census_bps_county`, `census_bps_state` | Total, 1-unit, 2-to-4-unit, and 5-plus-unit permits |
+| Census HVS | `census_hvs_state_rental_vacancy`, `census_hvs_metro_rental_vacancy_2005_2014`, `census_hvs_metro_rental_vacancy_2015_2025`, `census_hvs_metro_rental_vacancy_2026` | Rental vacancy rates at state/metro geographies |
+| Census ACS 5-year detailed tables | `census_acs_5year_b11001`, `b19013`, `b25001`, `b25002`, `b25003`, `b25064`, `b25077`, `b25081`, `b25106` | Households, income, housing units, vacancy, tenure, gross rent, home value, mortgage status, owner housing-cost-burden bins |
+| FHFA HPI | `fhfa_hpi_state_purchase_only`, `fhfa_hpi_metro_purchase_only`, `fhfa_hpi_county_annual` | State, metro, and county HPI benchmarks |
+| BEA | `bea_state_personal_income`, `bea_county_personal_income` | Personal income and per-capita personal income |
+| IRS SOI | `irs_soi_county_migration` | LA County annual in-migration, out-migration, and net migration from IRS county migration returns, exemptions, and AGI |
 
-- Analytical `zori` means Zillow ZORI (Smoothed, Seasonally Adjusted), All Homes Plus Multifamily. No non-seasonally-adjusted ZORI is active.
-- BLS LAUS county values are not seasonally adjusted.
-- Redfin ZIP Key Metrics are overlapping rolling-three-month windows, not independent single-month observations.
+ACS appears as multiple source IDs because ACS Detailed Tables are official table-level files. Keeping B11001, B19013, B25001, etc. separate preserves the exact source file, checksum, table methodology, and variable/MOE mapping. Modeling users should usually consume the unified fact table, `analytics.county_annual_controls`, or the catalog rather than treating each ACS table as a separate modeling dataset.
+
+Important semantics:
+
+- The sole active rent index is Zillow ZORI smoothed, seasonally adjusted, all homes plus multifamily. Deprecated NSA ZORI files are not active in ingestion, clean tables, facts, or panels.
+- Provider ZIPs are postal ZIPs, not Census ZCTAs. ACS ZCTA variables are labeled separately.
+- Redfin ZIP Key Metrics are overlapping rolling-three-month observations. Adjacent ZIP Redfin rows should not be summed as single-month flows.
 - Redfin ZIP `ACTIVE LISTINGS` remains `active_listings`; it is not relabeled as inventory.
-- Building permits are authorizations, not housing starts or completions.
+- Census BPS permits are authorizations, not starts or completions.
 - Freddie Mac mortgage rates are national, not Los Angeles-specific.
-- Provider postal ZIPs are not Census ZCTAs.
+- BLS LAUS county data are not seasonally adjusted.
+- Missing values remain null. The pipeline does not interpolate, backfill, zero-fill, substitute county values into ZIPs, or silently drop incomplete source periods.
+
+## Housing Variables.docx audit and source catalog
+
+The repository now writes explicit audit/catalog outputs for the variables requested in `Housing Variables.docx`.
+
+| File/table | Purpose |
+|---|---|
+| `metadata/docx_variable_requirements.csv` | Extracted requirement rows from `Housing Variables.docx`, preserving the sheet source, frequency, LA availability, notes, and best-public-workaround fields |
+| `metadata/docx_variable_audit.csv` and `.xlsx` | One row per requested DOCX variable, with status, implemented source/variable IDs, tables, coverage, missingness, limitations, and next action |
+| `metadata/proxy_methodology_assumptions.csv` | Explicit assumptions used in constructed/proxy variables, including the ACS B25106 implied mortgage-debt proxy |
+| `metadata/data_catalog.csv` and `.xlsx` | Active source catalog; the first four columns are `Source`, `Frequency`, `Geography`, `Key variables` |
+| `metadata/data_gap_analysis.csv` | Variables that are deferred, partially implemented, unavailable, or need mentor decisions |
+| `metadata/source_discovery.csv` | Source catalog copy for discovery/tracking workflows |
+| `metadata/LA_Housing_Source_Tracker.xlsx` | Workbook version of the catalog, raw completeness, and gaps |
+| `output/qa/raw_repository_completeness.csv` | Raw-file, manifest, checksum, URL, frequency, geography, and key-variable completeness checks |
+| `quality.raw_repository_completeness` | DuckDB copy of the raw completeness report |
+
+Current DOCX audit status:
+
+- Implemented: 18
+- Scenario implemented: 3
+- Proxy implemented: 3
+- Partially implemented: 4
+- Partially implemented with alternate source: 1
+- Proxy input only: 3
+- Not implemented: 5
+- Not implemented because the sheet source endpoint is not verified: 1
+
+The audit is source-aligned to the sheet. For example, rental inventory is not satisfied by Redfin for-sale active listings, and ZORI itself is not treated as a rental-inventory stock count. That row remains not implemented until a verified official Zillow rental-listings/inventory endpoint is available. Difficult-variable rows also preserve the sheet's best-public-workaround text and report whether the current database implements the workaround, only has inputs, or has no source yet.
+
+The aggregate mortgage-debt workaround is implemented as an annual ACS proxy, not an observed balance. It allocates ACS B25081 owner-with-mortgage counts across ACS B25106 positive-income owner cost-burden bins, infers monthly debt service from income and burden midpoints, and converts payment to an implied balance using a fixed-rate amortization formula and Freddie Mac PMMS rates averaged over the ACS five-year window. All assumptions are recorded in `metadata/proxy_methodology_assumptions.csv`.
+
+Historical refresh note: the proxy-input ACS tables `census_acs_5year_b25003`, `census_acs_5year_b25077`, `census_acs_5year_b25081`, and `census_acs_5year_b25106` are configured for the official Census ACS 5-year API from the 2010 through 2024 ACS 5-year vintages. The downloader uses the same Census Data API pattern shown by data.census.gov's More Tools -> API modal, for example `get=group(B25106)&ucgid=050C0US06037`. It also queries the versioned local LA ZIP/ZCTA list as `860Z200US...` UCGIDs in chunks. If Census redirects the automated request to `missing_key.html`, set `CENSUS_API_KEY` in the shell before refreshing; if the key is missing or invalid, the downloader exits before archiving any partial raw file.
+
+```powershell
+$env:CENSUS_API_KEY = "YOUR_CENSUS_API_KEY"
+python run_pipeline.py --stage download --source census_acs_5year_b25003 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25077 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25081 --force-download
+python run_pipeline.py --stage download --source census_acs_5year_b25106 --force-download
+python run_pipeline.py --stage all --offline
+```
+
+The prior table-based 2024 ACS raw files remain immutable archive vintages. New API refreshes are stored as separate JSON raw vintages with request years, table variables, Census URLs, retrieval timestamps, source vintage, file size, and SHA-256 checksum recorded in `metadata/raw_file_manifest.csv`.
 
 ## Installation
 
 Python 3.11 or newer is required.
 
 ```powershell
-py -3.12 -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Commands below use `python` for readability and assume the virtual environment is activated. On Windows systems where PowerShell script activation is disabled, replace `python` with:
+Commands below use `python` for readability and assume the environment is activated. If activation is disabled in PowerShell, use the full interpreter path:
 
 ```powershell
-.\.venv\Scripts\python.exe
-```
-
-Inspect the installed CLI:
-
-```powershell
-python run_pipeline.py --help
+.\.venv\Scripts\python.exe run_pipeline.py --help
 ```
 
 ## Refreshing BLS LAUS data
 
-The pipeline retrieves LAUS data from the official BLS Public Data API at:
+The pipeline uses the official BLS Public Data API:
 
 `https://api.bls.gov/publicAPI/v2/timeseries/data/`
 
-An API retrieval is still a data download. DuckDB is not continuously connected to BLS, and opening `database/housing.duckdb` does not contact BLS or update any observations. The database contains a static, source-vintaged snapshot. BLS can revise historical LAUS observations, so each API response is archived as a separate raw vintage.
+An API retrieval is still a data download. DuckDB is not continuously connected to BLS. Opening `database/housing.duckdb` does not update the data. The database contains a static source-vintaged snapshot, and BLS may revise historical LAUS observations.
 
-The configured Los Angeles County series are:
+The configured Los Angeles County LAUS source ID is:
+
+```text
+bls_laus_la_county
+```
+
+The configured series IDs are:
 
 - `LAUCN060370000000003` - unemployment rate
 - `LAUCN060370000000004` - unemployment
 - `LAUCN060370000000005` - employment
 - `LAUCN060370000000006` - labor force
 
-Close open writable DuckDB sessions before refreshing source metadata, then request a fresh API response with:
+Request a fresh official API response and archive it as a new raw JSON vintage:
 
 ```powershell
 python run_pipeline.py --stage download --source bls_laus_la_county --force-download
 ```
 
-This command was live-tested against the official API on July 2, 2026. It:
+This command posts the configured LA County series IDs to the official endpoint, validates the response, saves a new immutable JSON file under `data/raw/bls/`, preserves earlier BLS raw files, and records source ID, endpoint, request series/year details, retrieval timestamp, source vintage, raw filename, byte size, SHA-256 checksum, latest returned observation, and observation count in `metadata/raw_file_manifest.csv`. If `database/housing.duckdb` already exists, it also refreshes `metadata.source_registry` and `raw.file_manifest`.
 
-1. posts the four configured series IDs to the official endpoint;
-2. requests 1990 through the current year in ten-year chunks;
-3. validates the API status, JSON structure, returned series IDs, and numeric monthly observations;
-4. preserves published nonnumeric missing values and their footnotes in the raw response;
-5. writes a new immutable JSON file under `data/raw/bls/`;
-6. leaves all earlier BLS raw files untouched;
-7. appends the endpoint, request series, request years, retrieval timestamp, source vintage, filename, byte size, SHA-256 checksum, latest numeric observation, and observation count to `metadata/raw_file_manifest.csv`; and
-8. refreshes `metadata.source_registry` and `raw.file_manifest` in an existing DuckDB database.
+In the current local archive, the latest BLS LAUS raw manifest row was retrieved on `2026-07-02T06:08:52.347537+00:00`, requested years 1990-2026, recorded 1,744 numeric observations across the four configured series, and reported latest observation `2026-05-31`. After any future refresh, verify the new row in `metadata/raw_file_manifest.csv` or `raw.file_manifest`.
 
-The verified run created:
+`--force-download` requests a new API response even if a same-day raw file exists. `--offline` makes no API request and reuses local raw files.
 
-- raw file: `bls_laus_la_county_20260702T044223Z_be71938705a3.json`
-- byte size: `476532`
-- SHA-256: `be71938705a3a87723eac1fe5d54654f5a9cb8f39b7ffc6e04fd5b34bd6dbbdd`
-- request range: 1990-2026
-- latest numeric observation returned: May 2026
-- numeric observations returned across all four series: 1,744
-
-BLS currently publishes some unavailable periods as a nonnumeric value such as `"-"` with an explanatory footnote. The downloader preserves that response in raw JSON; the cleaner does not turn it into a numeric observation.
-
-`--force-download` is what requests and archives a new API response even if a BLS file was already retrieved that day. Without it, the downloader may reuse the current UTC day's archived response. `--offline` makes no API request and reuses local raw files.
-
-The download command refreshes provenance immediately, but it does not clean the new response or rebuild analytical tables. To propagate the newest archived BLS vintage through Parquet, DuckDB, QA, and exports, run:
+The download step only archives the API response. To propagate the newest archived BLS vintage through clean Parquet, analytical tables, DuckDB, QA, catalog, and exports, run:
 
 ```powershell
 python run_pipeline.py --stage all --offline
 ```
 
-To limit the API request years, use inclusive dates:
+The downloader exits nonzero if BLS returns an HTTP/API error, invalid JSON, missing configured series, or no numeric observations for the requested window.
+
+## CLI stages
+
+The current CLI is:
 
 ```powershell
-python run_pipeline.py --stage download --source bls_laus_la_county --start-date 2015-01-01 --end-date 2026-12-31 --force-download
+python run_pipeline.py --help
 ```
-
-An explicitly selected BLS download exits nonzero if HTTP transport fails, JSON is invalid, BLS reports an API error, a configured series is missing, or a requested window contains no numeric monthly observations.
-
-## CLI and pipeline stages
 
 Available stages:
 
 | Stage | Behavior |
 |---|---|
-| `discover` | Writes `metadata/data_catalog.csv`; performs endpoint HEAD checks unless `--offline` is supplied. |
-| `download` | Acquires immutable raw vintages and updates the raw manifest. Successful downloads also refresh DuckDB source-registry tables when the database exists. |
-| `clean` | Selects a local raw vintage and runs the source-specific cleaner. |
-| `harmonize` | Unions clean observations, selects latest values, builds the fact table and panels, calculates features, and writes final Parquet. |
-| `build-database` | Materializes metadata, raw-manifest, clean, analytics, and empty quality tables in DuckDB. |
-| `validate` | Runs structural and warning-level QA, writes reports, and updates DuckDB quality tables. |
-| `export` | Writes county and ZIP modeling CSVs from final Parquet. |
-| `all` | Runs `discover`, `download`, `clean`, `harmonize`, `build-database`, `validate`, and `export` in that order. |
+| `discover` | Performs source discovery/endpoint checks unless `--offline`; writes preliminary source discovery metadata |
+| `download` | Acquires immutable raw vintages and appends raw manifest rows |
+| `clean` | Runs source-specific cleaners against selected archived raw vintages |
+| `harmonize` | Builds the long fact table, analytical panels, native-frequency controls, and derived features |
+| `build-database` | Materializes DuckDB metadata, raw manifest, clean, analytics, and initial quality tables |
+| `validate` | Runs structural QA and warning checks; writes QA and coverage reports |
+| `catalog` | Writes DOCX audit, data catalog, source tracker workbook, gap analysis, and raw completeness QA |
+| `export` | Writes CSV exports from final Parquet |
+| `all` | Runs `discover`, `download`, `clean`, `harmonize`, `build-database`, `validate`, `catalog`, and `export` in that order |
 
-Examples:
+Common commands:
 
 ```powershell
-python run_pipeline.py --stage discover --offline
-python run_pipeline.py --stage clean --source bls_laus_la_county
-python run_pipeline.py --stage harmonize
-python run_pipeline.py --stage build-database
+python run_pipeline.py --stage all --offline
 python run_pipeline.py --stage validate
+python run_pipeline.py --stage catalog
 python run_pipeline.py --stage export
+python -m pytest -q
 ```
 
 Supported options:
 
-- `--source SOURCE_ID`: filters `discover`, `download`, and `clean`. With `--stage all`, only those source-specific stages are filtered; downstream harmonization still rebuilds from all local clean files.
-- `--start-date` / `--end-date`: constrain BLS and BPS acquisition and can filter harmonized analytical dates.
-- `--vintage YYYY-MM-DD`: selects a clean input by retrieval-date vintage. BPS selects the latest archived file at or before the vintage for each archive month.
-- `--force-download`: bypasses same-day raw reuse. For BPS this can redownload the requested archive range, so use it deliberately.
-- `--local-file PATH`: supported for the manual `redfin_zip_monthly` import and requires `--source redfin_zip_monthly`.
-- `--offline`: disables discovery network checks and skips downloads.
+- `--source SOURCE_ID`: filters source-aware stages such as `discover`, `download`, and `clean`.
+- `--start-date` / `--end-date`: constrain supported downloads or harmonized output dates.
+- `--vintage YYYY-MM-DD`: selects local raw vintages by retrieval-date logic where implemented.
+- `--force-download`: bypasses same-day raw reuse and requests new source files/API responses.
+- `--local-file PATH`: imports a manually downloaded official file for sources such as `redfin_zip_monthly`.
+- `--offline`: disables network downloads/checks and reuses local raw archives.
 - `--log-level`: `DEBUG`, `INFO`, `WARNING`, or `ERROR`.
 
-Pipeline run status and errors are appended to `metadata/pipeline_run_log.csv`.
+Pipeline run status is appended to `metadata/pipeline_run_log.csv`.
 
 ## Rebuild workflows
 
-Rebuild everything from already archived raw data without network access:
+Rebuild everything from already archived raw files:
 
 ```powershell
 python run_pipeline.py --stage all --offline
@@ -182,118 +216,83 @@ Refresh automatically downloadable sources, then rebuild:
 python run_pipeline.py --stage all --force-download
 ```
 
-The large Redfin ZIP Key Metrics product remains manual and opt-in. A full online run logs that manual source while continuing with other enabled sources and then reuses the latest locally imported Redfin ZIP file.
-
-Import a new official Redfin ZIP Key Metrics file:
+Import a new official Redfin ZIP Key Metrics CSV:
 
 ```powershell
 python run_pipeline.py --stage download --source redfin_zip_monthly --local-file "PATH_TO_OFFICIAL_REDFIN_CSV"
 python run_pipeline.py --stage all --offline
 ```
 
-The import copies the national CSV unchanged to immutable raw storage. Cleaning uses DuckDB projection and filtering, joins against the versioned LA County ZIP reference, saves only the LA subset to `data/clean/redfin_zip_monthly_la_county.parquet`, and caches that result by raw checksum.
+The Redfin ZIP import preserves the national CSV as immutable raw data. Cleaning filters to Los Angeles County postal ZIPs using the versioned ZIP reference and writes the LA subset plus long-form ZIP observations.
 
 ## Storage and provenance
 
 | Location | Contents |
 |---|---|
-| `data/raw/<provider>/` | Immutable provider payloads. Filenames include source ID, UTC retrieval timestamp, and checksum prefix. |
-| `data/archive/deprecated_zori_nsa/` | Deprecated NSA ZORI files and their archive manifest; excluded from active ingestion. |
-| `data/interim/` | Reusable intermediate observations, currently the long-form Redfin ZIP extract. |
-| `data/clean/` | Latest selected source-specific normalized Parquet and geography tables. |
-| `data/final/` | Long fact table and analytical panels in Parquet. |
-| `database/housing.duckdb` | Integrated query database. |
-| `metadata/raw_file_manifest.csv` | Raw URL/API endpoint, retrieval, filename, byte size, checksum, source vintage, and source-specific request metadata. |
-| `metadata/data_catalog.csv` | Configured source inventory and discovery results. |
-| `metadata/data_dictionary.csv` | Variable definitions and methods. |
-| `metadata/transformation_log.csv` | Executed transformations and output paths. |
-| `metadata/pipeline_run_log.csv` | Stage requests, filters, status, and errors. |
-| `output/coverage/` | Source, time, ZIP, BPS archive, and Redfin ZIP coverage reports. |
-| `output/qa/` | QA summary and bounded failure samples. |
-| `output/exports/` | Modeling-friendly county and ZIP CSVs. |
+| `data/raw/<provider>/` | Immutable provider payloads; filenames include source ID, retrieval timestamp, and checksum prefix |
+| `data/archive/deprecated_zori_nsa/` | Deprecated NSA ZORI archive; excluded from active ingestion |
+| `data/interim/` | Reusable intermediate outputs, including Redfin ZIP long observations |
+| `data/clean/` | Source-specific normalized Parquet files |
+| `data/final/` | Long fact table, monthly panels, and native-frequency control panels |
+| `database/housing.duckdb` | Integrated query database |
+| `metadata/raw_file_manifest.csv` | Raw URL/API endpoint, retrieval timestamp, filename, size, checksum, source vintage, and request metadata |
+| `metadata/source_coverage.csv` | Variable/source date coverage and non-null counts |
+| `metadata/data_dictionary.csv` | Generated variable dictionary from `config/variables.yaml` |
+| `metadata/transformation_log.csv` | Transformation IDs, inputs, outputs, and execution metadata |
+| `output/coverage/` | Coverage, missingness, BPS, Redfin, and source-vintage reports |
+| `output/qa/` | QA summary/failure reports and raw repository completeness |
+| `output/exports/` | Modeling-friendly CSV exports |
 
-The operational `source_vintage` is the UTC retrieval date. Provider observation dates and period boundaries remain separate. Raw payloads are never overwritten. Clean and analytical tables use the latest selected local vintage, while raw manifests retain earlier acquisitions.
+Raw payloads are never edited, replaced, or deleted by the pipeline. Clean and analytical outputs are rebuildable products from selected local raw vintages.
 
 ## DuckDB schemas
 
 `database/housing.duckdb` uses five schemas:
 
-### `metadata`
+- `metadata`
+- `raw`
+- `clean`
+- `analytics`
+- `quality`
 
-- `metadata.source_registry`
-- `metadata.variable_dictionary`
-- `metadata.geography`
+`metadata.source_registry` and `raw.file_manifest` are provenance tables. They contain source-vintage/raw-manifest rows, not copies of provider payloads. The current build has 29 distinct configured source IDs and 1,307 source-registry rows because Census BPS stores one row per archived monthly file.
 
-### `raw`
+The `clean` schema is rebuilt from active configured sources only. It contains one table per active source ID, except `redfin_zip_monthly`, whose raw national file is filtered into `clean.redfin_zip_monthly`.
 
-- `raw.file_manifest`
-
-This table stores provenance rows, not copies of provider payloads.
-
-### `clean`
-
-- `clean.zillow_county_zhvi`
-- `clean.zillow_zip_zhvi`
-- `clean.zillow_county_zori_smoothed_sa`
-- `clean.zillow_zip_zori_smoothed_sa`
-- `clean.redfin_county_monthly`
-- `clean.redfin_zip_monthly`
-- `clean.bls_laus_la_county`
-- `clean.freddie_mac_pmms`
-- `clean.census_bps_county`
-- `clean.census_bps_state`
-
-The national Redfin ZIP CSV is not loaded into DuckDB. `clean.redfin_zip_monthly` contains only the verified Los Angeles County subset.
-
-### `analytics`
+The `analytics` schema contains:
 
 - `analytics.fact_housing_observation`
 - `analytics.county_monthly_panel`
 - `analytics.zip_monthly_panel`
 - `analytics.state_quarterly_panel`
+- `analytics.metro_monthly_controls`
+- `analytics.metro_quarterly_controls`
+- `analytics.county_annual_controls`
+- `analytics.homeowner_market_monthly`
+- `analytics.renter_market_monthly`
+- `analytics.overall_market_monthly`
+- `analytics.macro_controls_monthly`
 
-The fact observation contract retains observation/source dates, geography IDs, state/county FIPS, variable ID, value, reported value where available, units, provider, native/final frequency, source vintage, retrieval timestamp, source filename, transformation ID, adjustment/imputation/interpolation flags, and quality flags.
-
-`analytics.county_monthly_panel` is one row per Los Angeles County month and includes source levels plus documented growth, affordability, mortgage-payment, and market-tightness features.
-
-`analytics.zip_monthly_panel` keeps the Zillow ZIP-month spine, seasonally adjusted `zori`, ZHVI, Redfin rolling-three-month Key Metrics, provider and calculated YoY fields, methodology fields, and availability flags. Redfin is left-joined and cannot remove Zillow ZIP-months.
-
-### `quality`
+The `quality` schema contains:
 
 - `quality.qa_summary`
 - `quality.qa_failures`
+- `quality.raw_repository_completeness`
 
-Structural error checks stop validation. Warning checks preserve plausible source gaps, revisions, and economic outliers for review.
+## Derived features
 
-## Dates, geography, and missing values
+County monthly derived fields include:
 
-- Monthly analytical dates are calendar month ends.
-- Source dates and source period boundaries are preserved.
-- California FIPS is `"06"` and Los Angeles County FIPS is `"06037"`.
-- Provider ZIPs use `geo_id="ZIP_#####"` and `postal_zip="#####"`.
-- ZIPs are not silently treated as ZCTAs.
-- Missing values remain null.
-- The pipeline does not interpolate housing or labor data.
-- ZIP values are not filled from county values.
-- County values are not distributed to ZIPs.
-- Extreme but structurally valid values are retained and reported as warnings.
-
-Census BPS county methodology changes in January 2022. Earlier county values are flagged as sampled-jurisdiction tallies; January 2022 onward uses the full current universe with imputation flags. Reported units and estimated totals are preserved separately.
-
-## Derived analytical variables
-
-County features include:
-
-- one- and twelve-month fractional growth for ZHVI, SA ZORI, and active inventory;
-- price-to-rent: `ZHVI / (12 * ZORI)`;
-- inventory-to-sales;
-- principal-and-interest mortgage payments for configured 10% and 20% down-payment scenarios;
+- one-month and twelve-month ZHVI/ZORI growth;
+- price-to-rent ratio using seasonally adjusted ZORI;
+- inventory-to-sales and sales-to-inventory ratios;
+- down-payment scenarios at 3.5%, 10%, and 20%;
+- closing-cost scenarios at 2%, 3%, and 5%;
+- principal-and-interest mortgage-payment scenarios using Freddie Mac monthly-average 30-year rates;
 - mortgage-payment-to-rent ratios; and
-- a market-tightness index based on available oriented z-score components.
+- market-tightness index components.
 
-Mortgage estimates use the national Freddie Mac monthly-average 30-year rate and Redfin county median sale price. They exclude property tax, insurance, HOA dues, maintenance, and mortgage insurance.
-
-Redfin ZIP provider YoY values are retained in `_provider` columns using percentage-point units. Exact twelve-month changes calculated from rolling-window levels use `_yoy_calculated` columns. The project does not calculate Redfin ZIP MoM changes because adjacent source windows overlap.
+Mortgage-payment scenarios exclude taxes, insurance, HOA fees, maintenance, PMI, and closing-cost financing. They are affordability scenarios, not observed borrower-level payments.
 
 ## QA and coverage
 
@@ -303,22 +302,25 @@ Run validation:
 python run_pipeline.py --stage validate
 ```
 
-QA covers duplicate keys, missing identifiers, geography formats, prohibited negative levels, BPS fixed-width FIPS, BLS/fact frequency gaps, ZORI product identity, clean-to-panel equality, Redfin ZIP rolling-window semantics and county eligibility, provider/calculated YoY differences, stale endpoints, economic movement warnings, county/ZIP plausibility, and Freddie Mac monthly aggregation.
+The current validation run completed with 0 structural errors and 3 warning checks. Structural QA failures stop validation. Plausible economic outliers and expected source gaps are warnings for review.
+
+QA and coverage include duplicate-key checks, geography ID/FIPS validation, ZORI product identity, Redfin ZIP rolling-window semantics, BPS archive coverage, missingness summaries, clean-to-panel equality checks, and raw repository completeness.
 
 Core reports:
 
 - `output/qa/qa_summary.csv`
 - `output/qa/qa_failures.csv`
+- `output/qa/raw_repository_completeness.csv`
 - `output/coverage/source_coverage.csv`
 - `output/coverage/time_coverage.csv`
 - `output/coverage/zip_coverage.csv`
-- `output/coverage/bps_archive_download.csv`
+- `output/coverage/missingness_summary.csv`
 - `output/coverage/bps_archive_coverage.csv`
 - `output/coverage/bps_archive_period_report.csv`
+- `output/coverage/redfin_active_vintage.csv`
+- `output/coverage/redfin_vintage_comparison.csv`
 - `output/coverage/redfin_zip_source_audit.csv`
-- `output/coverage/redfin_zip_source_null_counts.csv`
 - `output/coverage/redfin_zip_coverage.csv`
-- `output/coverage/redfin_zip_unmatched.csv`
 - `output/coverage/redfin_zip_yoy_comparison.csv`
 
 Run tests:
@@ -326,6 +328,18 @@ Run tests:
 ```powershell
 python -m pytest -q
 ```
+
+## Current coverage notes
+
+- Census BPS county and state monthly archives are loaded from January 2000 through May 2026. The period report records later attempted archive periods separately when they are not published or cannot be retrieved.
+- Zillow ZHVI runs through May 2026 in the current build.
+- Active Zillow ZORI SA runs from January 2015 through May 2026.
+- Redfin county monthly data runs from January 2012 through May 2026.
+- Redfin ZIP rolling-three-month data runs from June 2019 through May 2026.
+- BLS LAUS runs from January 1990 through May 2026.
+- Freddie Mac PMMS runs from April 1971 through June 2026.
+- ACS table-based variables currently use the 2024 ACS 5-year detailed-table files.
+- HVS rental-vacancy series are state/metro quarterly controls, not LA County observations.
 
 ## Query examples
 
@@ -343,7 +357,7 @@ county = con.sql("""
 """).df()
 ```
 
-Inspect the newest BLS raw vintage and request metadata:
+Inspect the newest BLS raw vintage:
 
 ```sql
 SELECT
@@ -359,22 +373,6 @@ FROM raw.file_manifest
 WHERE source_id = 'bls_laus_la_county'
 ORDER BY retrieved_at DESC
 LIMIT 1;
-```
-
-Inspect the latest BLS analytical observations:
-
-```sql
-SELECT observation_date, variable_id, value, source_vintage
-FROM analytics.fact_housing_observation
-WHERE geo_id = 'COUNTY_06037'
-  AND variable_id IN (
-      'unemployment_rate',
-      'unemployment',
-      'employment',
-      'labor_force'
-  )
-ORDER BY observation_date DESC, variable_id
-LIMIT 24;
 ```
 
 Inspect ZIP source availability:
@@ -394,22 +392,26 @@ ORDER BY postal_zip;
 
 ## Known limitations
 
-- Provider histories can be revised. Raw vintages preserve what was retrieved, but the active clean and analytical tables select one latest local vintage.
-- BLS may publish unavailable months as nonnumeric values with footnotes. These remain in raw JSON and do not become fabricated numeric observations.
-- Redfin ZIP Key Metrics has no verified stable direct endpoint for the selected export and requires a manual official download.
-- Redfin ZIP observations are overlapping three-month windows. They must not be summed across adjacent period ends or interpreted as single-month flows.
-- Redfin's provider `MEDIAN DAYS ON MARKET YOY (%)` values can differ materially from percentage changes calculated from level values; both are retained and compared.
-- The geography table records provider postal ZIP assignments but does not invent Census ZCTA equivalence or fractional county allocation.
-- The California quarterly panel is intentionally empty pending implementation of official Phase 2 sources.
-- Row-level revision reports across archived provider vintages are not yet generated.
+- Provider histories can be revised. Raw vintages preserve retrieved snapshots, but active clean/analytical tables select the latest configured local vintage.
+- HVS official raw workbooks are archived, but the current cleaner uses a narrow prepared observation-contract fallback for the irregular workbook layout and flags those rows with `prepared_clean_contract`.
+- Redfin ZIP Key Metrics has no verified stable direct endpoint for the selected CSV export and requires manual official download/import.
+- Rental inventory is not implemented because no verified official rental-listing inventory source is integrated; ZORI is not inventory.
+- Permits are not starts, completions, or units under construction.
+- County values are not allocated to ZIPs, and ZIP values are not treated as ZCTAs.
+- Deferred variables and mentor-decision items are documented in `metadata/data_gap_analysis.csv`.
 
 ## Adding or changing a source
 
 1. Use only an official public download, documented API, or provider-published file.
-2. Add complete source metadata to `config/sources.yaml`.
-3. Add methodologically distinct variable IDs to `config/variables.yaml`.
-4. Preserve immutable raw files and checksums.
-5. Implement source-specific schema validation and transformation logic.
-6. Preserve geography identifiers as strings.
-7. Update harmonization, QA, coverage, tests, and this README.
-8. Run the full offline rebuild, tests, and validation before publishing.
+2. Add complete source metadata and key variables to `config/sources.yaml`.
+3. Add or update variable definitions in `config/variables.yaml`.
+4. Preserve immutable raw files, retrieval timestamps, filenames, and SHA-256 checksums.
+5. Preserve leading zeros in FIPS, ZIP, and ZCTA identifiers.
+6. Implement source-specific cleaning and frequency/geography rules.
+7. Update transformations, variable dictionary entries, QA, coverage, tests, catalog outputs, and this README.
+8. Run:
+
+```powershell
+python run_pipeline.py --stage validate
+python -m pytest -q
+```

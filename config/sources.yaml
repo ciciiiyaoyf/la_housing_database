@@ -1,154 +1,687 @@
-verified_at: "2026-07-01"
+verified_at: '2026-07-01'
 sources:
-  - source_id: zillow_county_zhvi
-    provider: Zillow Research
-    dataset_name: County ZHVI, all homes, middle tier, smoothed and seasonally adjusted
-    source_page_url: https://www.zillow.com/research/data/
-    download_url: https://files.zillowstatic.com/research/public_csvs/zhvi/County_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
-    native_frequency: monthly
-    geography_levels: [county]
-    file_format: csv
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Zillow Research data; use with source attribution and review provider terms.
-    revision_notes: Full history may be revised with each monthly release; Zillow notes download paths can change.
-  - source_id: zillow_zip_zhvi
-    provider: Zillow Research
-    dataset_name: ZIP ZHVI, all homes, middle tier, smoothed and seasonally adjusted
-    source_page_url: https://www.zillow.com/research/data/
-    download_url: https://files.zillowstatic.com/research/public_csvs/zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
-    native_frequency: monthly
-    geography_levels: [postal_zip]
-    file_format: csv
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Zillow Research data; provider regions are postal ZIP codes, not Census ZCTAs.
-    revision_notes: Full history may be revised with each monthly release.
-  - source_id: zillow_county_zori_smoothed_sa
-    provider: Zillow Research
-    dataset_name: County ZORI, all homes plus multifamily, smoothed and seasonally adjusted
-    source_page_url: https://www.zillow.com/research/data/
-    download_url: https://files.zillowstatic.com/research/public_csvs/zori/County_zori_uc_sfrcondomfr_sm_sa_month.csv
-    native_frequency: monthly
-    geography_levels: [county]
-    file_format: csv
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Official Zillow Research ZORI smoothed and seasonally adjusted product.
-    revision_notes: Full history may be revised with each monthly release; this is the sole active ZORI product.
-  - source_id: zillow_zip_zori_smoothed_sa
-    provider: Zillow Research
-    dataset_name: ZIP ZORI, all homes plus multifamily, smoothed and seasonally adjusted
-    source_page_url: https://www.zillow.com/research/data/
-    download_url: https://files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_sa_month.csv
-    native_frequency: monthly
-    geography_levels: [postal_zip]
-    file_format: csv
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Official Zillow Research ZORI smoothed and seasonally adjusted product; provider ZIPs are not Census ZCTAs.
-    revision_notes: Full history may be revised with each monthly release; this is the sole active ZORI product.
-  - source_id: redfin_county_monthly
-    provider: Redfin Data Center
-    dataset_name: Housing Market Tracker monthly county data
-    source_page_url: https://www.redfin.com/news/data-center/downloads/
-    download_url: https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/county_market_tracker.tsv000.gz
-    native_frequency: monthly
-    geography_levels: [county]
-    file_format: tsv.gz
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Official Redfin public-data object linked to the Data Center product.
-    revision_notes: Subject to revision. Redfin changed the Data Center pipeline in May 2026; cleaner retains seasonal-adjustment fields.
-  - source_id: redfin_zip_monthly
-    provider: Redfin Data Center
-    dataset_name: Housing Market Tracker ZIP Key Metrics, rolling three months
-    source_page_url: https://www.redfin.com/news/data-center/downloads/
-    download_url: https://www.redfin.com/news/data-center/downloads/
-    native_frequency: rolling_3_months
-    geography_levels: [postal_zip]
-    file_format: csv
-    enabled: true
-    auto_download: false
-    manual_reason: Redfin does not publish a verified stable direct endpoint for the user-selected ZIP Key Metrics CSV. Import the official Data Center download with --local-file.
-    manual_filename: redfin_housing_market_monthly_all_zips_key_metrics_2019_Jan_to_2026_May.csv
-    selected_start_date: "2019-01-01"
-    selected_end_date: "2026-05-31"
-    rolling_window_months: 3
-    expected_columns:
-      - LAST UPDATED
-      - FREQUENCY
-      - PERIOD BEGIN
-      - PERIOD END
-      - REGION ID
-      - REGION TYPE
-      - REGION NAME
-      - METRO
-      - HOMES SOLD
-      - HOMES SOLD YOY (%)
-      - MEDIAN SALE PRICE NSA ($)
-      - MEDIAN SALE PRICE NSA YOY (%)
-      - MEDIAN DAYS ON MARKET (DAYS)
-      - MEDIAN DAYS ON MARKET YOY (%)
-      - NEW LISTINGS
-      - NEW LISTINGS YOY (%)
-      - ACTIVE LISTINGS
-      - ACTIVE LISTINGS YOY (%)
-      - PENDING SALES
-      - PENDING SALES YOY (%)
-    methodology_notes: Key Metrics download dated by PERIOD END; every observation is an overlapping Rolling 3 Months window. Only ZIPs verified to primary county FIPS 06037 are loaded into clean analytics.
-    license_or_use_notes: Official Redfin Data Center manual download; the complete national file remains immutable raw data and provider postal ZIPs are not Census ZCTAs.
-    revision_notes: Historical values can be revised. Provider YoY percentages are retained as percentage points and active listings are not relabeled as inventory.
-  - source_id: bls_laus_la_county
-    provider: U.S. Bureau of Labor Statistics
-    dataset_name: Local Area Unemployment Statistics, Los Angeles County
-    source_page_url: https://www.bls.gov/lau/data-overview.htm
-    download_url: https://api.bls.gov/publicAPI/v2/timeseries/data/
-    native_frequency: monthly
-    geography_levels: [county]
-    file_format: json
-    enabled: true
-    auto_download: true
-    series_ids:
-      - LAUCN060370000000003
-      - LAUCN060370000000004
-      - LAUCN060370000000005
-      - LAUCN060370000000006
-    license_or_use_notes: U.S. government public data; citation requested.
-    revision_notes: County estimates are not seasonally adjusted and are revised; archived API responses preserve retrieval vintages.
-  - source_id: freddie_mac_pmms
-    provider: Freddie Mac
-    dataset_name: Primary Mortgage Market Survey, weekly rates since 1971
-    source_page_url: https://www.freddiemac.com/pmms/pmms_archives
-    download_url: https://www.freddiemac.com/pmms/docs/PMMS_history.csv
-    native_frequency: weekly
-    geography_levels: [national]
-    file_format: csv
-    enabled: true
-    auto_download: true
-    license_or_use_notes: National PMMS rate; use with proper Freddie Mac attribution.
-    revision_notes: Methodology changed over time; see the official consolidated readme and archive.
-  - source_id: census_bps_county
-    provider: U.S. Census Bureau
-    dataset_name: Building Permits Survey county monthly archive
-    source_page_url: https://www.census.gov/construction/bps/index.html
-    download_url: https://www2.census.gov/econ/bps/County/co2605c.txt
-    native_frequency: monthly
-    geography_levels: [county]
-    file_format: txt
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Permits are authorizations for new privately owned residential construction, not starts or completions.
-    revision_notes: Monthly current-period archive files are loaded from January 2000 forward. Reported-unit fields are retained; the January 2022 methodology change is flagged explicitly.
-  - source_id: census_bps_state
-    provider: U.S. Census Bureau
-    dataset_name: Building Permits Survey state monthly archive
-    source_page_url: https://www.census.gov/construction/bps/index.html
-    download_url: https://www2.census.gov/econ/bps/State/st2605c.txt
-    native_frequency: monthly
-    geography_levels: [state]
-    file_format: txt
-    enabled: true
-    auto_download: true
-    license_or_use_notes: Permits are authorizations, not starts or completions.
-    revision_notes: Monthly current-period archive files are loaded from January 2000 forward. Reported-unit fields are retained; the January 2022 methodology change is flagged explicitly.
+- source_id: zillow_county_zhvi
+  provider: Zillow Research
+  dataset_name: County ZHVI, all homes, middle tier, smoothed and seasonally adjusted
+  source_page_url: https://www.zillow.com/research/data/
+  download_url: https://files.zillowstatic.com/research/public_csvs/zhvi/County_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
+  native_frequency: monthly
+  geography_levels:
+  - county
+  file_format: csv
+  key_variables:
+  - zhvi
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Zillow Research data; use with source attribution and review
+    provider terms.
+  revision_notes: Full history may be revised with each monthly release; Zillow notes
+    download paths can change.
+- source_id: zillow_zip_zhvi
+  provider: Zillow Research
+  dataset_name: ZIP ZHVI, all homes, middle tier, smoothed and seasonally adjusted
+  source_page_url: https://www.zillow.com/research/data/
+  download_url: https://files.zillowstatic.com/research/public_csvs/zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
+  native_frequency: monthly
+  geography_levels:
+  - postal_zip
+  file_format: csv
+  key_variables:
+  - zhvi
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Zillow Research data; provider regions are postal ZIP codes,
+    not Census ZCTAs.
+  revision_notes: Full history may be revised with each monthly release.
+- source_id: zillow_county_zori_smoothed_sa
+  provider: Zillow Research
+  dataset_name: County ZORI, all homes plus multifamily, smoothed and seasonally adjusted
+  source_page_url: https://www.zillow.com/research/data/
+  download_url: https://files.zillowstatic.com/research/public_csvs/zori/County_zori_uc_sfrcondomfr_sm_sa_month.csv
+  native_frequency: monthly
+  geography_levels:
+  - county
+  file_format: csv
+  key_variables:
+  - zori_smoothed_sa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official Zillow Research ZORI smoothed and seasonally adjusted
+    product.
+  revision_notes: Full history may be revised with each monthly release; this is the
+    sole active ZORI product.
+- source_id: zillow_zip_zori_smoothed_sa
+  provider: Zillow Research
+  dataset_name: ZIP ZORI, all homes plus multifamily, smoothed and seasonally adjusted
+  source_page_url: https://www.zillow.com/research/data/
+  download_url: https://files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_sa_month.csv
+  native_frequency: monthly
+  geography_levels:
+  - postal_zip
+  file_format: csv
+  key_variables:
+  - zori_smoothed_sa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official Zillow Research ZORI smoothed and seasonally adjusted
+    product; provider ZIPs are not Census ZCTAs.
+  revision_notes: Full history may be revised with each monthly release; this is the
+    sole active ZORI product.
+- source_id: redfin_county_monthly
+  provider: Redfin Data Center
+  dataset_name: Housing Market Tracker monthly county data
+  source_page_url: https://www.redfin.com/news/data-center/downloads/
+  download_url: https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/county_market_tracker.tsv000.gz
+  native_frequency: monthly
+  geography_levels:
+  - county
+  file_format: tsv.gz
+  key_variables:
+  - median_sale_price
+  - homes_sold
+  - active_inventory
+  - new_listings
+  - months_of_supply
+  - days_on_market
+  - price_drop_share
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official Redfin public-data object linked to the Data Center
+    product.
+  revision_notes: Subject to revision. Redfin changed the Data Center pipeline in
+    May 2026; cleaner retains seasonal-adjustment fields.
+- source_id: redfin_zip_monthly
+  provider: Redfin Data Center
+  dataset_name: Housing Market Tracker ZIP Key Metrics, rolling three months
+  source_page_url: https://www.redfin.com/news/data-center/downloads/
+  download_url: https://www.redfin.com/news/data-center/downloads/
+  native_frequency: rolling_3_months
+  geography_levels:
+  - postal_zip
+  file_format: csv
+  key_variables:
+  - redfin_zip_homes_sold_rolling_3m
+  - redfin_zip_median_sale_price_nsa_rolling_3m
+  - redfin_zip_median_days_on_market_rolling_3m
+  - redfin_zip_new_listings_rolling_3m
+  - redfin_zip_active_listings_rolling_3m
+  - redfin_zip_pending_sales_rolling_3m
+  enabled: true
+  auto_download: false
+  manual_reason: Redfin does not publish a verified stable direct endpoint for the
+    user-selected ZIP Key Metrics CSV. Import the official Data Center download with
+    --local-file.
+  manual_filename: redfin_housing_market_monthly_all_zips_key_metrics_2019_Jan_to_2026_May.csv
+  selected_start_date: '2019-01-01'
+  selected_end_date: '2026-05-31'
+  rolling_window_months: 3
+  expected_columns:
+  - LAST UPDATED
+  - FREQUENCY
+  - PERIOD BEGIN
+  - PERIOD END
+  - REGION ID
+  - REGION TYPE
+  - REGION NAME
+  - METRO
+  - HOMES SOLD
+  - HOMES SOLD YOY (%)
+  - MEDIAN SALE PRICE NSA ($)
+  - MEDIAN SALE PRICE NSA YOY (%)
+  - MEDIAN DAYS ON MARKET (DAYS)
+  - MEDIAN DAYS ON MARKET YOY (%)
+  - NEW LISTINGS
+  - NEW LISTINGS YOY (%)
+  - ACTIVE LISTINGS
+  - ACTIVE LISTINGS YOY (%)
+  - PENDING SALES
+  - PENDING SALES YOY (%)
+  methodology_notes: Key Metrics download dated by PERIOD END; every observation is
+    an overlapping Rolling 3 Months window. Only ZIPs verified to primary county FIPS
+    06037 are loaded into clean analytics.
+  license_or_use_notes: Official Redfin Data Center manual download; the complete
+    national file remains immutable raw data and provider postal ZIPs are not Census
+    ZCTAs.
+  revision_notes: Historical values can be revised. Provider YoY percentages are retained
+    as percentage points and active listings are not relabeled as inventory.
+- source_id: bls_laus_la_county
+  provider: U.S. Bureau of Labor Statistics
+  dataset_name: Local Area Unemployment Statistics, Los Angeles County
+  source_page_url: https://www.bls.gov/lau/data-overview.htm
+  download_url: https://api.bls.gov/publicAPI/v2/timeseries/data/
+  native_frequency: monthly
+  geography_levels:
+  - county
+  file_format: json
+  key_variables:
+  - unemployment_rate
+  - unemployment
+  - employment
+  - labor_force
+  enabled: true
+  auto_download: true
+  series_ids:
+  - LAUCN060370000000003
+  - LAUCN060370000000004
+  - LAUCN060370000000005
+  - LAUCN060370000000006
+  license_or_use_notes: U.S. government public data; citation requested.
+  revision_notes: County estimates are not seasonally adjusted and are revised; archived
+    API responses preserve retrieval vintages.
+- source_id: freddie_mac_pmms
+  provider: Freddie Mac
+  dataset_name: Primary Mortgage Market Survey, weekly rates since 1971
+  source_page_url: https://www.freddiemac.com/pmms/pmms_archives
+  download_url: https://www.freddiemac.com/pmms/docs/PMMS_history.csv
+  native_frequency: weekly
+  geography_levels:
+  - national
+  file_format: csv
+  enabled: true
+  auto_download: true
+  license_or_use_notes: National PMMS rate; use with proper Freddie Mac attribution.
+  revision_notes: Methodology changed over time; see the official consolidated readme
+    and archive.
+  key_variables:
+  - mortgage_rate_30y_weekly
+  - mortgage_rate_30y_monthly_average
+  - mortgage_rate_30y_monthly_median
+  - mortgage_rate_30y_month_end
+  - mortgage_rate_30y_observation_count
+- source_id: census_bps_county
+  provider: U.S. Census Bureau
+  dataset_name: Building Permits Survey county monthly archive
+  source_page_url: https://www.census.gov/construction/bps/index.html
+  download_url: https://www2.census.gov/econ/bps/County/co2605c.txt
+  native_frequency: monthly
+  geography_levels:
+  - county
+  file_format: txt
+  key_variables:
+  - permits_total
+  - permits_1_unit
+  - permits_2_to_4_units
+  - permits_5_plus_units
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Permits are authorizations for new privately owned residential
+    construction, not starts or completions.
+  revision_notes: Monthly current-period archive files are loaded from January 2000
+    forward. Reported-unit fields are retained; the January 2022 methodology change
+    is flagged explicitly.
+- source_id: census_bps_state
+  provider: U.S. Census Bureau
+  dataset_name: Building Permits Survey state monthly archive
+  source_page_url: https://www.census.gov/construction/bps/index.html
+  download_url: https://www2.census.gov/econ/bps/State/st2605c.txt
+  native_frequency: monthly
+  geography_levels:
+  - state
+  file_format: txt
+  key_variables:
+  - permits_total
+  - permits_1_unit
+  - permits_2_to_4_units
+  - permits_5_plus_units
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Permits are authorizations, not starts or completions.
+  revision_notes: Monthly current-period archive files are loaded from January 2000
+    forward. Reported-unit fields are retained; the January 2022 methodology change
+    is flagged explicitly.
+- source_id: fhfa_hpi_state_purchase_only
+  provider: Federal Housing Finance Agency
+  dataset_name: Purchase-Only House Price Index by State
+  source_page_url: https://www.fhfa.gov/house-price-index?tab=HPI%20Datasets
+  download_url: https://www.fhfa.gov/hpi/download/quarterly_datasets/hpi_po_state.txt
+  native_frequency: quarterly
+  geography_levels:
+  - state
+  file_format: txt
+  raw_subdir: ''
+  key_variables:
+  - fhfa_hpi_ca_purchase_only_nsa
+  - fhfa_hpi_ca_purchase_only_sa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: fhfa_hpi_metro_purchase_only
+  provider: Federal Housing Finance Agency
+  dataset_name: Purchase-Only House Price Index for the 100 Largest Metropolitan Areas
+  source_page_url: https://www.fhfa.gov/house-price-index?tab=HPI%20Datasets
+  download_url: https://www.fhfa.gov/hpi/download/quarterly_datasets/hpi_po_metro.txt
+  native_frequency: quarterly
+  geography_levels:
+  - metro
+  file_format: txt
+  raw_subdir: ''
+  key_variables:
+  - fhfa_hpi_la_metropolitan_division_purchase_only_nsa
+  - fhfa_hpi_la_metropolitan_division_purchase_only_sa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: fhfa_hpi_county_annual
+  provider: Federal Housing Finance Agency
+  dataset_name: Developmental All-Transactions House Price Index by County
+  source_page_url: https://www.fhfa.gov/house-price-index?tab=HPI%20Datasets
+  download_url: https://www.fhfa.gov/hpi/download/annual/hpi_at_county.xlsx
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: xlsx
+  raw_subdir: ''
+  key_variables:
+  - fhfa_hpi_la_county_all_transactions_nsa_annual
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: bea_state_personal_income
+  provider: U.S. Bureau of Economic Analysis
+  dataset_name: SQINC1 Quarterly Personal Income by State
+  source_page_url: https://www.bea.gov/data/income-saving/personal-income-by-state
+  download_url: https://apps.bea.gov/regional/zip/SQINC.zip
+  native_frequency: quarterly
+  geography_levels:
+  - state
+  file_format: zip
+  raw_subdir: ''
+  key_variables:
+  - bea_ca_personal_income_q_sa
+  - bea_ca_per_capita_personal_income_q_sa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: bea_county_personal_income
+  provider: U.S. Bureau of Economic Analysis
+  dataset_name: CAINC1 Annual Personal Income by County
+  source_page_url: https://www.bea.gov/data/income-saving/personal-income-by-county
+  download_url: https://apps.bea.gov/regional/zip/CAINC1.zip
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: zip
+  raw_subdir: ''
+  key_variables:
+  - bea_la_county_personal_income_annual
+  - bea_la_county_per_capita_personal_income_annual
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: irs_soi_county_migration
+  provider: Internal Revenue Service
+  dataset_name: SOI Tax Stats County-to-County Migration Data, Los Angeles County
+  source_page_url: https://www.irs.gov/statistics/soi-tax-stats-migration-data
+  download_url: https://www.irs.gov/pub/irs-soi/county{inflow|outflow}{YYZZ}.csv
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: csv
+  raw_subdir: irs_soi
+  access_method: official_archive_pattern
+  selected_start_date: '2011-01-01'
+  selected_end_date: '2023-12-31'
+  key_variables:
+  - irs_soi_in_migration_returns
+  - irs_soi_out_migration_returns
+  - irs_soi_net_migration_returns
+  - irs_soi_in_migration_exemptions
+  - irs_soi_out_migration_exemptions
+  - irs_soi_net_migration_exemptions
+  - irs_soi_in_migration_agi
+  - irs_soi_out_migration_agi
+  - irs_soi_net_migration_agi
+  enabled: true
+  auto_download: true
+  methodology_notes: Annual county migration inferred from IRS tax return address
+    changes. Exemptions approximate people, returns approximate tax filing units,
+    and AGI is reported in thousands of current dollars. This is migration, not a
+    complete immigration measure; nonfilers and some international movers are not
+    fully represented.
+  license_or_use_notes: Official IRS SOI public statistics; cite IRS SOI Tax Stats
+    Migration Data and review provider notes.
+  revision_notes: Historical files may be revised. The pipeline archives separate
+    official county inflow and county outflow CSV files for each filing-year pair
+    and calculates net migration as inflow minus outflow. The current reliable CSV
+    pattern covers 2010-2011 through 2022-2023.
+- source_id: census_hvs_state_rental_vacancy
+  provider: U.S. Census Bureau
+  dataset_name: HVS Rental Vacancy Rates by State, 2005-present
+  source_page_url: https://www.census.gov/housing/hvs/data/rates.html
+  download_url: https://www.census.gov/housing/hvs/data/rates/tab1_state05_2026_rvr.xlsx
+  native_frequency: quarterly
+  geography_levels:
+  - state
+  file_format: xlsx
+  raw_subdir: census_hvs
+  key_variables:
+  - hvs_rental_vacancy_rate_ca
+  - hvs_rental_vacancy_rate_ca_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_hvs_metro_rental_vacancy_2005_2014
+  provider: U.S. Census Bureau
+  dataset_name: HVS Rental Vacancy Rates for 75 Largest MSAs, 2005-2014
+  source_page_url: https://www.census.gov/housing/hvs/data/rates.html
+  download_url: https://www.census.gov/housing/hvs/data/rates/tab4a_msa_05_2014_rvr.xlsx
+  native_frequency: quarterly
+  geography_levels:
+  - metro
+  file_format: xlsx
+  raw_subdir: census_hvs
+  key_variables:
+  - hvs_rental_vacancy_rate_la_metro
+  - hvs_rental_vacancy_rate_la_metro_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_hvs_metro_rental_vacancy_2015_2025
+  provider: U.S. Census Bureau
+  dataset_name: HVS Rental Vacancy Rates for 75 Largest MSAs, 2015-2025
+  source_page_url: https://www.census.gov/housing/hvs/data/rates.html
+  download_url: https://www.census.gov/housing/hvs/data/rates/tab4b_msa_15_25_rvr.xlsx
+  native_frequency: quarterly
+  geography_levels:
+  - metro
+  file_format: xlsx
+  raw_subdir: census_hvs
+  key_variables:
+  - hvs_rental_vacancy_rate_la_metro
+  - hvs_rental_vacancy_rate_la_metro_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_hvs_metro_rental_vacancy_2026
+  provider: U.S. Census Bureau
+  dataset_name: HVS Rental Vacancy Rates for 75 Largest MSAs, 2026
+  source_page_url: https://www.census.gov/housing/hvs/data/rates.html
+  download_url: https://www.census.gov/housing/hvs/data/rates/tab4_msa_26_rvr.xlsx
+  native_frequency: quarterly
+  geography_levels:
+  - metro
+  file_format: xlsx
+  raw_subdir: census_hvs
+  key_variables:
+  - hvs_rental_vacancy_rate_la_metro
+  - hvs_rental_vacancy_rate_la_metro_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: bls_ces_la_metro
+  provider: U.S. Bureau of Labor Statistics
+  dataset_name: Current Employment Statistics, Los Angeles-Long Beach-Anaheim MSA
+  source_page_url: https://www.bls.gov/sae/additional-resources/list-of-published-state-and-metropolitan-area-series/california.htm
+  download_url: https://download.bls.gov/pub/time.series/sm/sm.data.5c.California
+  native_frequency: monthly
+  geography_levels:
+  - metro
+  file_format: txt
+  raw_subdir: bls_ces
+  key_variables:
+  - ces_total_nonfarm_employment_sa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: bls_cpi_la_metro
+  provider: U.S. Bureau of Labor Statistics
+  dataset_name: CPI-U All Items, Los Angeles-Long Beach-Anaheim published area
+  source_page_url: https://www.bls.gov/regions/west/ca_losangeles_msa.htm
+  download_url: https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems
+  native_frequency: monthly
+  geography_levels:
+  - metro
+  file_format: txt
+  raw_subdir: bls_cpi
+  key_variables:
+  - cpi_u_all_items_la_nsa
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_acs_5year_b11001
+  provider: U.S. Census Bureau
+  dataset_name: 2024 ACS 5-Year Detailed Table B11001 Household Type
+  source_page_url: https://www.census.gov/programs-surveys/acs/data/summary-file.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b11001.dat
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: dat
+  raw_subdir: census_acs
+  key_variables:
+  - acs_households
+  - acs_households_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_acs_5year_b19013
+  provider: U.S. Census Bureau
+  dataset_name: 2024 ACS 5-Year Detailed Table B19013 Median Household Income
+  source_page_url: https://www.census.gov/programs-surveys/acs/data/summary-file.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: dat
+  raw_subdir: census_acs
+  key_variables:
+  - acs_median_household_income
+  - acs_median_household_income_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_acs_5year_b25001
+  provider: U.S. Census Bureau
+  dataset_name: 2024 ACS 5-Year Detailed Table B25001 Housing Units
+  source_page_url: https://www.census.gov/programs-surveys/acs/data/summary-file.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25001.dat
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: dat
+  raw_subdir: census_acs
+  key_variables:
+  - acs_total_housing_units
+  - acs_total_housing_units_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_acs_5year_b25002
+  provider: U.S. Census Bureau
+  dataset_name: 2024 ACS 5-Year Detailed Table B25002 Occupancy Status
+  source_page_url: https://www.census.gov/programs-surveys/acs/data/summary-file.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25002.dat
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: dat
+  raw_subdir: census_acs
+  key_variables:
+  - acs_vacant_housing_units
+  - acs_vacant_housing_units_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_acs_5year_b25003
+  provider: U.S. Census Bureau
+  dataset_name: ACS 5-Year Detailed Table B25003 Tenure, 2010-2024 vintages
+  source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
+  download_url: https://api.census.gov/data/
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: json
+  raw_subdir: census_acs
+  access_method: official_census_api
+  selected_start_date: '2010-01-01'
+  selected_end_date: '2024-12-31'
+  key_variables:
+  - acs_owner_occupied_units
+  - acs_owner_occupied_units_moe
+  - acs_renter_occupied_units
+  - acs_renter_occupied_units_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Loaded through the official ACS 5-year API, one immutable JSON
+    raw vintage per retrieval. Each observation is a five-year pooled estimate ending
+    in the named vintage year; overlapping ACS 5-year vintages are not interpolated.
+- source_id: census_acs_5year_b25064
+  provider: U.S. Census Bureau
+  dataset_name: 2024 ACS 5-Year Detailed Table B25064 Median Gross Rent
+  source_page_url: https://www.census.gov/programs-surveys/acs/data/summary-file.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25064.dat
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: dat
+  raw_subdir: census_acs
+  key_variables:
+  - acs_median_gross_rent
+  - acs_median_gross_rent_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Historical values may be revised; immutable raw vintages preserve
+    retrievals.
+- source_id: census_acs_5year_b25077
+  provider: U.S. Census Bureau
+  dataset_name: ACS 5-Year Detailed Table B25077 Median Home Value, 2010-2024 vintages
+  source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
+  download_url: https://api.census.gov/data/
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: json
+  raw_subdir: census_acs
+  access_method: official_census_api
+  selected_start_date: '2010-01-01'
+  selected_end_date: '2024-12-31'
+  key_variables:
+  - acs_median_home_value
+  - acs_median_home_value_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Loaded through the official ACS 5-year API, one immutable JSON
+    raw vintage per retrieval. Each observation is a five-year pooled estimate ending
+    in the named vintage year; overlapping ACS 5-year vintages are not interpolated.
+- source_id: census_acs_5year_b25081
+  provider: U.S. Census Bureau
+  dataset_name: ACS 5-Year Detailed Table B25081 Mortgage Status, 2010-2024 vintages
+  source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
+  download_url: https://api.census.gov/data/
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: json
+  raw_subdir: census_acs
+  access_method: official_census_api
+  selected_start_date: '2010-01-01'
+  selected_end_date: '2024-12-31'
+  key_variables:
+  - acs_owner_units_with_mortgage
+  - acs_owner_units_with_mortgage_moe
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Loaded through the official ACS 5-year API, one immutable JSON
+    raw vintage per retrieval. Each observation is a five-year pooled estimate ending
+    in the named vintage year; overlapping ACS 5-year vintages are not interpolated.
+- source_id: census_acs_5year_b25106
+  provider: U.S. Census Bureau
+  dataset_name: ACS 5-Year Detailed Table B25106 Tenure by Housing Costs as a Percentage of Household Income, 2010-2024 vintages
+  source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
+  download_url: https://api.census.gov/data/
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: json
+  raw_subdir: census_acs
+  access_method: official_census_api
+  selected_start_date: '2010-01-01'
+  selected_end_date: '2024-12-31'
+  key_variables:
+  - acs_b25106_owner_less_20k_cost_lt20pct
+  - acs_b25106_owner_less_20k_cost_20_29pct
+  - acs_b25106_owner_less_20k_cost_30pluspct
+  - acs_b25106_owner_20k_34999_cost_lt20pct
+  - acs_b25106_owner_20k_34999_cost_20_29pct
+  - acs_b25106_owner_20k_34999_cost_30pluspct
+  - acs_b25106_owner_35k_49999_cost_lt20pct
+  - acs_b25106_owner_35k_49999_cost_20_29pct
+  - acs_b25106_owner_35k_49999_cost_30pluspct
+  - acs_b25106_owner_50k_74999_cost_lt20pct
+  - acs_b25106_owner_50k_74999_cost_20_29pct
+  - acs_b25106_owner_50k_74999_cost_30pluspct
+  - acs_b25106_owner_75kplus_cost_lt20pct
+  - acs_b25106_owner_75kplus_cost_20_29pct
+  - acs_b25106_owner_75kplus_cost_30pluspct
+  - acs_b25106_owner_zero_negative_income
+  enabled: true
+  auto_download: true
+  license_or_use_notes: Official public source; cite provider and review provider
+    terms.
+  revision_notes: Loaded through the official ACS 5-year API, one immutable JSON
+    raw vintage per retrieval. Each observation is a five-year pooled estimate ending
+    in the named vintage year; overlapping ACS 5-year vintages are not interpolated.
+    Used as an input to an explicitly documented mortgage-debt proxy; ACS does not
+    directly publish outstanding mortgage balances.

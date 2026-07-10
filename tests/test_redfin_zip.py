@@ -86,6 +86,8 @@ def test_redfin_zip_cleaner_filters_with_geography_and_preserves_window(
     assert len(fact) == 24
     assert fact["variable_id"].nunique() == 12
     assert fact["native_frequency"].eq("rolling_3_months").all()
+    assert fact["checksum_sha256"].eq("abc123").all()
+    assert fact["provider_last_updated"].eq("2026-06-03").all()
     assert (coverage / "redfin_zip_unmatched.csv").exists()
     unmatched = pd.read_csv(
         coverage / "redfin_zip_unmatched.csv", dtype={"postal_zip": str}

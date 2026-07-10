@@ -242,6 +242,8 @@ def _to_observations(
             "source_vintage",
             "retrieved_at",
             "source_filename",
+            "checksum_sha256",
+            "provider_last_updated",
         ],
         value_vars=list(variable_map),
         var_name="_metric",
@@ -288,12 +290,22 @@ def clean_redfin_zip_key_metrics(
     )
     if sidecar.exists() and output_path.exists() and observations_path.exists():
         metadata = pd.read_json(sidecar, typ="series")
+        cached_observations = pd.read_parquet(observations_path)
+        cached_wide = pd.read_parquet(output_path)
         if (
             str(metadata.get("checksum_sha256"))
             == str(record["checksum_sha256"])
             and all(report.exists() for report in required_reports)
+            and {
+                "checksum_sha256",
+                "provider_last_updated",
+            }.issubset(cached_observations.columns)
+            and {
+                "checksum_sha256",
+                "provider_last_updated",
+            }.issubset(cached_wide.columns)
         ):
-            return pd.read_parquet(observations_path)
+            return cached_observations
 
     if not geography_path.exists():
         raise FileNotFoundError(
@@ -410,6 +422,7 @@ def clean_redfin_zip_key_metrics(
     wide["retrieved_at"] = str(record["retrieved_at"])
     wide["source_filename"] = str(record["source_filename"])
     wide["checksum_sha256"] = str(record["checksum_sha256"])
+    wide["provider_last_updated"] = wide["last_updated"]
     wide["quality_flag"] = "overlapping_rolling_3_month_window"
     wide = wide.sort_values(["postal_zip", "period_end"])
     output_path.parent.mkdir(parents=True, exist_ok=True)

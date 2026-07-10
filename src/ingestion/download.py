@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import shutil
 from datetime import date, datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pandas as pd
 import requests
 
 from src.common.config import ProjectConfig, SourceConfig
 from src.common.io import append_csv, sha256_file
+from src.cleaning.acs import ACS_TABLE_MAP
 from src.ingestion.bps_archive import download_bps_archive
+from src.ingestion.irs_migration import download_irs_soi_county_migration
 
 RAW_SUBDIR = {
     "Zillow Research": "zillow",
@@ -22,6 +26,9 @@ RAW_SUBDIR = {
     "U.S. Bureau of Labor Statistics": "bls",
     "Freddie Mac": "freddie_mac",
     "U.S. Census Bureau": "census_bps",
+    "Federal Housing Finance Agency": "fhfa",
+    "U.S. Bureau of Economic Analysis": "bea",
+    "Internal Revenue Service": "irs_soi",
 }
 
 BLS_SERIES = (
@@ -30,6 +37,21 @@ BLS_SERIES = (
     "LAUCN060370000000005",
     "LAUCN060370000000006",
 )
+
+ACS_HISTORICAL_TABLES = {
+    "census_acs_5year_b25003",
+    "census_acs_5year_b25077",
+    "census_acs_5year_b25081",
+    "census_acs_5year_b25106",
+}
+
+ACS_API_LATEST_5YEAR = 2024
+ACS_API_MIN_5YEAR = 2010
+ACS_UCGID_ZCTA_CHUNK_SIZE = 40
+
+
+def _raw_subdir(source: SourceConfig) -> str:
+    return source.raw_subdir or RAW_SUBDIR[source.provider]
 
 
 def _today_manifest_record(
@@ -261,12 +283,238 @@ def _download_bls(
     }
 
 
+def _acs_table_id(source_id: str) -> str:
+    return source_id.rsplit("_", 1)[-1].lower()
+
+
+def _acs_api_variable(summary_file_variable: str) -> str:
+    """Convert table-based ACS names like B25106_E004 to API B25106_004E."""
+    match = re.fullmatch(r"([A-Z0-9]+)_([EM])(\d{3})", summary_file_variable)
+    if not match:
+        raise ValueError(f"Unsupported ACS variable name: {summary_file_variable}")
+    table, estimate_or_moe, sequence = match.groups()
+    return f"{table}_{sequence}{estimate_or_moe}"
+
+
+def _chunks(values: list[str], size: int) -> list[list[str]]:
+    return [values[index : index + size] for index in range(0, len(values), size)]
+
+
+def _la_zcta_ucgids(config: ProjectConfig) -> list[str]:
+    geography_path = config.root / "data" / "clean" / "geography.parquet"
+    if not geography_path.exists():
+        raise RuntimeError(
+            "Historical ACS ZCTA API downloads require the local LA ZIP/ZCTA "
+            "reference at data/clean/geography.parquet. Build geography once "
+            "or provide that versioned file before downloading ACS ZCTA data."
+        )
+    geography = pd.read_parquet(geography_path)
+    if "postal_zip" not in geography:
+        raise RuntimeError(
+            "data/clean/geography.parquet does not contain a postal_zip column"
+        )
+    zips = sorted(
+        {
+            str(value).zfill(5)
+            for value in geography["postal_zip"].dropna()
+            if re.fullmatch(r"\d{5}", str(value).zfill(5))
+        }
+    )
+    if not zips:
+        raise RuntimeError(
+            "No LA ZIP/ZCTA identifiers were found in data/clean/geography.parquet"
+        )
+    return [f"860Z200US{postal_zip}" for postal_zip in zips]
+
+
+def _download_census_acs_5year_api(
+    config: ProjectConfig,
+    source: SourceConfig,
+    temp_path: Path,
+    start_date: str | None,
+    end_date: str | None,
+) -> dict[str, str]:
+    """Download selected ACS 5-year detailed table cells through the Census API."""
+    table_id = _acs_table_id(source.source_id)
+    variable_map = ACS_TABLE_MAP.get(table_id)
+    if variable_map is None:
+        raise ValueError(f"No ACS variable map is configured for {source.source_id}")
+    api_key = os.environ.get("CENSUS_API_KEY")
+    start_year = max(
+        ACS_API_MIN_5YEAR,
+        pd.Timestamp(start_date or source.selected_start_date or "2010-01-01").year,
+    )
+    end_year = min(
+        ACS_API_LATEST_5YEAR,
+        pd.Timestamp(end_date or source.selected_end_date or "2024-12-31").year,
+    )
+    if start_year > end_year:
+        raise ValueError(
+            f"Invalid ACS 5-year request range for {source.source_id}: "
+            f"{start_year}>{end_year}"
+        )
+    variables = [_acs_api_variable(column) for column in variable_map]
+    group_clause = f"group({table_id.upper()})"
+    zcta_ucgids = _la_zcta_ucgids(config)
+    zcta_ucgid_chunks = _chunks(zcta_ucgids, ACS_UCGID_ZCTA_CHUNK_SIZE)
+    requests_made: list[dict] = []
+    observation_count = 0
+    session = requests.Session()
+    for year in range(start_year, end_year + 1):
+        base_url = f"https://api.census.gov/data/{year}/acs/acs5"
+        geography_requests = [
+            (
+                "county",
+                {
+                    "get": group_clause,
+                    "ucgid": "050C0US06037",
+                },
+            )
+        ]
+        geography_requests.extend(
+            (
+                f"zcta_chunk_{chunk_number:02d}",
+                {
+                    "get": group_clause,
+                    "ucgid": ",".join(chunk),
+                },
+            )
+            for chunk_number, chunk in enumerate(zcta_ucgid_chunks, start=1)
+        )
+        for geography, params in geography_requests:
+            request_params = dict(params)
+            if api_key:
+                request_params["key"] = api_key
+            response = session.get(
+                base_url,
+                params=request_params,
+                timeout=120,
+                headers={"User-Agent": "UCLA housing research data pipeline/0.1"},
+            )
+            attempted_url = (
+                response.history[0].request.url
+                if getattr(response, "history", None)
+                else getattr(getattr(response, "request", None), "url", response.url)
+            )
+            request_url = (
+                attempted_url.replace(api_key, "CENSUS_API_KEY")
+                if api_key
+                else attempted_url
+            )
+            response.raise_for_status()
+            try:
+                body = response.json()
+            except ValueError as exc:
+                text = response.text[:500].replace("\n", " ").strip()
+                if "Missing Key" in text or "valid" in text and "key" in text:
+                    raise RuntimeError(
+                        "The Census Data API link pattern is available for this "
+                        "historical ACS table, but the API rejected this request "
+                        "without a valid key. Set CENSUS_API_KEY and retry. No "
+                        f"partial raw file was archived. Request URL: {request_url}"
+                    ) from exc
+                raise RuntimeError(
+                    f"Census ACS API returned invalid JSON for "
+                    f"{source.source_id} {year} {geography}: {text}"
+                ) from exc
+            if not isinstance(body, list) or len(body) < 2:
+                raise RuntimeError(
+                    f"Census ACS API returned no observations for "
+                    f"{source.source_id} {year} {geography}: {body}"
+                )
+            header = [str(item) for item in body[0]]
+            missing = sorted(set(["NAME", *variables]) - set(header))
+            if missing:
+                raise RuntimeError(
+                    f"Census ACS API response missing columns for "
+                    f"{source.source_id} {year} {geography}: {missing}"
+                )
+            requests_made.append(
+                {
+                    "year": year,
+                    "geography": geography,
+                    "url": request_url,
+                    "params_without_key": {
+                        key: value
+                        for key, value in request_params.items()
+                        if key != "key"
+                    },
+                    "variables": variables,
+                    "api_get": group_clause,
+                    "response": body,
+                }
+            )
+            observation_count += len(body) - 1
+    temp_path.write_text(
+        json.dumps(
+            {
+                "source_url": source.download_url,
+                "source_page_url": source.source_page_url,
+                "api": "Census ACS 5-year API",
+                "dataset": "acs/acs5",
+                "table_id": table_id,
+                "start_year": start_year,
+                "end_year": end_year,
+                "requests": requests_made,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "request_api_base": "https://api.census.gov/data/{year}/acs/acs5",
+        "request_table_id": table_id.upper(),
+        "request_variables": group_clause,
+        "request_selected_variables": "|".join(variables),
+        "request_geographies": "ucgid:050C0US06037|ucgid:860Z200US<LA ZIP chunks>",
+        "request_start_year": str(start_year),
+        "request_end_year": str(end_year),
+        "request_zcta_count": str(len(zcta_ucgids)),
+        "response_latest_observation": f"{end_year}-12-31",
+        "response_observation_count": str(observation_count),
+    }
+
+
+def _normalize_metadata_column(value: str) -> str:
+    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", value.lower())).strip("_")
+
+
+def _provider_last_updated(path: Path, source: SourceConfig) -> str | None:
+    if source.provider != "Redfin Data Center":
+        return None
+    read_options: dict[str, object] = {"nrows": 1, "dtype": str}
+    if source.file_format == "tsv.gz":
+        read_options.update({"sep": "\t", "compression": "gzip"})
+    try:
+        header = pd.read_csv(path, **read_options)
+    except Exception:
+        return None
+    if header.empty:
+        return None
+    by_normalized = {
+        _normalize_metadata_column(column): column for column in header.columns
+    }
+    column = by_normalized.get("last_updated")
+    if column is None:
+        return None
+    value = str(header.iloc[0].get(column, "")).strip()
+    return value or None
+
+
+def _source_filename_from_url(download_url: str) -> str | None:
+    filename = Path(urlparse(download_url).path).name
+    return filename or None
+
+
 def _extension(source: SourceConfig) -> str:
     return {
         "csv": ".csv",
         "json": ".json",
         "txt": ".txt",
         "tsv.gz": ".tsv.gz",
+        "xlsx": ".xlsx",
+        "zip": ".zip",
+        "dat": ".dat",
     }[source.file_format]
 
 
@@ -318,7 +566,7 @@ def _import_local_file(
         f"{retrieved_at:%Y%m%dT%H%M%SZ}_{checksum[:12]}"
         f"{_extension(source)}"
     )
-    raw_dir = config.root / "data" / "raw" / RAW_SUBDIR[source.provider]
+    raw_dir = config.root / "data" / "raw" / _raw_subdir(source)
     raw_dir.mkdir(parents=True, exist_ok=True)
     destination = raw_dir / filename
     temp_path = raw_dir / f".{filename}.part"
@@ -355,6 +603,8 @@ def _import_local_file(
         "checksum_sha256": checksum,
         "retrieval_method": "manual_official_download_import",
         "source_last_updated": source_last_updated,
+        "provider_last_updated": source_last_updated,
+        "revision_policy": source.revision_notes,
         "selected_start_date": source.selected_start_date,
         "selected_end_date": source.selected_end_date,
         "source_frequency": source_frequency,
@@ -404,13 +654,21 @@ def download_source(
             start_date=start_date,
             end_date=end_date,
         )
+    if source.source_id == "irs_soi_county_migration":
+        return download_irs_soi_county_migration(
+            config,
+            source,
+            force=force,
+            start_date=start_date,
+            end_date=end_date,
+        )
     if not force:
         existing = _today_manifest_record(config, source.source_id)
         if existing:
             logger.info("Reusing today's raw archive for %s", source.source_id)
             return existing[1]
 
-    raw_dir = config.root / "data" / "raw" / RAW_SUBDIR[source.provider]
+    raw_dir = config.root / "data" / "raw" / _raw_subdir(source)
     raw_dir.mkdir(parents=True, exist_ok=True)
     retrieved_at = datetime.now(timezone.utc)
     temp_path = raw_dir / f".{source.source_id}.{retrieved_at:%Y%m%dT%H%M%SZ}.part"
@@ -420,6 +678,10 @@ def download_source(
         if source.source_id == "bls_laus_la_county":
             request_metadata = _download_bls(
                 source, temp_path, start_date, end_date
+            )
+        elif source.source_id in ACS_HISTORICAL_TABLES:
+            request_metadata = _download_census_acs_5year_api(
+                config, source, temp_path, start_date, end_date
             )
         else:
             with requests.get(
@@ -443,6 +705,7 @@ def download_source(
     finally:
         if temp_path.exists():
             temp_path.unlink()
+    provider_last_updated = _provider_last_updated(destination, source)
 
     record = {
         "source_id": source.source_id,
@@ -455,11 +718,17 @@ def download_source(
         "retrieved_at": retrieved_at.isoformat(),
         "data_vintage": retrieved_at.date().isoformat(),
         "source_filename": destination.name,
+        "original_filename": _source_filename_from_url(resolved_download_url),
+        "stored_filename": destination.name,
         "relative_path": destination.relative_to(config.root).as_posix(),
         "byte_size": destination.stat().st_size,
         "checksum_sha256": checksum,
+        "retrieval_method": "official_download",
+        "source_last_updated": provider_last_updated,
+        "provider_last_updated": provider_last_updated,
         "license_or_use_notes": source.license_or_use_notes,
         "revision_notes": source.revision_notes,
+        "revision_policy": source.revision_notes,
         "ingestion_status": "downloaded",
         **request_metadata,
     }
@@ -519,9 +788,7 @@ def download_sources(
                     "provider": source.provider,
                     "source_page_url": source.source_page_url,
                     "download_url": source.download_url,
-                    "expected_directory": (
-                        f"data/raw/{RAW_SUBDIR[source.provider]}/"
-                    ),
+                    "expected_directory": f"data/raw/{_raw_subdir(source)}/",
                     "reason": reason,
                     "instruction": (
                         "Download the official file without modifying it, then run "

@@ -50,7 +50,11 @@ def discover_sources(
                 "download_url": source.download_url,
                 "native_frequency": source.native_frequency,
                 "geography_levels": "|".join(source.geography_levels),
+                "key_variables": "|".join(source.key_variables),
                 "file_format": source.file_format,
+                "access_method": source.access_method,
+                "destination_clean_table": source.destination_clean_table,
+                "destination_analytical_table": source.destination_analytical_table,
                 "endpoint_verified_at": config.verified_at,
                 "checked_at": checked_at,
                 "discovery_status": status,
@@ -65,6 +69,7 @@ def discover_sources(
                 "methodology_notes": source.methodology_notes,
                 "license_or_use_notes": source.license_or_use_notes,
                 "revision_notes": source.revision_notes,
+                "revision_policy": source.revision_notes,
                 "discovery_detail": detail,
             }
         )

@@ -1,0 +1,39 @@
+docx_category,variable_name,sheet_variable_name,sheet_source,sheet_frequency,sheet_la_availability,sheet_notes,why_hard,best_public_workaround
+Difficult Variables,Aggregate Home Equity,Aggregate Home Equity,,,,,No public state/county balance-sheet series; Fed Flow of Funds is national only,Construct proxy: owner-occupied housing value minus aggregate mortgage debt proxy. Housing value from ACS owner units times median value or Zillow; debt proxy below.
+Difficult Variables,Aggregate Mortgage Debt (outstanding balances),Aggregate Mortgage Debt (outstanding balances),,,,,"ACS reports payments, not balances; no public CA/LA balance series",Approximate via owner-occupied-with-mortgage counts times implied balance from payment distributions (ACS B25106) plus interest rate assumptions.
+Difficult Variables,Monthly Mortgage Payment,Monthly Mortgage Payment,,,,,"Public data gives rates, not realized payments by geography","Construct using local price series (Redfin/Zillow), prevailing mortgage rates, assumed LTV/term; optionally validate against ACS owner costs."
+Difficult Variables,Homebuying Costs - Downpayment,Homebuying Costs – Downpayment,,,,,Not reported publicly by geography,"Assume percent of median sale price (scenario-based: 10%, 20%, FHA-style); treat as policy-sensitive parameter."
+Difficult Variables,Homebuying Costs - Closing Costs,Homebuying Costs – Closing Costs,,,,,No public geographic series,"Apply standardized percent of sale price, state-specific if available."
+Difficult Variables,Homebuying Costs - Property Insurance,Homebuying Costs – Property Insurance,,,,,NAIC only publishes state-level averages,Use CA state series.
+Difficult Variables,Rental price increase in non-rent-controlled locations,Rental price increase in non–rent-controlled locations,,,,,Public rent indices do not flag rent-control status,Use Zillow ZORI and exclude geographies by construction-year share (post-1995 / post-2005 proxy) or interact with policy exposure.
+Difficult Variables,"Eviction trends (high-frequency, consistent)","Eviction trends (high-frequency, consistent)",,,,,County coverage uneven; time consistency varies,Eviction Lab ETS where available; otherwise annual filings with interpolation.
+Difficult Variables,New Apartments Completed (county time series),New Apartments Completed (county time series),,,,,Clean completions data not consistently public at county level,Proxy with lagged multifamily permits (5+) using completion lag structure; lags uncertain.
+Difficult Variables,Multifamily Under Construction,Multifamily Under Construction,,,,,No public stock measure at county/state level,Build pipeline stock: cumulative MF permits minus assumed completions over rolling window.
+Difficult Variables,Single-Family Rental Construction,Single-Family Rental Construction,,,,,"No public ""build-for-rent"" flag in Census data",Proxy using SFR permits in high-investor / rental-growth tracts or small MF permits.
+Difficult Variables,Net Change in Occupied Apartments (quarterly),Net Change in Occupied Apartments (quarterly),,,,,ACS is annual; no quarterly public alternative,Annual ACS change in occupied renter units; optionally interpolate or use CPS/HVS for state-level timing.
+Difficult Variables,Price-to-Income Ratio (quarterly/local),Price-to-Income Ratio (quarterly/local),,,,,Income is annual; prices are monthly,Construct ratio using annual ACS income with interpolated or stepwise series.
+Difficult Variables,Natural Population Change (quarterly),Natural Population Change (quarterly),,,,,Birth/death data is annual at county level,Annual CDC WONDER series; interpolate if quarterly timing is needed.
+Difficult Variables,Net Immigration / Migration (county),Net Immigration / Migration (county),,,,,IRS data is annual and lagged,Annual IRS inflow minus outflow; treat as slow-moving VAR state variable.
+Difficult Variables,Sheltered vs Unsheltered Homelessness (high frequency),Sheltered vs Unsheltered Homelessness (high frequency),,,,,PIT count is annual (January only),Annual HUD PIT; no credible quarterly public alternative.
+AVAILABLE VARIABLES - Homeowners,Home Price Index,Home Price Index,FHFA HPI,Quarterly (also monthly),,Clean state & large-county/MSA coverage,,
+AVAILABLE VARIABLES - Homeowners,Median Sale Price (SF & all homes),Median Sale Price (SF & all homes),Redfin Data Center,Monthly (weekly raw),,Level prices ideal for affordability & payment calculations,,
+AVAILABLE VARIABLES - Homeowners,Existing Homes for Sale (Inventory),Existing Homes for Sale (Inventory),Redfin Data Center,Monthly,,Direct stock measure,,
+AVAILABLE VARIABLES - Homeowners,Months of Supply,Months of Supply,Redfin Data Center,Monthly,,Internally consistent with inventory & sales,,
+AVAILABLE VARIABLES - Homeowners,New Listings,New Listings,Redfin Data Center,Monthly,,Useful leading indicator,,
+AVAILABLE VARIABLES - Homeowners,Homes Sold / Sales Volume,Homes Sold / Sales Volume,Redfin Data Center,Monthly,,Transaction-side activity,,
+AVAILABLE VARIABLES - Homeowners,Mortgage Rates (30Y FRM),Mortgage Rates (30Y FRM),Freddie Mac PMMS,Weekly / Monthly,,Commonly used national rate in regional VARs,,
+AVAILABLE VARIABLES - Homeowners,Single-Family Housing Starts (permits),Single-Family Housing Starts (permits),Census BPS (1-unit permits),Monthly (state),,Monthly at CA level; LA county is annual only,,
+AVAILABLE VARIABLES - Renters,Market Rent Index (ZORI),Market Rent Index (ZORI),Zillow Research,Monthly,Yes (county),Best public rent index,,
+AVAILABLE VARIABLES - Renters,Rent Growth (YoY / MoM),Rent Growth (YoY / MoM),Zillow ZORI,Monthly,Yes,Computed directly from ZORI,,
+AVAILABLE VARIABLES - Renters,Rental Inventory,Rental Inventory,Zillow Observed Rent Index / Listings,Monthly,Yes,Stock-side rental measure,,
+AVAILABLE VARIABLES - Renters,Rental Vacancy (HVS / CPS),Rental Vacancy (HVS / CPS),Census Housing Vacancy Survey,Quarterly,No,Quarterly vacancy rate (state only),,
+AVAILABLE VARIABLES - Renters,Multifamily Permits (5+ units),Multifamily Permits (5+ units),Census BPS,Monthly (state),Annual county,Best public proxy for MF starts,,
+AVAILABLE VARIABLES - Overall Housing Market,Price-to-Rent Ratio,Price-to-Rent Ratio,Constructed from FHFA / ZORI,Monthly / Quarterly,,Very clean once inputs chosen,,
+AVAILABLE VARIABLES - Overall Housing Market,Housing Turnover,Housing Turnover,Redfin (sales / inventory),Monthly,,Useful liquidity metric,,
+AVAILABLE VARIABLES - Overall Housing Market,Market Time (Days on Market),Market Time (Days on Market),Redfin Data Center,Monthly,,Strong cyclical indicator,,
+AVAILABLE VARIABLES - Overall Housing Market,Share of Homes with Price Drops,Share of Homes with Price Drops,Redfin Data Center,Monthly,,Forward-looking price pressure,,
+"Population, Labor, Macro Controls",Payroll Employment,Payroll Employment,BLS CES,Monthly,Yes (MSA),LA metro rather than county,,
+"Population, Labor, Macro Controls",Unemployment Rate,Unemployment Rate,BLS LAUS,Monthly,Yes(county),Clean county coverage,,
+"Population, Labor, Macro Controls",Labor Force,Labor Force,BLS LAUS,Monthly,Yes,,,
+"Population, Labor, Macro Controls",Personal Income (proxy),Personal Income (proxy),BEA,Quarterly,county quarterly limited,State is clean; county is noisier,,
+"Population, Labor, Macro Controls",CPI / Inflation,CPI / Inflation,BLS CPI-U,Monthly,LA metro,LA CPI-U is metro-level,,

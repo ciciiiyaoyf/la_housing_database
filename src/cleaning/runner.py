@@ -6,14 +6,64 @@ import logging
 
 import pandas as pd
 
+from src.cleaning.acs import clean_acs_table
+from src.cleaning.bea import clean_bea
 from src.cleaning.bls import clean_bls
+from src.cleaning.bls_flat import clean_bls_flat
 from src.cleaning.census_bps import clean_bps_archive
+from src.cleaning.fhfa import clean_fhfa
 from src.cleaning.freddie import clean_freddie
+from src.cleaning.irs_migration import clean_irs_soi_county_migration
+from src.cleaning.prepared import clean_prepared_observation_contract
 from src.cleaning.redfin import clean_redfin
 from src.cleaning.redfin_zip import clean_redfin_zip_key_metrics
 from src.cleaning.zillow import clean_zillow
 from src.common.config import ProjectConfig
 from src.common.io import raw_path_for_vintage, source_archive_paths
+
+
+def _source_archive_paths_by_period_and_direction(
+    root, source_id: str, vintage: str | None = None
+) -> list[tuple]:
+    manifest_path = root / "metadata" / "raw_file_manifest.csv"
+    if not manifest_path.exists():
+        return []
+    frame = pd.read_csv(manifest_path, dtype=str)
+    frame = frame.loc[frame["source_id"].eq(source_id)].copy()
+    if frame.empty:
+        return []
+    for column in ("archive_period", "migration_direction"):
+        if column not in frame:
+            frame[column] = None
+    frame = frame.loc[
+        frame["archive_period"].notna()
+        & frame["migration_direction"].notna()
+    ].copy()
+    if frame.empty:
+        return []
+    frame["_retrieved"] = pd.to_datetime(
+        frame["retrieved_at"], utc=True, errors="coerce", format="mixed"
+    )
+    if vintage:
+        cutoff = pd.Timestamp(vintage, tz="UTC") + pd.Timedelta(days=1)
+        frame = frame.loc[frame["_retrieved"] < cutoff]
+    frame = (
+        frame.sort_values("_retrieved")
+        .groupby(["archive_period", "migration_direction"], as_index=False)
+        .tail(1)
+        .sort_values(["archive_period", "migration_direction"])
+    )
+    selected = []
+    for _, row in frame.iterrows():
+        record = {
+            key: str(value)
+            for key, value in row.drop(labels="_retrieved").to_dict().items()
+            if pd.notna(value)
+        }
+        path = root / record["relative_path"]
+        if path.exists():
+            selected.append((path, record))
+    return selected
 
 
 def clean_sources(
@@ -49,6 +99,37 @@ def clean_sources(
                     / "output"
                     / "coverage"
                     / "bps_archive_coverage.csv",
+                )
+                record = archive_files[-1][1]
+            except Exception as exc:
+                logger.error(
+                    "Cleaning failed for %s archive: %s", source.source_id, exc
+                )
+                continue
+        elif source.source_id == "irs_soi_county_migration":
+            archive_files = _source_archive_paths_by_period_and_direction(
+                config.root, source.source_id, vintage
+            )
+            if not archive_files:
+                qualifier = f" at or before vintage {vintage}" if vintage else ""
+                logger.warning(
+                    "No raw archive for %s%s; skipping clean",
+                    source.source_id,
+                    qualifier,
+                )
+                continue
+            output_path = (
+                config.root / "data" / "clean" / f"{source.source_id}.parquet"
+            )
+            try:
+                frame = clean_irs_soi_county_migration(
+                    archive_files,
+                    source.source_id,
+                    output_path,
+                    config.root
+                    / "output"
+                    / "coverage"
+                    / "irs_soi_migration_clean_coverage.csv",
                 )
                 record = archive_files[-1][1]
             except Exception as exc:
@@ -100,6 +181,36 @@ def clean_sources(
                     frame = clean_bls(path, record, output_path)
                 elif source.source_id == "freddie_mac_pmms":
                     frame = clean_freddie(path, record, output_path)
+                elif source.source_id.startswith("fhfa_hpi_"):
+                    frame = clean_fhfa(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id.startswith("bea_"):
+                    frame = clean_bea(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id.startswith("census_acs_"):
+                    frame = clean_acs_table(
+                        path,
+                        record,
+                        source.source_id,
+                        config.root / "data" / "clean" / "geography.parquet",
+                        output_path,
+                    )
+                elif source.source_id in {
+                    "bls_ces_la_metro",
+                    "bls_cpi_la_metro",
+                }:
+                    frame = clean_bls_flat(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id.startswith("census_hvs_"):
+                    frame = clean_prepared_observation_contract(
+                        path,
+                        record,
+                        output_path,
+                        output_path,
+                    )
                 else:
                     logger.warning(
                         "No cleaner registered for %s", source.source_id

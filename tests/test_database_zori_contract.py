@@ -113,13 +113,13 @@ def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
         assert zip_mismatches == 0
 
         clean_county_count = connection.execute(
-            "SELECT count(*) FROM clean.zillow_county_zori_smoothed_sa"
+            "SELECT count(*) FROM clean.zillow_county_zori_smoothed_sa WHERE value IS NOT NULL"
         ).fetchone()[0]
         panel_county_count = connection.execute(
             "SELECT count(*) FROM analytics.county_monthly_panel WHERE zori IS NOT NULL"
         ).fetchone()[0]
         clean_zip_count = connection.execute(
-            "SELECT count(*) FROM clean.zillow_zip_zori_smoothed_sa"
+            "SELECT count(*) FROM clean.zillow_zip_zori_smoothed_sa WHERE value IS NOT NULL"
         ).fetchone()[0]
         panel_zip_count = connection.execute(
             "SELECT count(*) FROM analytics.zip_monthly_panel WHERE zori IS NOT NULL"

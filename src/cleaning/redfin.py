@@ -129,6 +129,8 @@ def clean_redfin(
     long["final_frequency"] = "monthly"
     for key, value in metadata_fields(record).items():
         long[key] = value
+    if "last_updated" in long:
+        long["provider_last_updated"] = long["last_updated"]
     long["transformation_id"] = f"{source_id}_provider_monthly_v1"
     long["is_imputed"] = False
     long["is_interpolated"] = False
