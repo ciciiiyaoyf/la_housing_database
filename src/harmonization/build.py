@@ -36,6 +36,7 @@ COUNTY_VARIABLES = [
 
 MORTGAGE_VARIABLES = [
     "mortgage_rate_30y_monthly_average",
+    "mortgage_rate_30y_monthly_median",
     "mortgage_rate_30y_month_end",
 ]
 

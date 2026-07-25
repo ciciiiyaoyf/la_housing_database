@@ -19,6 +19,8 @@ DIRECTORIES = (
     "data/raw/freddie_mac",
     "data/raw/census_bps",
     "data/raw/geography",
+    "data/raw/version_a",
+    "data/benchmark/clean",
     "data/interim",
     "data/clean",
     "data/final",

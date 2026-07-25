@@ -216,6 +216,7 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
                 "labor_force",
                 "mortgage_rate_30y_weekly",
                 "mortgage_rate_30y_monthly_average",
+                "mortgage_rate_30y_monthly_median",
                 "mortgage_rate_30y_month_end",
                 "permits_total",
                 "permits_1_unit",
@@ -671,6 +672,39 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
         "error",
         aggregation_error,
         "Monthly PMMS average must equal the arithmetic mean of weekly observations.",
+    )
+    reported_median = fact.loc[
+        fact["variable_id"].eq("mortgage_rate_30y_monthly_median"),
+        ["observation_date", "value"],
+    ].rename(columns={"value": "reported"})
+    if not weekly.empty and not reported_median.empty:
+        calculated_median = (
+            weekly.assign(month=weekly["observation_date"].dt.to_period("M"))
+            .groupby("month")["value"]
+            .median()
+            .rename("calculated")
+            .reset_index()
+        )
+        calculated_median["observation_date"] = calculated_median[
+            "month"
+        ].dt.to_timestamp("M")
+        median_comparison = reported_median.merge(
+            calculated_median, on="observation_date"
+        )
+        median_error = median_comparison.loc[
+            (
+                median_comparison["reported"]
+                - median_comparison["calculated"]
+            ).abs()
+            > 1e-10
+        ]
+    else:
+        median_error = pd.DataFrame()
+    check(
+        "mortgage_monthly_median_aggregation",
+        "error",
+        median_error,
+        "Monthly PMMS median must equal the median of weekly observations.",
     )
 
     _coverage_reports(config, fact, zip_panel)

@@ -1,0 +1,206 @@
+database_version: "A. Benchmark"
+benchmark_suffix: "_benchmark"
+output_geography: county
+state_fips: "06"
+primary_county_fips: "06037"
+preserve_native_frequency: true
+permit_monthly_interpolation: false
+permit_nowcasts: false
+missing_value_policy: preserve_with_explicit_quality_flag
+
+required_metadata_fields:
+  - county_fips
+  - month
+  - value
+  - variable_name
+  - database_version
+  - source_frequency
+  - source_period_start
+  - source_period_end
+  - reference_date
+  - release_date
+  - source_geography
+  - parameter_geography
+  - monthly_method
+  - is_modeled
+  - is_nowcast
+  - benchmark_vintage
+  - sample_n
+  - coverage_rate
+  - low_estimate
+  - central_estimate
+  - high_estimate
+  - universe_definition
+  - notes
+
+sources:
+  census_acs5_finance:
+    provider: U.S. Census Bureau
+    implementation_status: implemented
+    acquisition: official_api
+    source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
+    api_url_template: https://api.census.gov/data/{year}/acs/acs5
+    native_frequency: acs_5_year
+    geography: california_counties
+    first_supported_vintage: 2009
+    latest_verified_vintage: 2024
+    groups: [B25089, B25081, B25082, B25120]
+    fields:
+      B25089_002: acs_aggregate_selected_monthly_owner_costs_mortgaged_benchmark
+      B25081_002: acs_mortgaged_owner_units_benchmark
+      B25082_001: acs_aggregate_owner_value_all_benchmark
+      B25082_002: acs_aggregate_owner_value_mortgaged_benchmark
+      B25082_003: acs_aggregate_owner_value_no_mortgage_benchmark
+      B25120_002: acs_aggregate_household_income_owner_benchmark
+      B25120_003: acs_aggregate_household_income_mortgaged_owner_benchmark
+      B25120_004: acs_aggregate_household_income_no_mortgage_owner_benchmark
+    notes: B25081_002 is the directly published owner-units-with-mortgage count. B25106 is optional validation, not the primary balance method.
+
+  census_acs5_pums_housing_ca:
+    provider: U.S. Census Bureau
+    implementation_status: implemented
+    acquisition: official_bulk_zip
+    source_page_url: https://www.census.gov/programs-surveys/acs/microdata/access.html
+    download_url_template: https://www2.census.gov/programs-surveys/acs/data/pums/{year}/5-Year/csv_hca.zip
+    native_frequency: acs_5_year
+    geography: puma_and_california
+    first_supported_vintage: 2009
+    latest_verified_vintage: 2024
+    required_columns:
+      [WGTP, TEN, MRGX, MRGP, MRGT, MRGI, SMP, TAXAMT, INSP, SMOCP, ADJHSG, PUMA]
+    notes: Uses owner-occupied first-mortgage records; SMP is retained for diagnostics but excluded from the primary first-lien P&I measure.
+
+  census_tract_to_puma_2020:
+    provider: U.S. Census Bureau
+    implementation_status: implemented
+    acquisition: official_relationship_file
+    download_url: https://www2.census.gov/geo/docs/maps-data/data/rel2020/2020_Census_Tract_to_2020_PUMA.txt
+    native_frequency: decennial_crosswalk
+    geography: tract_to_puma
+
+  census_tract_to_puma_2010:
+    provider: U.S. Census Bureau
+    implementation_status: implemented
+    acquisition: official_relationship_file
+    download_url: https://www2.census.gov/geo/docs/maps-data/data/rel/2010_Census_Tract_to_2010_PUMA.txt
+    native_frequency: decennial_crosswalk
+    geography: tract_to_puma
+
+  cfpb_hmda_modified_lar:
+    provider: CFPB and FFIEC
+    implementation_status: manual_required
+    acquisition: official_combined_file_import
+    source_page_url: https://ffiec.cfpb.gov/data-publication/modified-lar
+    native_frequency: annual
+    geography: loan_record_with_county
+    first_supported_vintage: 2018
+    required_columns:
+      - activity_year
+      - state_code
+      - county_code
+      - action_taken
+      - loan_purpose
+      - occupancy_type
+      - lien_status
+      - loan_type
+      - property_value
+      - combined_loan_to_value_ratio
+    notes: The repository does not invent a stable bulk URL. Import the official combined Modified LAR CSV or ZIP and preserve its checksum.
+
+  fhfa_nmdb_outstanding:
+    provider: Federal Housing Finance Agency
+    implementation_status: manual_required
+    acquisition: official_dashboard_export
+    source_page_url: https://www.fhfa.gov/data/dashboard/nmdb-outstanding-residential-mortgage-statistics
+    native_frequency: quarterly_or_published_aggregate
+    geography: state_or_united_states
+    required_parameters:
+      - joint_outstanding_rate_remaining_term_distribution
+      - universe_compatible_california_unpaid_principal_balance
+    archive_source_ids:
+      - fhfa_nmdb_joint_distribution
+      - fhfa_nmdb_ca_upb
+    notes: Never manufacture a joint distribution from separate marginals. Calibrated county debt stays null when a compatible California UPB benchmark is unavailable.
+
+  freddie_mac_pmms:
+    provider: Freddie Mac
+    implementation_status: implemented_fallback_only
+    acquisition: official_csv
+    source_page_url: https://www.freddiemac.com/pmms/pmms_archives
+    native_frequency: weekly
+    outputs:
+      - mortgage_rate_30y_weekly
+      - mortgage_rate_30y_monthly_average
+      - mortgage_rate_30y_monthly_median
+      - mortgage_rate_30y_month_end
+    notes: Sensitivity fallback only; it is an origination-rate series, not the preferred outstanding-stock coupon.
+
+benchmark_outputs:
+  - variable_name: pums_first_mortgage_pi_share_applied_benchmark
+    concept: applied_first_mortgage_pi_share_parameter
+    source_frequency: acs_5_year
+  - variable_name: acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    concept: aggregate_monthly_mortgage_payment
+    source_frequency: acs_5_year
+  - variable_name: acs_first_mortgage_pi_per_mortgaged_unit_benchmark
+    concept: monthly_mortgage_payment_per_unit
+    source_frequency: acs_5_year
+  - variable_name: acs_annual_first_mortgage_debt_service_benchmark
+    concept: annualized_first_mortgage_payment
+    source_frequency: acs_5_year
+  - variable_name: acs_mortgage_debt_service_to_income_benchmark
+    concept: mortgage_debt_service_burden
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_first_mortgage_balance_raw_benchmark
+    concept: implied_mortgage_debt
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_first_mortgage_balance_cal_benchmark
+    concept: calibrated_implied_mortgage_debt
+    source_frequency: acs_5_year
+  - variable_name: hmda_median_downpayment_rate_benchmark
+    concept: down_payment_rate
+    source_frequency: annual
+  - variable_name: hmda_property_value_weighted_downpayment_rate_benchmark
+    concept: down_payment_rate
+    source_frequency: annual
+  - variable_name: hmda_aggregate_downpayment_flow_benchmark
+    concept: down_payment_flow
+    source_frequency: annual
+  - variable_name: acs_implied_owner_occupied_home_equity_mortgaged_benchmark
+    concept: aggregate_home_equity
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_all_benchmark
+    concept: aggregate_home_equity
+    source_frequency: acs_5_year
+  - variable_name: acs_aggregate_ltv_mortgaged_benchmark
+    concept: aggregate_mortgaged_owner_ltv
+    source_frequency: acs_5_year
+  - variable_name: acs_equity_rate_mortgaged_benchmark
+    concept: aggregate_mortgaged_owner_equity_rate
+    source_frequency: acs_5_year
+  - variable_name: hmda_share_downpayment_below_3pct_benchmark
+    concept: low_down_payment_share
+    source_frequency: annual
+  - variable_name: hmda_share_downpayment_below_5pct_benchmark
+    concept: low_down_payment_share
+    source_frequency: annual
+  - variable_name: hmda_share_downpayment_below_10pct_benchmark
+    concept: low_down_payment_share
+    source_frequency: annual
+  - variable_name: hmda_share_downpayment_below_20pct_benchmark
+    concept: low_down_payment_share
+    source_frequency: annual
+
+supplementary_version_a_source_status:
+  fhfa_hpi: {status: not_implemented, native_frequency: monthly_or_quarterly}
+  bls_ces_payroll_employment: {status: not_implemented, native_frequency: monthly, geography: la_metro}
+  bea_personal_income: {status: not_implemented, native_frequency: annual_county_or_quarterly_state}
+  census_hvs_rental_vacancy: {status: geography_gap, native_frequency: quarterly, notes: No LA County series should be fabricated.}
+  hud_pit_homelessness: {status: not_implemented, native_frequency: annual_coc}
+  cdc_natural_population_change: {status: not_implemented, native_frequency: annual_county}
+  irs_county_migration: {status: not_implemented, native_frequency: annual_origin_destination}
+  eviction_lab: {status: not_implemented, native_frequency: provider_published}
+  closing_costs: {status: unavailable_direct_public_series}
+  new_apartment_completions: {status: unavailable_consistent_county_series}
+  multifamily_under_construction: {status: unavailable_public_county_stock}
+  single_family_build_for_rent: {status: unavailable_public_flag}

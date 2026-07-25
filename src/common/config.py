@@ -95,6 +95,12 @@ def load_config(root: Path = ROOT) -> ProjectConfig:
     source_doc = _yaml(root / "config" / "sources.yaml")
     pipeline_doc = _yaml(root / "config" / "pipeline.yaml")
     variable_doc = _yaml(root / "config" / "variables.yaml")
+    version_a_variable_path = root / "config" / "version_a_variables.yaml"
+    version_a_variable_doc = (
+        _yaml(version_a_variable_path)
+        if version_a_variable_path.exists()
+        else {"variables": []}
+    )
     geography_doc = _yaml(root / "config" / "geographies.yaml")
     sources = tuple(SourceConfig.from_dict(item) for item in source_doc["sources"])
     ids = [source.source_id for source in sources]
@@ -105,7 +111,9 @@ def load_config(root: Path = ROOT) -> ProjectConfig:
         verified_at=str(source_doc["verified_at"]),
         sources=sources,
         pipeline=pipeline_doc,
-        variables=tuple(variable_doc["variables"]),
+        variables=tuple(
+            [*variable_doc["variables"], *version_a_variable_doc["variables"]]
+        ),
         geographies=tuple(geography_doc["geographies"]),
         crosswalk_version=str(geography_doc["crosswalk_version"]),
     )

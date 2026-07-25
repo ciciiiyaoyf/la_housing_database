@@ -13,8 +13,10 @@ Primary outputs:
 - `data/final/county_monthly_panel.parquet`
 - `data/final/zip_monthly_panel.parquet`
 - `data/final/state_quarterly_panel.parquet`
+- `data/final/housing_finance_benchmark.parquet`
 - `output/exports/la_county_monthly_panel.csv`
 - `output/exports/la_zip_monthly_panel.csv`
+- `output/exports/la_version_a_benchmark.csv`
 - `output/qa/qa_summary.csv`
 - `output/qa/qa_failures.csv`
 - coverage reports under `output/coverage/`
@@ -47,7 +49,135 @@ Important product semantics:
 - Redfin ZIP `ACTIVE LISTINGS` remains `active_listings`; it is not relabeled as inventory.
 - Building permits are authorizations, not housing starts or completions.
 - Freddie Mac mortgage rates are national, not Los Angeles-specific.
+- The PMMS clean table retains weekly, monthly mean, monthly median, and
+  month-end values.
 - Provider postal ZIPs are not Census ZCTAs.
+
+## Version A housing-finance benchmarks
+
+Version A is a separate, auditable benchmark layer. It preserves each
+provider's actual source period rather than forcing annual, quarterly, or ACS
+5-year estimates into the legacy monthly panel. Every Version A variable ends
+in `_benchmark`; `is_modeled`, `is_nowcast`, and `is_interpolated` are
+explicitly false. Published nulls, suppressions, insufficient samples, and
+unavailable parameters remain represented as flagged null rows.
+
+The implementation covers all four requested finance constructs:
+
+1. ACS/PUMS-implied aggregate monthly first-mortgage principal and interest;
+2. HMDA CLTV-implied down-payment rates, dollars, and low-down-payment shares;
+3. raw and California-calibrated fixed-rate-equivalent first-mortgage debt; and
+4. matched-universe owner-occupied home equity.
+
+All 58 California counties are collected for direct ACS inputs and used
+internally for California calibration. Los Angeles County FIPS `06037` is the
+primary export subset.
+
+| Source | Version A role | Native period | Acquisition |
+|---|---|---|---|
+| Census ACS 5-year Detailed Tables | B25089 owner costs, direct B25081 mortgaged units, B25082 owner value, and B25120 owner income, including published 90% MOEs | 60-month ACS period | Automatic official API |
+| Census ACS 5-year PUMS housing file | First-mortgage P&I share of selected owner costs | 60-month ACS period | Automatic official ZIP |
+| Census 2010/2020 tract-to-PUMA relationship | Identifies PUMAs wholly contained in one county | Decennial relationship | Automatic official TXT |
+| CFPB/FFIEC Modified LAR | Down-payment metrics for all, conventional, FHA, and VA originations | Annual | Official combined file; manual import |
+| FHFA NMDB outstanding-mortgage dashboard | Joint outstanding rate/remaining-term distribution and compatible California UPB control | Published dashboard period | Official CSV export; manual import with explicit mapping |
+| Freddie Mac PMMS | Labeled fallback sensitivity if NMDB joint rate/term data are absent | Weekly; exact reference-month median used | Existing automatic source |
+
+The automatic collectors never invent an endpoint for HMDA or NMDB. Manual
+files enter the same immutable, checksummed archive after download from the
+official source page.
+
+### Formulas and universes
+
+- PUMS uses owner-occupied first-mortgage records (`TEN=1`, `MRGX=1`) and
+  applies `ADJHSG`. Property tax and insurance are subtracted only when
+  `MRGT`/`MRGI` say they are included. `SMP` is retained for diagnostics but
+  excluded from primary first-lien P&I.
+- A county PUMS parameter is used only if the official relationship file shows
+  all of its PUMAs are wholly contained. Otherwise, the California parameter
+  is used and labeled as a broader-geography fallback; no temporal fallback is
+  applied.
+- HMDA retains originated, first-lien, home-purchase,
+  principal-residence loans. It uses reported property value and combined
+  LTV, never silently replacing missing CLTV with loan amount/property value.
+  Cash purchases are outside HMDA's universe. The all-loan minimum is 50
+  valid records; conventional/FHA/VA splits use 100.
+- Debt capitalizes aggregate first-mortgage P&I with a genuinely joint NMDB
+  outstanding-rate/remaining-term distribution. Separate marginals are
+  rejected. If NMDB is unavailable, PMMS is only a labeled origination-rate
+  sensitivity using 20/25/30-year remaining-term scenarios.
+- California calibration uses
+  `published compatible CA UPB / sum(nonmissing raw county debt)`. Calibrated
+  debt and dependent equity measures remain null when a compatible California
+  control is unavailable.
+- Mortgaged-owner equity is B25082 mortgaged-owner value less calibrated debt.
+  All-owner equity then adds the published mortgage-free owner value.
+
+Variable definitions are in `config/version_a_variables.yaml`; source and
+output rules are in `config/version_a_benchmark.yaml`; implementation status
+is in `metadata/version_a_source_status.csv`; and the non-execution
+transformation catalog is in
+`metadata/version_a_transformation_catalog.csv`.
+
+### Running Version A
+
+Inspect the dedicated CLI:
+
+```powershell
+python run_version_a.py --help
+```
+
+Download, clean, build, and validate the latest verified automatic ACS/PUMS
+vintage:
+
+```powershell
+python run_version_a.py --stage all-auto --start-year 2024
+```
+
+To acquire the full supported ACS/PUMS history, request an explicit range.
+PUMS files are large, so this is intentionally opt-in:
+
+```powershell
+python run_version_a.py --stage download --start-year 2009 --end-year 2024
+python run_version_a.py --stage clean --start-year 2009 --end-year 2024
+python run_version_a.py --stage build
+python run_version_a.py --stage validate
+```
+
+Offline mode never contacts a provider and fails if a required raw vintage is
+not already archived:
+
+```powershell
+python run_version_a.py --stage all-auto --start-year 2024 --offline
+```
+
+Import and clean an official annual HMDA Modified LAR file:
+
+```powershell
+python run_version_a.py --stage download --source cfpb_hmda_modified_lar --start-year 2024 --local-file "PATH_TO_OFFICIAL_HMDA_FILE.zip"
+python run_version_a.py --stage clean --source cfpb_hmda_modified_lar --start-year 2024 --release-date 2025-03-31 --minimum-sample 50 --split-minimum-sample 100
+```
+
+NMDB has no assumed repository-side schema. Archive each official dashboard
+CSV, then supply an explicit canonical-to-source column map and explicit
+period, units, universe, and semantic metadata. For a joint distribution:
+
+```powershell
+python run_version_a.py --stage download --source fhfa_nmdb_joint_distribution --start-year 2024 --local-file "PATH_TO_OFFICIAL_NMDB_JOINT.csv"
+python run_version_a.py --stage clean --source fhfa_nmdb_joint_distribution --start-year 2024 --column-map-json '{"annual_rate":"Coupon rate","remaining_months":"Remaining term months","weight":"Share"}' --source-metadata-json '{"benchmark_vintage":"2024_ACS5","reference_date":"2022-07-01","source_period_start":"2022-07-01","source_period_end":"2022-09-30","release_date":"2022-12-01","source_frequency":"quarterly","parameter_geography":"US","universe_definition":"Outstanding residential mortgages compatible with the county debt construct","distribution_kind":"joint_rate_remaining_term","mortgage_population":"outstanding_mortgages","rate_unit":"percent","remaining_term_unit":"months","weight_unit":"percent"}'
+```
+
+For a California UPB control:
+
+```powershell
+python run_version_a.py --stage download --source fhfa_nmdb_ca_upb --start-year 2024 --local-file "PATH_TO_OFFICIAL_NMDB_CA_UPB.csv"
+python run_version_a.py --stage clean --source fhfa_nmdb_ca_upb --start-year 2024 --column-map-json '{"value":"Outstanding UPB"}' --source-metadata-json '{"benchmark_vintage":"2024_ACS5","reference_date":"2022-07-01","source_period_start":"2022-07-01","source_period_end":"2022-09-30","release_date":"2022-12-01","source_frequency":"quarterly","parameter_geography":"California","universe_definition":"Outstanding first-lien residential mortgages compatible with county debt","control_type":"unpaid_principal_balance","compatible_with_county_debt":true,"value_unit":"million_usd"}'
+python run_version_a.py --stage build
+python run_version_a.py --stage validate
+```
+
+The JSON values above illustrate required canonical concepts, not provider
+column names or release dates to assume. Use the exact labels and period
+metadata shown in the official export being archived.
 
 ## Installation
 
@@ -145,6 +275,11 @@ Available stages:
 | `export` | Writes county and ZIP modeling CSVs from final Parquet. |
 | `all` | Runs `discover`, `download`, `clean`, `harmonize`, `build-database`, `validate`, and `export` in that order. |
 
+The legacy `all` stage does not run the large Version A collectors. Use
+`run_version_a.py` explicitly, then rerun `build-database` and `export` if the
+Version A Parquet should be materialized in DuckDB and refreshed in the common
+export directory.
+
 Examples:
 
 ```powershell
@@ -201,9 +336,11 @@ The import copies the national CSV unchanged to immutable raw storage. Cleaning 
 | `data/archive/deprecated_zori_nsa/` | Deprecated NSA ZORI files and their archive manifest; excluded from active ingestion. |
 | `data/interim/` | Reusable intermediate observations, currently the long-form Redfin ZIP extract. |
 | `data/clean/` | Latest selected source-specific normalized Parquet and geography tables. |
+| `data/benchmark/clean/` | Native-frequency ACS, PUMS, HMDA, and NMDB Version A inputs; never read by the legacy monthly harmonizer. |
 | `data/final/` | Long fact table and analytical panels in Parquet. |
 | `database/housing.duckdb` | Integrated query database. |
 | `metadata/raw_file_manifest.csv` | Raw URL/API endpoint, retrieval, filename, byte size, checksum, source vintage, and source-specific request metadata. |
+| `metadata/version_a_raw_file_manifest.csv` | Dedicated immutable archive manifest for Version A API, bulk, relationship, and manual official files. |
 | `metadata/data_catalog.csv` | Configured source inventory and discovery results. |
 | `metadata/data_dictionary.csv` | Variable definitions and methods. |
 | `metadata/transformation_log.csv` | Executed transformations and output paths. |
@@ -227,6 +364,7 @@ The operational `source_vintage` is the UTC retrieval date. Provider observation
 ### `raw`
 
 - `raw.file_manifest`
+- `raw.version_a_file_manifest`
 
 This table stores provenance rows, not copies of provider payloads.
 
@@ -251,6 +389,8 @@ The national Redfin ZIP CSV is not loaded into DuckDB. `clean.redfin_zip_monthly
 - `analytics.county_monthly_panel`
 - `analytics.zip_monthly_panel`
 - `analytics.state_quarterly_panel`
+- `analytics.housing_finance_benchmark` when the Version A Parquet exists
+- `analytics.v_la_version_a_benchmark` view restricted to FIPS `06037`
 
 The fact observation contract retains observation/source dates, geography IDs, state/county FIPS, variable ID, value, reported value where available, units, provider, native/final frequency, source vintage, retrieval timestamp, source filename, transformation ID, adjustment/imputation/interpolation flags, and quality flags.
 
