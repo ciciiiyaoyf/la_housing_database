@@ -9,9 +9,11 @@ from src.benchmark.finance import (
     adjust_pums_housing_dollars,
     annuity_factor,
     calculate_aggregate_mortgage_payment,
+    calculate_debt_normalizations,
     calculate_hmda_downpayment_metrics,
     calculate_matched_universe_equity,
     calculate_pums_first_mortgage_pi,
+    calculate_pums_junior_lien_payment,
     calculate_pums_pi_share,
     calibrate_implied_debt_to_california,
     implied_debt_from_distribution,
@@ -57,6 +59,30 @@ def test_pums_adjustment_and_pi_respect_escrow_flags_and_unknowns():
     assert share["sample_n"] == 2
     assert share["coverage_rate"] == pytest.approx(2 / 3)
     assert share["pi_share"] == pytest.approx(2_800 / 6_500)
+
+
+def test_pums_junior_lien_payment_is_adjusted_weighted_and_separate():
+    frame = pd.DataFrame(
+        {
+            "WGTP": [2, 1, 7, 0],
+            "ADJHSG": [1_100_000, 1_000_000, 1_000_000, 1_000_000],
+            "SMP": [100, 0, None, 9_999],
+        }
+    )
+    result = calculate_pums_junior_lien_payment(frame)
+
+    # Blank SMP is the codebook-defined structural zero for no junior lien;
+    # reported zero means a lien with no regular payment. Both stay in the
+    # eligible mortgaged-unit denominator.
+    assert result["junior_lien_monthly_payment"] == pytest.approx(220 / 10)
+    assert result["sample_n"] == 3
+    assert result["input_n"] == 4
+    assert result["coverage_rate"] == pytest.approx(0.75)
+    assert result["weighted_coverage_rate"] == pytest.approx(1.0)
+    assert result["positive_payment_n"] == 1
+    assert result["positive_payment_weighted_share"] == pytest.approx(2 / 10)
+    assert result["structural_no_junior_lien_n"] == 1
+    assert result["structural_no_junior_lien_weight"] == 7
 
 
 def test_hmda_cltv_metrics_include_prefilter_coverage_and_no_silent_repair():
@@ -136,7 +162,7 @@ def test_implied_debt_scenarios_and_joint_distribution():
     )
 
 
-def test_california_calibration_is_optional_and_preserves_missing_counties():
+def test_california_calibration_is_optional_but_requires_complete_coverage():
     raw = pd.Series(
         [100.0, 200.0, np.nan],
         index=["06001", "06037", "06075"],
@@ -145,12 +171,27 @@ def test_california_calibration_is_optional_and_preserves_missing_counties():
     assert uncalibrated["was_calibrated"] is False
     pd.testing.assert_series_equal(uncalibrated["calibrated_debt"], raw)
 
-    calibrated = calibrate_implied_debt_to_california(raw, 600.0)
+    with pytest.raises(ValueError, match="nonmissing raw debt"):
+        calibrate_implied_debt_to_california(raw, 600.0)
+
+    complete = raw.fillna(300.0)
+    calibrated = calibrate_implied_debt_to_california(
+        complete,
+        1_200.0,
+        expected_counties=["06001", "06037", "06075"],
+    )
     assert calibrated["was_calibrated"] is True
     assert calibrated["calibration_factor"] == 2.0
     assert calibrated["calibrated_debt"].loc["06001"] == 200.0
     assert calibrated["calibrated_debt"].loc["06037"] == 400.0
-    assert math.isnan(calibrated["calibrated_debt"].loc["06075"])
+    assert calibrated["calibrated_debt"].loc["06075"] == 600.0
+
+    with pytest.raises(ValueError, match="exact expected county set"):
+        calibrate_implied_debt_to_california(
+            complete.iloc[:2],
+            600.0,
+            expected_counties=["06001", "06037", "06075"],
+        )
 
 
 def test_aggregate_payment_and_matched_equity_identities():
@@ -185,6 +226,29 @@ def test_aggregate_payment_and_matched_equity_identities():
     assert math.isnan(missing_all_owner["equity_all_owner"])
 
 
+def test_debt_normalizations_require_explicit_nonzero_denominators():
+    normalized = calculate_debt_normalizations(
+        600_000_000,
+        mortgaged_units=1_000,
+        owner_units=1_500,
+        population=3_000,
+        aggregate_owner_income=1_200_000_000,
+    )
+    assert normalized["debt_per_mortgaged_unit"] == 600_000
+    assert normalized["debt_per_owner_unit"] == 400_000
+    assert normalized["debt_per_capita"] == 200_000
+    assert normalized["debt_to_owner_income"] == pytest.approx(0.5)
+
+    unavailable = calculate_debt_normalizations(
+        600_000_000,
+        mortgaged_units=0,
+        owner_units=None,
+        population=float("nan"),
+        aggregate_owner_income=0,
+    )
+    assert all(math.isnan(value) for value in unavailable.values())
+
+
 def _valid_metadata() -> dict:
     return {
         "county_fips": "06037",
@@ -197,6 +261,7 @@ def _valid_metadata() -> dict:
         "source_period_end": "2023-12-31",
         "reference_date": "2023-07-01",
         "release_date": "2024-03-26",
+        "source_release_dates": "hmda_modified_lar=2024-03-26",
         "source_geography": "county",
         "parameter_geography": "county",
         "monthly_method": "not_applicable_source_period",

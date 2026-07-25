@@ -3,7 +3,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from src.benchmark.qa import benchmark_qa_results, run_benchmark_qa
+from src.benchmark.qa import (
+    benchmark_coverage_reports,
+    benchmark_qa_results,
+    run_benchmark_qa,
+)
 from src.benchmark.schema import benchmark_row
 
 
@@ -25,6 +29,7 @@ def _row(variable_name: str, value: float) -> dict:
         source_period_end="2024-12-31",
         reference_date="2022-07-01",
         release_date="2025-01-30",
+        source_release_dates="test_source=2025-01-30",
         source_geography="county",
         parameter_geography="county",
         monthly_method="not_applicable_source_period",
@@ -42,7 +47,12 @@ def _row(variable_name: str, value: float) -> dict:
         high_estimate=None,
         universe_definition="Owner occupied",
         notes="test",
+        source_vintage="2024",
+        retrieved_at="2025-01-31T00:00:00+00:00",
+        source_filename="test.csv",
+        checksum_sha256="abc123",
         transformation_id="test_v1",
+        lineage_id=f"test-{variable_name}",
         quality_flag="reported",
     )
 
@@ -80,6 +90,71 @@ def test_qa_accepts_payment_identities() -> None:
     assert not summary["status"].eq("fail").any()
 
 
+def test_qa_rejects_direct_acs_only_as_incomplete_build() -> None:
+    direct = _row("acs_mortgaged_owner_units_benchmark", 1_000.0)
+    direct.update(
+        source_id="census_acs5_finance",
+        source_release_dates="census_acs5_finance=2025-01-30",
+    )
+
+    summary, failures = benchmark_qa_results(
+        pd.DataFrame([direct]),
+        require_complete_acs_counties=False,
+    )
+
+    assert summary.set_index("check_id").loc[
+        "version_a_required_output_inventory", "status"
+    ] == "fail"
+    assert summary.set_index("check_id").loc[
+        "version_a_required_direct_acs_inventory", "status"
+    ] == "fail"
+    required = set(
+        failures.loc[
+            failures["check_id"].eq("version_a_required_output_inventory"),
+            "required_variable",
+        ]
+    )
+    assert "acs_implied_first_mortgage_balance_cal_benchmark" in required
+    assert (
+        "acs_implied_owner_occupied_home_equity_all_real_2024_benchmark"
+        in required
+    )
+
+
+def test_qa_checks_published_acs_owner_partitions() -> None:
+    frame = pd.DataFrame(
+        [
+            _row("acs_aggregate_owner_value_all_benchmark", 140.0),
+            _row("acs_aggregate_owner_value_mortgaged_benchmark", 100.0),
+            _row("acs_aggregate_owner_value_no_mortgage_benchmark", 30.0),
+            _row("acs_aggregate_household_income_owner_benchmark", 90.0),
+            _row(
+                "acs_aggregate_household_income_mortgaged_owner_benchmark",
+                60.0,
+            ),
+            _row(
+                "acs_aggregate_household_income_no_mortgage_owner_benchmark",
+                30.0,
+            ),
+        ]
+    )
+
+    summary, failures = benchmark_qa_results(
+        frame,
+        require_complete_acs_counties=False,
+    )
+
+    assert summary.set_index("check_id").loc[
+        "aggregate_owner_value_partition_identity", "status"
+    ] == "fail"
+    assert failures["check_id"].eq(
+        "aggregate_owner_value_partition_identity"
+    ).any()
+    assert summary.set_index("check_id").loc[
+        "aggregate_owner_income_partition_identity", "status"
+    ] == "pass"
+
+
 def test_qa_stops_on_broken_annual_payment_identity(tmp_path) -> None:
     frame = _payment_frame()
     frame.loc[
@@ -102,3 +177,31 @@ def test_qa_stops_on_broken_annual_payment_identity(tmp_path) -> None:
             require_complete_acs_counties=False,
         )
     assert (tmp_path / "output/qa/version_a_qa_summary.csv").exists()
+    assert (
+        tmp_path / "output/coverage/version_a_county_coverage.csv"
+    ).exists()
+    assert (
+        tmp_path / "output/coverage/version_a_source_coverage.csv"
+    ).exists()
+
+
+def test_coverage_reports_distinguish_missing_values_from_missing_counties() -> None:
+    frame = _payment_frame()
+    missing = _row("test_missing_benchmark", float("nan"))
+    missing["quality_flag"] = "source_value_unavailable"
+    frame = pd.concat([frame, pd.DataFrame([missing])], ignore_index=True)
+
+    county, source = benchmark_coverage_reports(frame)
+
+    missing_county = county.loc[
+        county["variable_name"].eq("test_missing_benchmark")
+    ].iloc[0]
+    assert missing_county["county_row_present"]
+    assert missing_county["value_missing"]
+    summary = source.loc[
+        source["variable_name"].eq("test_missing_benchmark")
+    ].iloc[0]
+    assert summary["county_count"] == 1
+    assert summary["county_presence_rate"] == pytest.approx(1 / 58)
+    assert summary["value_available_count"] == 0
+    assert summary["value_missing_count"] == 1

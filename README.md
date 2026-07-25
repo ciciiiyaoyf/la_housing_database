@@ -75,12 +75,13 @@ primary export subset.
 
 | Source | Version A role | Native period | Acquisition |
 |---|---|---|---|
-| Census ACS 5-year Detailed Tables | B25089 owner costs, direct B25081 mortgaged units, B25082 owner value, and B25120 owner income, including published 90% MOEs | 60-month ACS period | Automatic official API |
-| Census ACS 5-year PUMS housing file | First-mortgage P&I share of selected owner costs | 60-month ACS period | Automatic official ZIP |
-| Census 2010/2020 tract-to-PUMA relationship | Identifies PUMAs wholly contained in one county | Decennial relationship | Automatic official TXT |
+| Census ACS 5-year Detailed Tables | B01003 population, B25089 owner costs, direct B25081 all-owner/mortgaged units, B25082 owner value, and B25120 owner income, including published 90% MOEs | 60-month ACS period | Automatic official API |
+| Census ACS 5-year PUMS housing file | First-mortgage P&I share and separate junior-lien payment diagnostic | 60-month ACS period | Automatic official ZIP |
+| Census 2010/2020 tract-to-PUMA relationship | Defines complete county pools and connected shared-PUMA regions | Decennial relationship | Automatic official TXT |
 | CFPB/FFIEC Modified LAR | Down-payment metrics for all, conventional, FHA, and VA originations | Annual | Official combined file; manual import |
 | FHFA NMDB outstanding-mortgage dashboard | Joint outstanding rate/remaining-term distribution and compatible California UPB control | Published dashboard period | Official CSV export; manual import with explicit mapping |
 | Freddie Mac PMMS | Labeled fallback sensitivity if NMDB joint rate/term data are absent | Weekly; exact reference-month median used | Existing automatic source |
+| BLS CPI-U U.S. city average, all items (`CUUR0000SA0`) | Deflator for constant-2024-dollar equity | Published `M13` annual average | Stable official flat file or local official snapshot; explicit release date required |
 
 The automatic collectors never invent an endpoint for HMDA or NMDB. Manual
 files enter the same immutable, checksummed archive after download from the
@@ -90,12 +91,21 @@ official source page.
 
 - PUMS uses owner-occupied first-mortgage records (`TEN=1`, `MRGX=1`) and
   applies `ADJHSG`. Property tax and insurance are subtracted only when
-  `MRGT`/`MRGI` say they are included. `SMP` is retained for diagnostics but
-  excluded from primary first-lien P&I.
+  `MRGT`/`MRGI` say they are included. After that eligibility filter, a blank
+  `SMP` is the codebook-defined structural zero for no junior lien; a reported
+  zero means a junior lien with no regular payment. The resulting diagnostic
+  is excluded from primary first-lien P&I, debt, and equity.
+- Official `WGTP1`-`WGTP80` housing replicate weights produce direct SDR
+  standard errors and 90% margins of error for both PUMS parameters. A partial
+  replicate set is rejected. If a nonofficial test/import frame omits all 80,
+  uncertainty remains explicitly unavailable and no interval is invented.
 - A county PUMS parameter is used only if the official relationship file shows
-  all of its PUMAs are wholly contained. Otherwise, the California parameter
-  is used and labeled as a broader-geography fallback; no temporal fallback is
-  applied.
+  all of its PUMAs are wholly contained. Otherwise, records are pooled over
+  the complete connected county/PUMA region. A labeled California fallback is
+  used only when that preferred pool is unavailable or below the sample
+  threshold; no temporal fallback is applied. The exact 2010/2020 relationship
+  file remains a first-class final-row source with its own vintage, filename,
+  retrieval timestamp, checksum, and release audit token.
 - HMDA retains originated, first-lien, home-purchase,
   principal-residence loans. It uses reported property value and combined
   LTV, never silently replacing missing CLTV with loan amount/property value.
@@ -106,11 +116,22 @@ official source page.
   rejected. If NMDB is unavailable, PMMS is only a labeled origination-rate
   sensitivity using 20/25/30-year remaining-term scenarios.
 - California calibration uses
-  `published compatible CA UPB / sum(nonmissing raw county debt)`. Calibrated
-  debt and dependent equity measures remain null when a compatible California
-  control is unavailable.
+  `published compatible CA UPB / sum(nonmissing raw county debt)` only when
+  the vintage contains exactly all 58 California counties and every raw debt
+  value is populated. Calibrated debt and dependent equity measures remain
+  null when coverage or the compatible California control is unavailable.
+- Normalized outputs divide calibrated debt only by direct, same-period ACS
+  mortgaged units, all-owner units, total population, or aggregate owner
+  income. All-owner equity per owner unit uses direct B25081_001. Missing or
+  zero denominators remain null.
 - Mortgaged-owner equity is B25082 mortgaged-owner value less calibrated debt.
   All-owner equity then adds the published mortgage-free owner value.
+- The two nominal equity identities remain unchanged. Separate real-equity
+  rows multiply nominal equity by
+  `CPI-U annual average (2024) / CPI-U annual average (ACS ending year)`.
+  The ACS vintage ending year is its monetary price basis; the five-year
+  midpoint is not used. Real rows stay null and flagged if nominal equity or
+  either required annual CPI observation is unavailable.
 
 Variable definitions are in `config/version_a_variables.yaml`; source and
 output rules are in `config/version_a_benchmark.yaml`; implementation status
@@ -127,18 +148,26 @@ python run_version_a.py --help
 ```
 
 Download, clean, build, and validate the latest verified automatic ACS/PUMS
-vintage:
+vintage plus one complete CPI release snapshot. Release dates are keyed by
+source and vintage (or CPI `snapshot`) so one provider's date can never be
+assigned to another source. Replace the example dates with the exact official
+release dates for the files being archived:
 
 ```powershell
-python run_version_a.py --stage all-auto --start-year 2024
+python run_version_a.py --stage all-auto --start-year 2024 --release-dates-json '{"census_acs5_finance":{"2024":"2026-01-29"},"census_acs5_pums_housing_ca":{"2024":"2026-03-05"},"bls_cpi_u_us_city_average":{"snapshot":"OFFICIAL_CPI_SNAPSHOT_RELEASE_DATE"}}'
 ```
 
 To acquire the full supported ACS/PUMS history, request an explicit range.
-PUMS files are large, so this is intentionally opt-in:
+PUMS county parameters are supported for verified 2016-2024 single-vintage
+geographies; earlier direct ACS rows are still collected and their
+PUMS-dependent constructs remain flagged null. Supply the official
+source-specific release date for each requested vintage:
 
 ```powershell
-python run_version_a.py --stage download --start-year 2009 --end-year 2024
-python run_version_a.py --stage clean --start-year 2009 --end-year 2024
+python run_version_a.py --stage download --source census_acs5_finance --start-year 2009 --end-year 2009 --release-date "OFFICIAL_ACS_RELEASE_DATE"
+python run_version_a.py --stage clean --source census_acs5_finance --start-year 2009 --end-year 2009 --release-date "OFFICIAL_ACS_RELEASE_DATE"
+python run_version_a.py --stage download --source census_acs5_pums_housing_ca --start-year 2016 --end-year 2016 --release-date "OFFICIAL_PUMS_RELEASE_DATE"
+python run_version_a.py --stage clean --source census_acs5_pums_housing_ca --start-year 2016 --end-year 2016 --release-date "OFFICIAL_PUMS_RELEASE_DATE"
 python run_version_a.py --stage build
 python run_version_a.py --stage validate
 ```
@@ -147,13 +176,42 @@ Offline mode never contacts a provider and fails if a required raw vintage is
 not already archived:
 
 ```powershell
-python run_version_a.py --stage all-auto --start-year 2024 --offline
+python run_version_a.py --stage all-auto --start-year 2024 --release-dates-json '{"census_acs5_finance":{"2024":"2026-01-29"},"census_acs5_pums_housing_ca":{"2024":"2026-03-05"},"bls_cpi_u_us_city_average":{"snapshot":"OFFICIAL_CPI_SNAPSHOT_RELEASE_DATE"}}' --offline
 ```
+
+Commands using scalar `--release-date` accept one source vintage at a time.
+Repeat them per vintage, or use `all-auto` with `--release-dates-json`, so one
+provider release date is never assigned across multiple vintages.
+
+The BLS CPI bulk flat file has a stable official URL, but the file itself does
+not reliably encode its release date. `all-auto` therefore requires the
+explicit `bls_cpi_u_us_city_average.snapshot` entry shown above; it downloads
+and cleans that complete snapshot without guessing a date. A CPI release date
+cannot precede the end of the latest published `M13` year retained from the
+file. To refresh CPI separately, supply the same explicit release date:
+
+```powershell
+python run_version_a.py --stage download --source bls_cpi_u_us_city_average --release-date "OFFICIAL_CPI_SNAPSHOT_RELEASE_DATE"
+python run_version_a.py --stage clean --source bls_cpi_u_us_city_average --release-date "OFFICIAL_CPI_SNAPSHOT_RELEASE_DATE"
+python run_version_a.py --stage build
+```
+
+An already downloaded official `cu.data.1.AllItems` file can be imported with
+the same release key:
+
+```powershell
+python run_version_a.py --stage download --source bls_cpi_u_us_city_average --release-date "OFFICIAL_CPI_SNAPSHOT_RELEASE_DATE" --local-file "PATH_TO_OFFICIAL_CPI_FLAT_FILE"
+```
+
+Cleaning selects only published `CUUR0000SA0`/`M13` rows. It does not
+recalculate annual averages from the monthly CPI observations. The build uses
+the latest locally cleaned CPI release as one complete snapshot so revisions
+from different releases are never mixed.
 
 Import and clean an official annual HMDA Modified LAR file:
 
 ```powershell
-python run_version_a.py --stage download --source cfpb_hmda_modified_lar --start-year 2024 --local-file "PATH_TO_OFFICIAL_HMDA_FILE.zip"
+python run_version_a.py --stage download --source cfpb_hmda_modified_lar --start-year 2024 --release-date 2025-03-31 --local-file "PATH_TO_OFFICIAL_HMDA_FILE.zip"
 python run_version_a.py --stage clean --source cfpb_hmda_modified_lar --start-year 2024 --release-date 2025-03-31 --minimum-sample 50 --split-minimum-sample 100
 ```
 
@@ -162,14 +220,14 @@ CSV, then supply an explicit canonical-to-source column map and explicit
 period, units, universe, and semantic metadata. For a joint distribution:
 
 ```powershell
-python run_version_a.py --stage download --source fhfa_nmdb_joint_distribution --start-year 2024 --local-file "PATH_TO_OFFICIAL_NMDB_JOINT.csv"
+python run_version_a.py --stage download --source fhfa_nmdb_joint_distribution --start-year 2024 --release-date 2022-12-01 --local-file "PATH_TO_OFFICIAL_NMDB_JOINT.csv"
 python run_version_a.py --stage clean --source fhfa_nmdb_joint_distribution --start-year 2024 --column-map-json '{"annual_rate":"Coupon rate","remaining_months":"Remaining term months","weight":"Share"}' --source-metadata-json '{"benchmark_vintage":"2024_ACS5","reference_date":"2022-07-01","source_period_start":"2022-07-01","source_period_end":"2022-09-30","release_date":"2022-12-01","source_frequency":"quarterly","parameter_geography":"US","universe_definition":"Outstanding residential mortgages compatible with the county debt construct","distribution_kind":"joint_rate_remaining_term","mortgage_population":"outstanding_mortgages","rate_unit":"percent","remaining_term_unit":"months","weight_unit":"percent"}'
 ```
 
 For a California UPB control:
 
 ```powershell
-python run_version_a.py --stage download --source fhfa_nmdb_ca_upb --start-year 2024 --local-file "PATH_TO_OFFICIAL_NMDB_CA_UPB.csv"
+python run_version_a.py --stage download --source fhfa_nmdb_ca_upb --start-year 2024 --release-date 2022-12-01 --local-file "PATH_TO_OFFICIAL_NMDB_CA_UPB.csv"
 python run_version_a.py --stage clean --source fhfa_nmdb_ca_upb --start-year 2024 --column-map-json '{"value":"Outstanding UPB"}' --source-metadata-json '{"benchmark_vintage":"2024_ACS5","reference_date":"2022-07-01","source_period_start":"2022-07-01","source_period_end":"2022-09-30","release_date":"2022-12-01","source_frequency":"quarterly","parameter_geography":"California","universe_definition":"Outstanding first-lien residential mortgages compatible with county debt","control_type":"unpaid_principal_balance","compatible_with_county_debt":true,"value_unit":"million_usd"}'
 python run_version_a.py --stage build
 python run_version_a.py --stage validate
@@ -336,7 +394,7 @@ The import copies the national CSV unchanged to immutable raw storage. Cleaning 
 | `data/archive/deprecated_zori_nsa/` | Deprecated NSA ZORI files and their archive manifest; excluded from active ingestion. |
 | `data/interim/` | Reusable intermediate observations, currently the long-form Redfin ZIP extract. |
 | `data/clean/` | Latest selected source-specific normalized Parquet and geography tables. |
-| `data/benchmark/clean/` | Native-frequency ACS, PUMS, HMDA, and NMDB Version A inputs; never read by the legacy monthly harmonizer. |
+| `data/benchmark/clean/` | Native-frequency ACS, PUMS, CPI, HMDA, and NMDB Version A inputs; never read by the legacy monthly harmonizer. |
 | `data/final/` | Long fact table and analytical panels in Parquet. |
 | `database/housing.duckdb` | Integrated query database. |
 | `metadata/raw_file_manifest.csv` | Raw URL/API endpoint, retrieval, filename, byte size, checksum, source vintage, and source-specific request metadata. |
@@ -449,8 +507,12 @@ Core reports:
 
 - `output/qa/qa_summary.csv`
 - `output/qa/qa_failures.csv`
+- `output/qa/version_a_qa_summary.csv`
+- `output/qa/version_a_qa_failures.csv`
 - `output/coverage/source_coverage.csv`
 - `output/coverage/time_coverage.csv`
+- `output/coverage/version_a_county_coverage.csv`
+- `output/coverage/version_a_source_coverage.csv`
 - `output/coverage/zip_coverage.csv`
 - `output/coverage/bps_archive_download.csv`
 - `output/coverage/bps_archive_coverage.csv`

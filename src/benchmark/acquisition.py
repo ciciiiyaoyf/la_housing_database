@@ -9,7 +9,7 @@ ingesting them while preserving the same checksum-and-vintage guarantees.
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 import pandas as pd
 import requests
 
-from src.common.io import append_csv, sha256_file
+from src.common.io import sha256_file
 
 
 MANIFEST_COLUMNS = (
@@ -28,6 +28,7 @@ MANIFEST_COLUMNS = (
     "download_url",
     "retrieved_at",
     "data_vintage",
+    "release_date",
     "source_filename",
     "original_filename",
     "relative_path",
@@ -53,13 +54,81 @@ def _manifest(root: Path) -> pd.DataFrame:
     return pd.read_csv(path, dtype=str).reindex(columns=MANIFEST_COLUMNS)
 
 
+def _append_manifest_record(
+    root: Path,
+    record: dict[str, Any],
+) -> None:
+    """Append atomically while migrating legacy headers to the current schema."""
+    path = benchmark_manifest_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing = _manifest(root)
+    incoming = pd.DataFrame([record]).reindex(columns=MANIFEST_COLUMNS)
+    frame = pd.concat([existing, incoming], ignore_index=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    frame.to_csv(temporary, index=False)
+    temporary.replace(path)
+
+
+def normalize_release_date(
+    value: date | datetime | str | None,
+) -> str:
+    """Return one manifest-safe provider release date.
+
+    Empty values and the explicit ``unavailable`` marker are retained for
+    relationship files whose provider does not publish a release date. All
+    populated calendar dates are normalized to ISO ``YYYY-MM-DD`` form.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return ""
+        if text.casefold() == "unavailable":
+            return "unavailable"
+        value = text
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        raise ValueError(f"invalid release_date: {value!r}")
+    return pd.Timestamp(parsed).date().isoformat()
+
+
+def _validate_release_timing(
+    release_date: str,
+    retrieved_at: datetime | str | pd.Timestamp,
+    *,
+    context: str,
+) -> None:
+    """Reject provenance that claims retrieval before publication."""
+    if not release_date or release_date == "unavailable":
+        return
+    retrieved = pd.to_datetime(
+        retrieved_at,
+        utc=True,
+        errors="coerce",
+    )
+    if pd.isna(retrieved):
+        raise ValueError(f"{context} has an invalid retrieved_at timestamp")
+    if date.fromisoformat(release_date) > pd.Timestamp(retrieved).date():
+        raise ValueError(
+            f"{context} release_date {release_date} cannot be later than "
+            f"retrieved_at date {pd.Timestamp(retrieved).date().isoformat()}"
+        )
+
+
 def _record_for_checksum(
-    root: Path, source_id: str, checksum: str
+    root: Path,
+    source_id: str,
+    checksum: str,
+    data_vintage: str,
+    release_date: str,
 ) -> tuple[Path, dict[str, str]] | None:
     frame = _manifest(root)
     match = frame.loc[
         frame["source_id"].eq(source_id)
         & frame["checksum_sha256"].eq(checksum)
+        & frame["data_vintage"].eq(data_vintage)
+        & frame["release_date"].fillna("").eq(release_date)
     ]
     if match.empty:
         return None
@@ -68,12 +137,22 @@ def _record_for_checksum(
         for key, value in match.iloc[-1].to_dict().items()
     }
     path = root / record["relative_path"]
-    return (path, record) if path.is_file() else None
+    return (
+        (path, record)
+        if path.is_file() and sha256_file(path) == checksum
+        else None
+    )
 
 
 def _safe_extension(path: Path, download_url: str = "") -> str:
     name = path.name or Path(urlparse(download_url).path).name
     suffixes = Path(name).suffixes
+    # Streamed downloads use a trailing .part marker. It is a transport
+    # detail, not the provider file type; retain the preceding .zip/.csv/etc.
+    if suffixes and suffixes[-1].casefold() == ".part":
+        suffixes = suffixes[:-1]
+    if not suffixes:
+        suffixes = Path(urlparse(download_url).path).suffixes
     extension = "".join(suffixes[-2:]) if suffixes[-2:] in (
         [".csv", ".gz"],
         [".tsv", ".gz"],
@@ -93,6 +172,7 @@ def archive_benchmark_file(
     native_frequency: str,
     source_geography: str,
     data_vintage: str | None = None,
+    release_date: date | datetime | str | None = None,
     retrieval_method: str = "manual_official_download_import",
     notes: str = "",
     force_duplicate: bool = False,
@@ -111,17 +191,28 @@ def archive_benchmark_file(
     if not source_id or "/" in source_id or "\\" in source_id:
         raise ValueError("source_id must be a nonempty path-safe identifier")
 
-    checksum = sha256_file(source_file)
-    if not force_duplicate:
-        existing = _record_for_checksum(root, source_id, checksum)
-        if existing:
-            return existing[1]
-
     retrieved = retrieved_at or datetime.now(timezone.utc)
     if retrieved.tzinfo is None:
         retrieved = retrieved.replace(tzinfo=timezone.utc)
     retrieved = retrieved.astimezone(timezone.utc)
     vintage = data_vintage or retrieved.date().isoformat()
+    release = normalize_release_date(release_date)
+    _validate_release_timing(
+        release,
+        retrieved,
+        context=f"{source_id} archive",
+    )
+    checksum = sha256_file(source_file)
+    if not force_duplicate:
+        existing = _record_for_checksum(
+            root,
+            source_id,
+            checksum,
+            vintage,
+            release,
+        )
+        if existing:
+            return existing[1]
     extension = _safe_extension(source_file, download_url)
     filename = (
         f"{source_id}_{vintage}_{retrieved:%Y%m%dT%H%M%SZ}_"
@@ -157,6 +248,7 @@ def archive_benchmark_file(
         "download_url": download_url,
         "retrieved_at": retrieved.isoformat(),
         "data_vintage": vintage,
+        "release_date": release,
         "source_filename": destination.name,
         "original_filename": source_file.name,
         "relative_path": destination.relative_to(root).as_posix(),
@@ -168,7 +260,7 @@ def archive_benchmark_file(
         "ingestion_status": "archived",
         "notes": notes,
     }
-    append_csv(benchmark_manifest_path(root), [record])
+    _append_manifest_record(root, record)
     return {key: str(value) for key, value in record.items()}
 
 
@@ -183,7 +275,9 @@ def download_benchmark_file(
     native_frequency: str,
     source_geography: str,
     data_vintage: str | None = None,
+    release_date: date | datetime | str | None = None,
     notes: str = "",
+    force_duplicate: bool = False,
     timeout: int = 300,
     session: requests.Session | None = None,
 ) -> dict[str, str]:
@@ -222,8 +316,10 @@ def download_benchmark_file(
             native_frequency=native_frequency,
             source_geography=source_geography,
             data_vintage=data_vintage,
+            release_date=release_date,
             retrieval_method="official_url_download",
             notes=notes,
+            force_duplicate=force_duplicate,
         )
     finally:
         response.close()
@@ -236,6 +332,7 @@ def latest_benchmark_asset(
     source_id: str,
     *,
     vintage: str | None = None,
+    release_date: date | datetime | str | None = None,
 ) -> tuple[Path, dict[str, str]] | None:
     """Return the latest available archived asset for a source.
 
@@ -245,11 +342,22 @@ def latest_benchmark_asset(
     """
     frame = _manifest(root)
     frame = frame.loc[frame["source_id"].eq(source_id)].copy()
+    if release_date is not None:
+        release = normalize_release_date(release_date)
+        frame = frame.loc[
+            frame["release_date"].fillna("").eq(release)
+        ]
     if frame.empty:
         return None
     frame["_retrieved"] = pd.to_datetime(
         frame["retrieved_at"], utc=True, errors="coerce", format="mixed"
     )
+    for _, row in frame.iterrows():
+        _validate_release_timing(
+            "" if pd.isna(row["release_date"]) else str(row["release_date"]),
+            row["_retrieved"],
+            context=f"{source_id} manifest record",
+        )
     if vintage:
         cutoff = pd.Timestamp(vintage)
         cutoff = (
@@ -273,6 +381,8 @@ def benchmark_asset_for_data_vintage(
     root: Path,
     source_id: str,
     data_vintage: str,
+    *,
+    release_date: date | datetime | str | None = None,
 ) -> tuple[Path, dict[str, str]] | None:
     """Return the latest valid archive for an exact provider data vintage."""
     frame = _manifest(root)
@@ -280,11 +390,22 @@ def benchmark_asset_for_data_vintage(
         frame["source_id"].eq(source_id)
         & frame["data_vintage"].eq(str(data_vintage))
     ].copy()
+    if release_date is not None:
+        release = normalize_release_date(release_date)
+        frame = frame.loc[
+            frame["release_date"].fillna("").eq(release)
+        ]
     if frame.empty:
         return None
     frame["_retrieved"] = pd.to_datetime(
         frame["retrieved_at"], utc=True, errors="coerce", format="mixed"
     )
+    for _, row in frame.iterrows():
+        _validate_release_timing(
+            "" if pd.isna(row["release_date"]) else str(row["release_date"]),
+            row["_retrieved"],
+            context=f"{source_id} manifest record",
+        )
     for _, row in frame.sort_values("_retrieved", ascending=False).iterrows():
         record = {
             key: "" if pd.isna(value) else str(value)

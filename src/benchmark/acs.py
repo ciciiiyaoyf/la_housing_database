@@ -31,7 +31,7 @@ from src.benchmark.finance import (
 
 ACS_API_ROOT = "https://api.census.gov/data"
 ACS_DATASET = "acs/acs5"
-ACS_RAW_SCHEMA_VERSION = "acs_finance_benchmark_raw_v1"
+ACS_RAW_SCHEMA_VERSION = "acs_finance_benchmark_raw_v2"
 ACS_USER_AGENT = "UCLA housing research data pipeline/0.2"
 CALIFORNIA_STATE_FIPS = "06"
 
@@ -43,6 +43,15 @@ CALIFORNIA_COUNTY_FIPS: tuple[str, ...] = tuple(
 )
 
 ACS_VARIABLE_MAP: dict[str, dict[str, str]] = {
+    "B01003_001": {
+        "table_id": "B01003",
+        "estimate_variable": "B01003_001E",
+        "moe_variable": "B01003_001M",
+        "variable_name": "acs_total_population_benchmark",
+        "unit": "persons",
+        "description": "Total resident population",
+        "universe_definition": "Total population",
+    },
     "B25089_002": {
         "table_id": "B25089",
         "estimate_variable": "B25089_002E",
@@ -55,6 +64,15 @@ ACS_VARIABLE_MAP: dict[str, dict[str, str]] = {
             "Aggregate selected monthly owner costs for housing units with "
             "a mortgage"
         ),
+        "universe_definition": "Owner-occupied housing units",
+    },
+    "B25081_001": {
+        "table_id": "B25081",
+        "estimate_variable": "B25081_001E",
+        "moe_variable": "B25081_001M",
+        "variable_name": "acs_owner_occupied_units_benchmark",
+        "unit": "housing_units",
+        "description": "Total owner-occupied housing units",
         "universe_definition": "Owner-occupied housing units",
     },
     "B25081_002": {
@@ -153,7 +171,7 @@ ACS_TABLE_VARIABLES: dict[str, tuple[str, ...]] = {
         for variable_id, metadata in ACS_VARIABLE_MAP.items()
         if metadata["table_id"] == table_id
     )
-    for table_id in ("B25089", "B25081", "B25082", "B25120")
+    for table_id in ("B01003", "B25089", "B25081", "B25082", "B25120")
 }
 
 # Census represents unavailable estimates with large negative sentinel values.
@@ -333,6 +351,10 @@ def fetch_acs_finance_payload(
     year = _normalise_vintage(vintage)
     retrieved = _normalise_retrieved_at(retrieved_at)
     release = _normalise_optional_date(release_date)
+    if release is None:
+        raise ValueError(
+            "release_date is required for an auditable ACS vintage snapshot"
+        )
     period_start, period_end, reference_date = acs_five_year_period(year)
     if release is not None and pd.Timestamp(release) < period_end:
         raise ValueError("release_date cannot precede the ACS source period end")
@@ -602,8 +624,8 @@ def clean_acs_finance_vintage(
         if release_raw is None
         else pd.to_datetime(release_raw, errors="coerce")
     )
-    if release_raw is not None and pd.isna(release):
-        raise ACSFormatError("ACS archive release_date must be a valid date or null")
+    if pd.isna(release):
+        raise ACSFormatError("ACS archive release_date must be populated")
     if pd.notna(release) and pd.Timestamp(release) < period_end:
         raise ACSFormatError("ACS release_date cannot precede source_period_end")
 
@@ -660,6 +682,14 @@ def clean_acs_finance_vintage(
                     "source_period_end": period_end,
                     "reference_date": reference_date,
                     "release_date": release,
+                    "source_release_dates": (
+                        None
+                        if pd.isna(release)
+                        else (
+                            "census_acs5_finance="
+                            f"{pd.Timestamp(release).date().isoformat()}"
+                        )
+                    ),
                     "source_geography": "county",
                     "parameter_geography": "county",
                     "monthly_method": (
@@ -687,6 +717,7 @@ def clean_acs_finance_vintage(
                     "estimate_variable": metadata["estimate_variable"],
                     "moe_variable": metadata["moe_variable"],
                     "moe": moe,
+                    "margin_of_error": moe,
                     "moe_confidence_level": 0.90,
                     "unit": metadata["unit"],
                     "description": metadata["description"],
@@ -695,6 +726,7 @@ def clean_acs_finance_vintage(
                     "source_filename": (
                         source_filename or payload.get("source_filename")
                     ),
+                    "source_vintage": str(year),
                     "checksum_sha256": checksum,
                     "request_url": request_urls[table_id],
                     "estimate_raw": estimate_raw,
@@ -716,12 +748,7 @@ def clean_acs_finance_vintage(
             f"clean ACS rows lack benchmark metadata: {missing_metadata}"
         )
 
-    # The shared validator currently requires release_date.  ACS archives may
-    # not have an independently captured release date, so validate through it
-    # only when one is genuinely present; all other contract fields above
-    # remain populated and source-faithful.
-    if frame["release_date"].notna().all():
-        validate_benchmark_metadata(frame)
+    validate_benchmark_metadata(frame)
 
     extra_columns = [
         column

@@ -27,6 +27,7 @@ BENCHMARK_COLUMNS = [
     "source_period_end",
     "reference_date",
     "release_date",
+    "source_release_dates",
     "source_geography",
     "parameter_geography",
     "monthly_method",
@@ -148,7 +149,12 @@ def benchmark_contract_errors(frame: pd.DataFrame) -> list[str]:
         {"a", "benchmark", "abenchmark", "versiona", "versionabenchmark"}
     ).all():
         errors.append("database_version must identify Version A benchmark")
-    for column in ("is_modeled", "is_nowcast", "is_interpolated"):
+    for column in (
+        "is_modeled",
+        "is_nowcast",
+        "is_imputed",
+        "is_interpolated",
+    ):
         if normalized[column].isna().any() or normalized[column].fillna(True).any():
             errors.append(f"{column} must be explicitly false in Version A")
     invalid_methods = normalized["monthly_method"].astype("string").str.contains(
@@ -159,6 +165,79 @@ def benchmark_contract_errors(frame: pd.DataFrame) -> list[str]:
     )
     if invalid_methods.any():
         errors.append("Version A monthly_method cannot create monthly observations")
+    if normalized["release_date"].isna().any():
+        errors.append("release_date must be populated for every Version A row")
+    missing_release_audit = (
+        normalized["source_release_dates"].isna()
+        | normalized["source_release_dates"].astype("string").str.strip().eq("")
+    )
+    if missing_release_audit.any():
+        errors.append(
+            "source_release_dates must identify every row's source releases"
+        )
+    provenance_text = (
+        "source_id",
+        "source_vintage",
+        "source_filename",
+        "checksum_sha256",
+        "transformation_id",
+        "lineage_id",
+    )
+    for column in provenance_text:
+        missing_provenance = (
+            normalized[column].isna()
+            | normalized[column].astype("string").str.strip().eq("")
+        )
+        if missing_provenance.any():
+            errors.append(f"{column} must be populated for every Version A row")
+    if normalized["retrieved_at"].isna().any():
+        errors.append("retrieved_at must be populated for every Version A row")
+    comparable_release_timing = (
+        normalized["release_date"].notna()
+        & normalized["retrieved_at"].notna()
+    )
+    invalid_release_timing = comparable_release_timing & (
+        normalized["release_date"].dt.date
+        > normalized["retrieved_at"].dt.date
+    )
+    if invalid_release_timing.any():
+        errors.append("release_date cannot be later than retrieved_at")
+
+    invalid_release_lineage = False
+    for _, row in normalized.iterrows():
+        source_ids = [
+            token.strip()
+            for token in str(row["source_id"]).split("|")
+            if token.strip() and token.strip() != "<NA>"
+        ]
+        audit_ids: list[str] = []
+        audit_values_valid = True
+        for token in str(row["source_release_dates"]).split("|"):
+            audit_id, separator, raw_value = token.partition("=")
+            audit_id = audit_id.strip()
+            raw_value = raw_value.strip()
+            if not separator or not audit_id:
+                audit_values_valid = False
+                continue
+            audit_ids.append(audit_id)
+            if raw_value.casefold() != "unavailable" and pd.isna(
+                pd.to_datetime(raw_value, errors="coerce")
+            ):
+                audit_values_valid = False
+        if (
+            not source_ids
+            or len(source_ids) != len(set(source_ids))
+            or len(audit_ids) != len(set(audit_ids))
+            or set(source_ids) != set(audit_ids)
+            or not audit_values_valid
+        ):
+            invalid_release_lineage = True
+            break
+    if invalid_release_lineage:
+        errors.append(
+            "source_release_dates must contain exactly one valid date or "
+            "'unavailable' entry for every source_id"
+        )
     invalid_coverage = normalized["coverage_rate"].notna() & ~normalized[
         "coverage_rate"
     ].between(0, 1)

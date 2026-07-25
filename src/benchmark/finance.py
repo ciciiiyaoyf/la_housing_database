@@ -29,6 +29,7 @@ REQUIRED_BENCHMARK_METADATA_FIELDS: tuple[str, ...] = (
     "source_period_end",
     "reference_date",
     "release_date",
+    "source_release_dates",
     "source_geography",
     "parameter_geography",
     "monthly_method",
@@ -356,6 +357,116 @@ def calculate_pums_pi_share(
     )
 
 
+def calculate_pums_junior_lien_payment(
+    frame: pd.DataFrame,
+    *,
+    junior_lien_payment_col: str = "SMP",
+    adjhsg_col: str = "ADJHSG",
+    weight_col: str = "WGTP",
+) -> dict[str, float | int]:
+    """Return an ADJHSG-adjusted, WGTP-weighted SMP payment diagnostic.
+
+    ``SMP`` is the monthly payment for a second mortgage or home-equity loan.
+    It is kept separate from the primary first-mortgage P&I calculation and is
+    never capitalized into a balance. In the official PUMS codebook, blank
+    ``SMP`` means no second/junior mortgage or home-equity loan for the
+    already-eligible mortgaged unit, so it contributes a structural zero.
+    Reported zero means a junior lien exists with no regular payment and also
+    remains zero. A reported payment still requires a valid ``ADJHSG``.
+    """
+    required = {junior_lien_payment_col, adjhsg_col, weight_col}
+    missing_columns = sorted(required.difference(frame.columns))
+    if missing_columns:
+        raise KeyError(
+            f"missing PUMS junior-lien columns: {missing_columns}"
+        )
+
+    payment_reported = _reported_mask(frame[junior_lien_payment_col])
+    payment_raw = _numeric_series_strict(
+        frame[junior_lien_payment_col],
+        junior_lien_payment_col,
+    )
+    adjustment = _numeric_series_strict(frame[adjhsg_col], adjhsg_col)
+    if (payment_raw.dropna() < 0).any():
+        raise ValueError("PUMS junior-lien payments cannot be negative")
+    invalid_adjustment = (
+        payment_reported & adjustment.notna() & adjustment.le(0)
+    )
+    if invalid_adjustment.any():
+        raise ValueError("ADJHSG must be positive for reported SMP")
+
+    structural_zero = ~payment_reported
+    payment = pd.Series(math.nan, index=frame.index, dtype=float)
+    payment.loc[structural_zero] = 0.0
+    adjustable = (
+        payment_reported & payment_raw.notna() & adjustment.notna()
+    )
+    payment.loc[adjustable] = (
+        payment_raw.loc[adjustable]
+        * adjustment.loc[adjustable]
+        / 1_000_000.0
+    )
+    weight = _numeric_series_strict(frame[weight_col], weight_col)
+    if (weight.dropna() < 0).any():
+        raise ValueError("WGTP cannot be negative")
+
+    positive_weight = weight.notna() & weight.gt(0)
+    valid = positive_weight & payment.notna()
+    positive_payment = valid & payment.gt(0)
+    input_n = int(len(frame))
+    sample_n = int(valid.sum())
+    positive_payment_n = int(positive_payment.sum())
+    available_weight = (
+        float(weight.loc[positive_weight].sum())
+        if positive_weight.any()
+        else 0.0
+    )
+    valid_weight = float(weight.loc[valid].sum()) if sample_n else 0.0
+    positive_payment_weight = (
+        float(weight.loc[positive_payment].sum())
+        if positive_payment_n
+        else 0.0
+    )
+    weighted_total = (
+        float((weight.loc[valid] * payment.loc[valid]).sum())
+        if sample_n
+        else math.nan
+    )
+    weighted_mean = (
+        weighted_total / valid_weight
+        if valid_weight > 0 and not math.isnan(weighted_total)
+        else math.nan
+    )
+    structural_zero_weight = (
+        float(weight.loc[structural_zero & positive_weight].sum())
+        if (structural_zero & positive_weight).any()
+        else 0.0
+    )
+    return {
+        "junior_lien_monthly_payment": weighted_mean,
+        "weighted_junior_lien_monthly_payment_total": weighted_total,
+        "input_n": input_n,
+        "sample_n": sample_n,
+        "coverage_rate": sample_n / input_n if input_n else math.nan,
+        "weighted_coverage_rate": (
+            valid_weight / available_weight
+            if available_weight > 0
+            else math.nan
+        ),
+        "eligible_weight": available_weight,
+        "complete_case_weight": valid_weight,
+        "positive_payment_n": positive_payment_n,
+        "positive_payment_weight": positive_payment_weight,
+        "positive_payment_weighted_share": (
+            positive_payment_weight / valid_weight
+            if valid_weight > 0
+            else math.nan
+        ),
+        "structural_no_junior_lien_n": int(structural_zero.sum()),
+        "structural_no_junior_lien_weight": structural_zero_weight,
+    }
+
+
 def _reported_mask(series: pd.Series) -> pd.Series:
     blank = series.map(lambda value: isinstance(value, str) and not value.strip())
     return series.notna() & ~blank
@@ -582,6 +693,8 @@ def implied_debt_from_distribution(
 def calibrate_implied_debt_to_california(
     raw_county_debt: pd.Series,
     california_benchmark: float | int | None = None,
+    *,
+    expected_counties: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Optionally scale observed county debts to a compatible CA benchmark.
 
@@ -591,6 +704,20 @@ def calibrate_implied_debt_to_california(
     one.
     """
     raw = _numeric_series_strict(raw_county_debt, "raw_county_debt")
+    raw.index = raw.index.map(lambda value: str(value).zfill(5))
+    if raw.index.has_duplicates:
+        raise ValueError("raw county debt must contain one row per county")
+    if expected_counties is not None:
+        expected = {str(value).zfill(5) for value in expected_counties}
+        actual = set(raw.index)
+        if not expected:
+            raise ValueError("expected_counties cannot be empty")
+        if actual != expected:
+            raise ValueError(
+                "California calibration requires the exact expected county "
+                f"set; missing={sorted(expected - actual)}, "
+                f"extra={sorted(actual - expected)}"
+            )
     if (raw.dropna() < 0).any():
         raise ValueError("raw county debt cannot be negative")
     raw_total = float(raw.sum(min_count=1)) if raw.notna().any() else math.nan
@@ -609,6 +736,12 @@ def calibrate_implied_debt_to_california(
     )
     if benchmark < 0:
         raise ValueError("California benchmark debt cannot be negative")
+    if raw.isna().any():
+        missing_counties = raw.index[raw.isna()].tolist()
+        raise ValueError(
+            "California calibration requires nonmissing raw debt for every "
+            f"county; missing={missing_counties}"
+        )
     if math.isnan(raw_total):
         raise ValueError("cannot calibrate without any reported county debt")
     if raw_total == 0:
@@ -767,6 +900,47 @@ def calculate_matched_universe_equity(
     }
 
 
+def calculate_debt_normalizations(
+    mortgage_debt: float | int | None,
+    *,
+    mortgaged_units: float | int | None = None,
+    owner_units: float | int | None = None,
+    population: float | int | None = None,
+    aggregate_owner_income: float | int | None = None,
+) -> dict[str, float]:
+    """Normalize calibrated debt using only explicit, matched denominators.
+
+    Missing or zero denominators remain unavailable.  No median-income,
+    household-count, temporal, or broader-geography substitute is used.
+    """
+    debt = _finite_float(mortgage_debt, "mortgage_debt")
+    if not math.isnan(debt) and debt < 0:
+        raise ValueError("mortgage_debt cannot be negative")
+
+    denominators = {
+        "debt_per_mortgaged_unit": (mortgaged_units, "mortgaged_units"),
+        "debt_per_owner_unit": (owner_units, "owner_units"),
+        "debt_per_capita": (population, "population"),
+        "debt_to_owner_income": (
+            aggregate_owner_income,
+            "aggregate_owner_income",
+        ),
+    }
+    result: dict[str, float] = {}
+    for metric, (raw_denominator, name) in denominators.items():
+        denominator = _finite_float(raw_denominator, name)
+        if not math.isnan(denominator) and denominator < 0:
+            raise ValueError(f"{name} cannot be negative")
+        result[metric] = (
+            debt / denominator
+            if not math.isnan(debt)
+            and not math.isnan(denominator)
+            and denominator > 0
+            else math.nan
+        )
+    return result
+
+
 def _is_benchmark_version(value: Any) -> bool:
     if _missing(value):
         return False
@@ -830,6 +1004,7 @@ def validate_benchmark_metadata(
             "source_period_end",
             "reference_date",
             "release_date",
+            "source_release_dates",
             "source_geography",
             "parameter_geography",
             "monthly_method",

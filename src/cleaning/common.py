@@ -21,9 +21,11 @@ OBSERVATION_COLUMNS = [
     "provider",
     "native_frequency",
     "final_frequency",
+    "source_id",
     "source_vintage",
     "retrieved_at",
     "source_filename",
+    "checksum_sha256",
     "transformation_id",
     "is_imputed",
     "is_interpolated",
@@ -63,7 +65,9 @@ def finalize(frame: pd.DataFrame, output_path: Path) -> pd.DataFrame:
 
 def metadata_fields(record: dict[str, str]) -> dict[str, str]:
     return {
+        "source_id": record.get("source_id"),
         "source_vintage": record["data_vintage"],
         "retrieved_at": record["retrieved_at"],
         "source_filename": record["source_filename"],
+        "checksum_sha256": record.get("checksum_sha256"),
     }

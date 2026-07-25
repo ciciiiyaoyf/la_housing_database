@@ -6,12 +6,15 @@ import pytest
 
 from src.benchmark.pums import (
     PUMSFormatError,
+    PUMS_REPLICATE_WEIGHT_COLUMNS,
     PUMS_REQUIRED_COLUMNS,
     build_pums_pi_share_parameters,
+    derive_county_puma_pool_hierarchy,
     derive_wholly_contained_pumas,
     filter_owner_first_mortgage,
     read_pums_housing,
     read_tract_puma_relationship,
+    resolve_pums_geography_contract,
 )
 from src.benchmark.schema import BENCHMARK_COLUMNS, benchmark_contract_errors
 
@@ -33,6 +36,13 @@ def _pums_frame() -> pd.DataFrame:
             "PUMA": ["00101", "00101", "00102", "00103", "00101", "00101"],
         }
     )
+
+
+def _with_replicate_weights(frame: pd.DataFrame) -> pd.DataFrame:
+    result = frame.copy()
+    for column in PUMS_REPLICATE_WEIGHT_COLUMNS:
+        result[column] = result["WGTP"]
+    return result
 
 
 def _pipe_relationship(tmp_path) -> pd.DataFrame:
@@ -68,6 +78,7 @@ def test_reads_csv_or_single_csv_zip_and_preserves_missing_flags(tmp_path):
     assert csv_result["PUMA"].tolist() == ["00101", "00101"]
     assert pd.isna(csv_result.loc[1, "MRGT"])
     assert len(csv_result.attrs["checksum_sha256"]) == 64
+    assert "PUMA" in csv_result.attrs["source_columns"]
 
     zip_path = tmp_path / "csv_hca.zip"
     payload = source.to_csv(index=False).encode()
@@ -78,6 +89,64 @@ def test_reads_csv_or_single_csv_zip_and_preserves_missing_flags(tmp_path):
     pd.testing.assert_frame_equal(csv_result, zip_result)
     assert zip_result.attrs["source_filename"] == "csv_hca.zip"
     assert zip_result.attrs["source_member_filename"] == "nested/psam_h06.csv"
+
+
+def test_reader_retains_full_header_for_2022_dual_puma_guard(tmp_path):
+    source = _pums_frame().iloc[:2].copy()
+    source["PUMA10"] = source["PUMA"]
+    source["PUMA20"] = source["PUMA"]
+    path = tmp_path / "dual_2022.csv"
+    source.to_csv(path, index=False)
+
+    result = read_pums_housing(path)
+    assert tuple(result.columns) == PUMS_REQUIRED_COLUMNS
+    assert {"PUMA10", "PUMA20"}.issubset(result.attrs["source_columns"])
+    with pytest.raises(PUMSFormatError, match="dual-vintage"):
+        resolve_pums_geography_contract(
+            2022,
+            columns=result.attrs["source_columns"],
+        )
+
+
+def test_reader_retains_complete_replicate_set_and_rejects_partial_set(
+    tmp_path,
+):
+    source = _with_replicate_weights(_pums_frame().iloc[:2])
+    source.loc[0, "WGTP1"] = -1
+    complete_path = tmp_path / "complete_replicates.csv"
+    source.to_csv(complete_path, index=False)
+
+    result = read_pums_housing(complete_path)
+    assert tuple(result.columns) == (
+        *PUMS_REQUIRED_COLUMNS,
+        *PUMS_REPLICATE_WEIGHT_COLUMNS,
+    )
+    assert result.loc[0, "WGTP1"] == -1
+    assert all(
+        pd.api.types.is_integer_dtype(result[column])
+        for column in PUMS_REPLICATE_WEIGHT_COLUMNS
+    )
+
+    partial = _pums_frame().iloc[:2].copy()
+    partial["WGTP1"] = partial["WGTP"]
+    partial_path = tmp_path / "partial_replicates.csv"
+    partial.to_csv(partial_path, index=False)
+    with pytest.raises(PUMSFormatError, match="partial PUMS replicate-weight"):
+        read_pums_housing(partial_path)
+    with pytest.raises(PUMSFormatError, match="partial PUMS replicate-weight"):
+        filter_owner_first_mortgage(partial)
+
+
+@pytest.mark.parametrize("bad_value", [None, "not-a-weight", 1.5])
+def test_reader_rejects_invalid_replicate_weight_values(tmp_path, bad_value):
+    source = _with_replicate_weights(_pums_frame().iloc[:2])
+    source["WGTP7"] = source["WGTP7"].astype(object)
+    source.loc[0, "WGTP7"] = bad_value
+    path = tmp_path / "invalid_replicate.csv"
+    source.to_csv(path, index=False)
+
+    with pytest.raises(PUMSFormatError, match="replicate weights"):
+        read_pums_housing(path)
 
 
 def test_rejects_missing_columns_and_multi_csv_zip(tmp_path):
@@ -136,6 +205,56 @@ def test_wholly_contained_mapping_excludes_shared_pumas(tmp_path):
     assert mapping["county_all_pumas_wholly_contained"].all()
 
 
+def test_release_contract_rejects_mixed_or_unverified_puma_vintages():
+    assert resolve_pums_geography_contract(
+        2021, columns=PUMS_REQUIRED_COLUMNS
+    )["relationship_vintage"] == 2010
+    updated_2022 = resolve_pums_geography_contract(
+        2022, columns=PUMS_REQUIRED_COLUMNS
+    )
+    assert updated_2022["relationship_vintage"] == 2020
+    assert updated_2022["is_census_crosswalked"]
+
+    with pytest.raises(PUMSFormatError, match="mixed 2000/2010"):
+        resolve_pums_geography_contract(
+            2015, columns=PUMS_REQUIRED_COLUMNS
+        )
+    with pytest.raises(PUMSFormatError, match="dual-vintage"):
+        resolve_pums_geography_contract(
+            2022, columns=(*PUMS_REQUIRED_COLUMNS, "PUMA10", "PUMA20")
+        )
+    with pytest.raises(PUMSFormatError, match="column inspection"):
+        resolve_pums_geography_contract(2022)
+    with pytest.raises(PUMSFormatError, match="not yet verified"):
+        resolve_pums_geography_contract(
+            2025, columns=PUMS_REQUIRED_COLUMNS
+        )
+    with pytest.raises(PUMSFormatError, match="requires the 2010"):
+        resolve_pums_geography_contract(
+            2021,
+            columns=PUMS_REQUIRED_COLUMNS,
+            relationship_vintage=2020,
+        )
+
+
+def test_pool_hierarchy_uses_complete_county_then_connected_region(tmp_path):
+    hierarchy = derive_county_puma_pool_hierarchy(
+        _pipe_relationship(tmp_path),
+        relationship_vintage=2020,
+    ).set_index("county_fips")
+
+    assert hierarchy.loc["06037", "preferred_geography_tier"] == "county"
+    assert hierarchy.loc["06037", "pool_member_pumas"] == "00101"
+    assert hierarchy.loc["06059", "preferred_geography_tier"] == "regional"
+    assert (
+        hierarchy.loc["06059", "preferred_parameter_geography"]
+        == "puma_region:06059+06065"
+    )
+    assert hierarchy.loc["06059", "pool_member_counties"] == "06059|06065"
+    assert hierarchy.loc["06059", "pool_member_pumas"] == "00102"
+    assert hierarchy.loc["06059", "county_shared_puma_count"] == 1
+
+
 def test_filter_requires_owner_occupied_first_mortgage_and_rejects_bad_codes():
     result = filter_owner_first_mortgage(_pums_frame())
     assert len(result) == 4
@@ -148,7 +267,7 @@ def test_filter_requires_owner_occupied_first_mortgage_and_rejects_bad_codes():
         filter_owner_first_mortgage(bad)
 
 
-def test_builds_source_period_parameters_without_silent_county_fallback(tmp_path):
+def test_builds_record_pooled_county_regional_and_state_parameters(tmp_path):
     relationship = _pipe_relationship(tmp_path)
     result = build_pums_pi_share_parameters(
         _pums_frame(),
@@ -160,37 +279,78 @@ def test_builds_source_period_parameters_without_silent_county_fallback(tmp_path
         release_date="2024-12-12",
         relationship_vintage=2020,
         minimum_sample=1,
+        require_complete_california_relationship=False,
+        source_vintage="2023",
+        source_filename="csv_hca.zip",
+        retrieved_at="2024-12-13T00:00:00+00:00",
+        checksum_sha256="pums-checksum",
+        relationship_source_filename="tract_to_puma_2020.txt",
+        relationship_retrieved_at="2024-12-13T00:00:00+00:00",
+        relationship_checksum_sha256="relationship-checksum",
     )
 
-    assert set(result["parameter_geography"]) == {
-        "state:06",
-        "county:06037",
-        "county:06073",
-    }
-    # The shared PUMA 00102 contributes to California but is not assigned to
-    # either county that it intersects.
-    assert "county:06059" not in set(result["parameter_geography"])
-    assert "county:06065" not in set(result["parameter_geography"])
+    pi = result.loc[
+        result["variable_name"].eq(
+            "pums_first_mortgage_pi_share_benchmark"
+        )
+    ].set_index("county_fips", drop=False)
+    junior = result.loc[
+        result["variable_name"].eq(
+            "pums_junior_lien_payment_per_mortgaged_unit_benchmark"
+        )
+    ].set_index("county_fips", drop=False)
 
-    state = result.set_index("parameter_geography").loc["state:06"]
-    la = result.set_index("parameter_geography").loc["county:06037"]
-    san_diego = result.set_index("parameter_geography").loc["county:06073"]
+    state = pi.loc[pd.NA]
+    la = pi.loc["06037"]
+    orange_riverside = pi.loc[["06059", "06065"]]
+    san_diego = pi.loc["06073"]
     assert state["sample_n"] == 3
     assert state["input_n"] == 4
     assert state["coverage_rate"] == pytest.approx(0.75)
     assert state["value"] == pytest.approx(3_800 / 8_500)
+    assert not state["uncertainty_available"]
+    assert state["uncertainty_status"] == (
+        "unavailable_no_replicate_weights"
+    )
+    assert state["replicate_weight_count"] == 0
+    assert math.isnan(state["margin_of_error"])
+    assert math.isnan(state["low_estimate"])
+    assert math.isnan(state["high_estimate"])
+    assert "pums_replicate_uncertainty_unavailable" in state["quality_flag"]
+    assert "no bounds were invented" in state["notes"]
     assert la["sample_n"] == 2
     assert la["value"] == pytest.approx(2_800 / 6_500)
     assert la["parameter_geography_level"] == "county"
 
-    # An unknown/missing escrow flag is not guessed; the county row and its
-    # diagnostics remain present for an explicit downstream fallback choice.
-    assert san_diego["input_n"] == 1
-    assert san_diego["sample_n"] == 0
-    assert san_diego["mrgt_missing_n"] == 1
-    assert math.isnan(san_diego["value"])
-    assert san_diego["is_missing"]
-    assert san_diego["fallback_recommended"]
+    # Shared PUMA records are pooled once over their connected region and the
+    # same record/WGTP result is attached to each member county.
+    assert set(orange_riverside["geography_tier"]) == {"regional"}
+    assert set(orange_riverside["parameter_geography"]) == {
+        "puma_region:06059+06065"
+    }
+    assert set(orange_riverside["pool_member_counties"]) == {
+        "06059|06065"
+    }
+    assert orange_riverside["value"].tolist() == pytest.approx([0.5, 0.5])
+
+    # An unknown escrow flag is not guessed.  The failed preferred county pool
+    # stays in diagnostics and the selected value is an explicit CA fallback.
+    assert san_diego["preferred_pool_input_n"] == 1
+    assert san_diego["preferred_pool_sample_n"] == 0
+    assert math.isnan(san_diego["raw_pi_share"])
+    assert san_diego["value"] == pytest.approx(state["value"])
+    assert san_diego["geography_tier"] == "state_fallback"
+    assert san_diego["fallback_applied"]
+    assert "california_pums_fallback" in san_diego["quality_flag"]
+
+    # SMP is an adjusted monthly payment per eligible unit.  It is emitted as
+    # a separate zero-valued diagnostic and never enters the P&I share.
+    assert (junior["value"] == 0).all()
+    assert (junior["sample_n"] == junior["input_n"]).all()
+    assert set(junior["unit"]) == {"USD/unit/month"}
+    assert set(result["source_release_dates"]) == {
+        "census_acs5_pums_housing_ca=2024-12-12"
+    }
 
     assert result["month"].isna().all()
     assert not result["is_interpolated"].any()
@@ -205,7 +365,124 @@ def test_builds_source_period_parameters_without_silent_county_fallback(tmp_path
     )
 
 
-def test_minimum_sample_suppresses_value_but_keeps_raw_diagnostics(tmp_path):
+def test_uses_official_acs_sdr_formula_for_pi_ratio_and_junior_mean(
+    tmp_path,
+):
+    source = _pums_frame().iloc[:2].copy()
+    source["WGTP"] = [1, 1]
+    source["MRGP"] = [100, 300]
+    source["MRGT"] = [2, 2]
+    source["MRGI"] = [2, 2]
+    source["SMP"] = [0, 200]
+    source["TAXAMT"] = [None, None]
+    source["INSP"] = [None, None]
+    source["SMOCP"] = [200, 400]
+    source["ADJHSG"] = [1_000_000, 1_000_000]
+    source["PUMA"] = ["00101", "00101"]
+    for replicate, column in enumerate(
+        PUMS_REPLICATE_WEIGHT_COLUMNS,
+        start=1,
+    ):
+        source[column] = [2, 1] if replicate <= 40 else [1, 2]
+
+    result = build_pums_pi_share_parameters(
+        source,
+        _pipe_relationship(tmp_path),
+        benchmark_vintage="2023_ACS_5YR_PUMS",
+        source_period_start="2019-01-01",
+        source_period_end="2023-12-31",
+        reference_date="2021-07-01",
+        release_date="2024-12-12",
+        relationship_vintage=2020,
+        minimum_sample=1,
+        require_complete_california_relationship=False,
+    )
+    state = result.loc[result["county_fips"].isna()].set_index(
+        "variable_name"
+    )
+    pi = state.loc["pums_first_mortgage_pi_share_benchmark"]
+    junior = state.loc[
+        "pums_junior_lien_payment_per_mortgaged_unit_benchmark"
+    ]
+
+    pi_replicates = [500 / 800] * 40 + [700 / 1_000] * 40
+    pi_point = 400 / 600
+    pi_se = math.sqrt(
+        (4 / 80)
+        * sum((estimate - pi_point) ** 2 for estimate in pi_replicates)
+    )
+    assert pi["value"] == pytest.approx(pi_point)
+    assert pi["standard_error"] == pytest.approx(pi_se)
+    assert pi["margin_of_error"] == pytest.approx(1.645 * pi_se)
+    assert pi["low_estimate"] == pytest.approx(
+        pi_point - 1.645 * pi_se
+    )
+    assert pi["high_estimate"] == pytest.approx(
+        pi_point + 1.645 * pi_se
+    )
+
+    junior_replicates = [200 / 3] * 40 + [400 / 3] * 40
+    junior_point = 100.0
+    junior_se = math.sqrt(
+        (4 / 80)
+        * sum(
+            (estimate - junior_point) ** 2
+            for estimate in junior_replicates
+        )
+    )
+    assert junior["value"] == pytest.approx(junior_point)
+    assert junior["standard_error"] == pytest.approx(junior_se)
+    assert junior["margin_of_error"] == pytest.approx(1.645 * junior_se)
+    assert junior["low_estimate"] == pytest.approx(
+        junior_point - 1.645 * junior_se
+    )
+    assert junior["high_estimate"] == pytest.approx(
+        junior_point + 1.645 * junior_se
+    )
+
+    for row in (pi, junior):
+        assert row["uncertainty_available"]
+        assert row["uncertainty_status"] == "available"
+        assert (
+            row["uncertainty_method"]
+            == "acs_successive_difference_replication"
+        )
+        assert row["confidence_level"] == pytest.approx(0.90)
+        assert row["replicate_weight_count"] == 80
+
+
+def test_builder_rejects_incomplete_or_unmapped_relationship(tmp_path):
+    relationship = _pipe_relationship(tmp_path)
+    common = {
+        "benchmark_vintage": "2023_ACS_5YR_PUMS",
+        "source_period_start": "2019-01-01",
+        "source_period_end": "2023-12-31",
+        "reference_date": "2021-07-01",
+        "release_date": "2024-12-12",
+        "relationship_vintage": 2020,
+    }
+    with pytest.raises(PUMSFormatError, match="exactly all 58 counties"):
+        build_pums_pi_share_parameters(
+            _pums_frame(),
+            relationship,
+            **common,
+        )
+
+    missing_puma = relationship.loc[
+        ~relationship["PUMA5CE"].eq("00103")
+    ].copy()
+    with pytest.raises(PUMSFormatError, match="PUMAs absent"):
+        build_pums_pi_share_parameters(
+            _pums_frame(),
+            missing_puma,
+            require_complete_california_relationship=False,
+            **common,
+        )
+
+
+def test_minimum_sample_keeps_raw_pool_diagnostics_when_no_fallback_qualifies(
+    tmp_path,
+):
     result = build_pums_pi_share_parameters(
         _pums_frame(),
         _pipe_relationship(tmp_path),
@@ -213,11 +490,26 @@ def test_minimum_sample_suppresses_value_but_keeps_raw_diagnostics(tmp_path):
         source_period_start="2019-01-01",
         source_period_end="2023-12-31",
         reference_date="2021-07-01",
-        minimum_sample=3,
+        release_date="2024-12-12",
+        minimum_sample=4,
+        require_complete_california_relationship=False,
+        source_vintage="2023",
+        source_filename="csv_hca.zip",
+        retrieved_at="2024-12-13T00:00:00+00:00",
+        checksum_sha256="pums-checksum",
+        relationship_source_filename="tract_to_puma_2020.txt",
+        relationship_retrieved_at="2024-12-13T00:00:00+00:00",
+        relationship_checksum_sha256="relationship-checksum",
     )
-    la = result.set_index("parameter_geography").loc["county:06037"]
+    la = result.loc[
+        result["variable_name"].eq(
+            "pums_first_mortgage_pi_share_benchmark"
+        )
+        & result["county_fips"].eq("06037")
+    ].iloc[0]
     assert la["sample_n"] == 2
     assert math.isnan(la["value"])
     assert la["raw_pi_share"] == pytest.approx(2_800 / 6_500)
     assert la["is_suppressed"]
     assert la["missing_reason"] == "below_minimum_sample"
+    assert not la["fallback_applied"]

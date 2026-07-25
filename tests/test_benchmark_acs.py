@@ -21,7 +21,9 @@ from src.benchmark.finance import REQUIRED_BENCHMARK_METADATA_FIELDS
 
 
 BASE_VALUES = {
+    "B01003_001": (1_500_000, 5_000),
     "B25089_002": (1_000_000, 10_000),
+    "B25081_001": (800, 35),
     "B25081_002": (500, 25),
     "B25082_001": (300_000_000, 3_000_000),
     "B25082_002": (240_000_000, 2_400_000),
@@ -82,6 +84,7 @@ def _fetched_payload(responses=None):
         2024,
         session=_Session(responses or _responses()),
         retrieved_at=datetime(2026, 7, 25, 15, 30, tzinfo=timezone.utc),
+        release_date="2026-01-29",
     )
 
 
@@ -101,9 +104,10 @@ def test_fetch_uses_official_all_california_county_queries_and_exact_headers():
         api_key="not-archived",
         session=session,
         retrieved_at=datetime(2026, 7, 25, 15, 30, tzinfo=timezone.utc),
+        release_date="2026-01-29",
     )
 
-    assert len(session.calls) == 4
+    assert len(session.calls) == 5
     assert set(payload["responses"]) == set(ACS_TABLE_VARIABLES)
     assert payload["retrieved_at"] == "2026-07-25T15:30:00+00:00"
     assert payload["variable_map"] == ACS_VARIABLE_MAP
@@ -136,6 +140,7 @@ def test_fetch_rejects_header_drift_before_archiving(tmp_path):
             output,
             session=session,
             retrieved_at=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            release_date="2026-01-29",
         )
     assert not output.exists()
 
@@ -147,6 +152,7 @@ def test_archive_is_composite_checksummed_and_never_overwritten(tmp_path):
         output,
         session=_Session(_responses()),
         retrieved_at=datetime(2026, 7, 25, tzinfo=timezone.utc),
+        release_date="2026-01-29",
     )
     archived = json.loads(output.read_text(encoding="utf-8"))
 
@@ -154,13 +160,14 @@ def test_archive_is_composite_checksummed_and_never_overwritten(tmp_path):
     assert set(archived["request_url"]) == set(ACS_TABLE_VARIABLES)
     assert set(archived["responses"]) == set(ACS_TABLE_VARIABLES)
     assert len(metadata["checksum_sha256"]) == 64
-    assert metadata["response_count"] == 4
+    assert metadata["response_count"] == 5
 
     with pytest.raises(FileExistsError):
         archive_acs_finance_vintage(
             2024,
             output,
             session=_Session(_responses()),
+            release_date="2026-01-29",
         )
 
 
@@ -172,7 +179,9 @@ def test_clean_outputs_every_county_variable_with_moe_and_benchmark_metadata():
     assert set(clean["county_fips"]) == set(CALIFORNIA_COUNTY_FIPS)
     assert clean["variable_name"].str.endswith("_benchmark").all()
     assert clean["month"].isna().all()
-    assert clean["release_date"].isna().all()
+    assert clean["release_date"].eq(pd.Timestamp("2026-01-29")).all()
+    assert clean["margin_of_error"].equals(clean["moe"])
+    assert clean["source_vintage"].eq("2024").all()
     assert clean["source_period_start"].eq(pd.Timestamp("2020-01-01")).all()
     assert clean["source_period_end"].eq(pd.Timestamp("2024-12-31")).all()
     assert clean["reference_date"].eq(pd.Timestamp("2022-07-01")).all()

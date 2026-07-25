@@ -6,6 +6,8 @@ import pandas as pd
 import pytest
 
 from src.benchmark.nmdb import (
+    FHFA_NMDB_CA_UPB_SOURCE_ID,
+    FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID,
     NMDBFormatError,
     normalize_nmdb_california_upb,
     normalize_nmdb_joint_distribution,
@@ -93,6 +95,12 @@ def test_normalizes_genuine_joint_distribution_for_builder() -> None:
         "NMDB_2024Q4_dashboard_export"
     ).all()
     assert result["checksum_sha256"].eq(CHECKSUM).all()
+    assert result["source_id"].eq(
+        FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID
+    ).all()
+    assert result["source_release_dates"].eq(
+        "fhfa_nmdb_joint_distribution=2025-03-28"
+    ).all()
     assert result["is_interpolated"].eq(False).all()
     assert result["month"].isna().all()
 
@@ -122,6 +130,10 @@ def test_csv_uses_actual_filename_and_checksum(tmp_path) -> None:
         ({"mortgage_population": "new_originations"}, "outstanding mortgages"),
         ({"monthly_method": "linear monthly interpolation"}, "interpolation"),
         ({"is_interpolated": True}, "is_interpolated"),
+        (
+            {"source_id": FHFA_NMDB_CA_UPB_SOURCE_ID},
+            FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID,
+        ),
     ],
 )
 def test_rejects_nonjoint_or_non_version_a_inputs(
@@ -242,6 +254,11 @@ def test_normalizes_compatible_california_upb_for_builder() -> None:
     assert row["source_filename"] == "nmdb_export.csv"
     assert row["source_vintage"] == "NMDB_2024Q4_dashboard_export"
     assert row["checksum_sha256"] == CHECKSUM
+    assert row["source_id"] == FHFA_NMDB_CA_UPB_SOURCE_ID
+    assert (
+        row["source_release_dates"]
+        == "fhfa_nmdb_ca_upb=2025-03-28"
+    )
     assert row["compatible_with_county_debt"]
     assert not row["is_interpolated"]
 
@@ -253,6 +270,10 @@ def test_normalizes_compatible_california_upb_for_builder() -> None:
         ({"compatible_with_county_debt": False}, "explicitly true"),
         ({"control_type": "mortgage_count"}, "unpaid principal balance"),
         ({"monthly_method": "annual value repeated monthly"}, "repetition"),
+        (
+            {"source_id": FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID},
+            FHFA_NMDB_CA_UPB_SOURCE_ID,
+        ),
     ],
 )
 def test_rejects_incompatible_california_controls(

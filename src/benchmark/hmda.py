@@ -316,6 +316,7 @@ def _metadata_for_year(
 ) -> dict[str, Any]:
     source_vintage = _record_value(record, "source_vintage", "data_vintage")
     benchmark_vintage = _record_value(record, "benchmark_vintage")
+    source_id = _record_value(record, "source_id") or "hmda_modified_lar"
     if _is_blank(benchmark_vintage):
         benchmark_vintage = f"{year}_HMDA_Modified_LAR"
 
@@ -332,6 +333,7 @@ def _metadata_for_year(
         "observation_date": f"{year}-07-01",
         "month": None,
         "release_date": release_date,
+        "source_release_dates": f"{source_id}={release_date}",
         "source_geography": "county",
         "input_geography": "loan/application record with tract and county",
         "parameter_geography": "county",
@@ -349,8 +351,7 @@ def _metadata_for_year(
         "source_filename": str(
             _record_value(record, "source_filename") or source_path.name
         ),
-        "source_id": _record_value(record, "source_id")
-        or "hmda_modified_lar",
+        "source_id": source_id,
         "provider": "FFIEC HMDA",
         "construction_method": (
             "Direct annual county aggregation of reported property_value "

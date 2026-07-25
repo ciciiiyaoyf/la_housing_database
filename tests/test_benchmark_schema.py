@@ -27,7 +27,8 @@ def _row(**overrides):
         source_period_start="2020-01-01",
         source_period_end="2024-12-31",
         reference_date="2022-07-01",
-        release_date=None,
+        release_date="2026-01-29",
+        source_release_dates="census_acs5_finance=2026-01-29",
         source_geography="county",
         parameter_geography="CA",
         monthly_method="not_applicable_source_period",
@@ -46,7 +47,13 @@ def _row(**overrides):
         high_estimate=None,
         universe_definition="Owner-occupied housing with a first mortgage",
         notes="NMDB calibration unavailable",
+        source_vintage="2024",
+        retrieved_at="2026-01-30T00:00:00+00:00",
+        source_filename="acs_2024.json",
+        checksum_sha256="abc123",
+        transformation_id="version_a_finance_benchmark_v1",
         quality_flag="calibration_unavailable",
+        lineage_id="lineage-1",
     )
     row.update(overrides)
     return row
@@ -83,3 +90,26 @@ def test_contract_allows_reported_suppression():
         [_row(is_suppressed=True, quality_flag="published_suppression")]
     )
     assert benchmark_contract_errors(suppressed) == []
+
+
+def test_contract_requires_source_specific_release_audit():
+    errors = benchmark_contract_errors(
+        pd.DataFrame([_row(release_date=None, source_release_dates=None)])
+    )
+    assert any("release_date must be populated" in error for error in errors)
+    assert any("source_release_dates" in error for error in errors)
+
+
+def test_contract_rejects_release_after_retrieval():
+    errors = benchmark_contract_errors(
+        pd.DataFrame(
+            [
+                _row(
+                    release_date="2026-01-31",
+                    retrieved_at="2026-01-30T23:59:59+00:00",
+                )
+            ]
+        )
+    )
+
+    assert any("release_date cannot be later" in error for error in errors)

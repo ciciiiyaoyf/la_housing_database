@@ -19,11 +19,19 @@ required_metadata_fields:
   - source_period_end
   - reference_date
   - release_date
+  - source_release_dates
+  - source_id
+  - source_vintage
+  - retrieved_at
+  - source_filename
+  - checksum_sha256
   - source_geography
   - parameter_geography
   - monthly_method
   - is_modeled
   - is_nowcast
+  - is_imputed
+  - is_interpolated
   - benchmark_vintage
   - sample_n
   - coverage_rate
@@ -32,6 +40,8 @@ required_metadata_fields:
   - high_estimate
   - universe_definition
   - notes
+  - transformation_id
+  - lineage_id
 
 sources:
   census_acs5_finance:
@@ -44,9 +54,11 @@ sources:
     geography: california_counties
     first_supported_vintage: 2009
     latest_verified_vintage: 2024
-    groups: [B25089, B25081, B25082, B25120]
+    groups: [B01003, B25089, B25081, B25082, B25120]
     fields:
+      B01003_001: acs_total_population_benchmark
       B25089_002: acs_aggregate_selected_monthly_owner_costs_mortgaged_benchmark
+      B25081_001: acs_owner_occupied_units_benchmark
       B25081_002: acs_mortgaged_owner_units_benchmark
       B25082_001: acs_aggregate_owner_value_all_benchmark
       B25082_002: acs_aggregate_owner_value_mortgaged_benchmark
@@ -64,11 +76,19 @@ sources:
     download_url_template: https://www2.census.gov/programs-surveys/acs/data/pums/{year}/5-Year/csv_hca.zip
     native_frequency: acs_5_year
     geography: puma_and_california
-    first_supported_vintage: 2009
+    first_supported_vintage: 2016
     latest_verified_vintage: 2024
+    supported_relationship_vintages:
+      2016-2021: 2010
+      2022-2024: 2020
+    rejected_dual_puma_vintages: [2012, 2013, 2014, 2015]
+    transition_vintage_2022: require_official_single_2020_puma_update
     required_columns:
       [WGTP, TEN, MRGX, MRGP, MRGT, MRGI, SMP, TAXAMT, INSP, SMOCP, ADJHSG, PUMA]
-    notes: Uses owner-occupied first-mortgage records; SMP is retained for diagnostics but excluded from the primary first-lien P&I measure.
+    replicate_weight_columns: WGTP1-WGTP80_all_or_none
+    uncertainty_method: acs_successive_difference_replication_90_percent_moe
+    parameter_hierarchy: complete_county_pool_then_connected_puma_region_then_california
+    notes: County and regional parameters pool records with WGTP; ratios are never averaged across counties. Official WGTP1-WGTP80 weights produce SDR uncertainty and partial replicate sets are rejected. SMP is an ADJHSG-adjusted monthly payment per eligible mortgaged PUMS unit and is excluded from primary first-lien debt and equity.
 
   census_tract_to_puma_2020:
     provider: U.S. Census Bureau
@@ -107,20 +127,32 @@ sources:
       - combined_loan_to_value_ratio
     notes: The repository does not invent a stable bulk URL. Import the official combined Modified LAR CSV or ZIP and preserve its checksum.
 
-  fhfa_nmdb_outstanding:
+  fhfa_nmdb_joint_distribution:
     provider: Federal Housing Finance Agency
     implementation_status: manual_required
     acquisition: official_dashboard_export
     source_page_url: https://www.fhfa.gov/data/dashboard/nmdb-outstanding-residential-mortgage-statistics
     native_frequency: quarterly_or_published_aggregate
-    geography: state_or_united_states
-    required_parameters:
-      - joint_outstanding_rate_remaining_term_distribution
-      - universe_compatible_california_unpaid_principal_balance
-    archive_source_ids:
-      - fhfa_nmdb_joint_distribution
-      - fhfa_nmdb_ca_upb
-    notes: Never manufacture a joint distribution from separate marginals. Calibrated county debt stays null when a compatible California UPB benchmark is unavailable.
+    geography: united_states_or_published_parameter_geography
+    required_parameter: joint_outstanding_rate_remaining_term_distribution
+    reference_compatibility: exact_benchmark_vintage_and_reference_date
+    notes: Never manufacture a joint distribution from separate marginals. Normalized rows retain this distinct source ID and complete file/release provenance.
+
+  fhfa_nmdb_ca_upb:
+    provider: Federal Housing Finance Agency
+    implementation_status: manual_required
+    acquisition: official_dashboard_export
+    source_page_url: https://www.fhfa.gov/data/dashboard/nmdb-outstanding-residential-mortgage-statistics
+    native_frequency: quarterly_or_published_aggregate
+    geography: california
+    required_parameter: universe_compatible_california_unpaid_principal_balance
+    reference_compatibility: exact_benchmark_vintage_and_reference_date
+    required_compatibility_evidence:
+      - control_type_unpaid_principal_balance
+      - compatible_with_county_debt_true
+      - explicit_universe_definition
+      - normalized_source_provenance
+    notes: Bare benchmark-to-value mappings are rejected. Calibrated county debt stays null without one exact-date compatible provenance-rich California control.
 
   freddie_mac_pmms:
     provider: Freddie Mac
@@ -135,9 +167,29 @@ sources:
       - mortgage_rate_30y_month_end
     notes: Sensitivity fallback only; it is an origination-rate series, not the preferred outstanding-stock coupon.
 
+  bls_cpi_u_us_city_average:
+    provider: U.S. Bureau of Labor Statistics
+    implementation_status: implemented
+    acquisition: official_stable_flat_file_or_local_official_snapshot
+    source_page_url: https://www.bls.gov/cpi/data.htm
+    download_url: https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems
+    native_frequency: monthly_with_published_annual_average
+    geography: united_states_city_average
+    series_id: CUUR0000SA0
+    annual_average_period: M13
+    constant_dollar_base_year: 2024
+    release_date_policy: explicit_required
+    notes: Select the published M13 annual average. Never recompute it from monthly values. ACS dollar estimates use the ACS vintage ending year as their price basis, not the five-year midpoint.
+
 benchmark_outputs:
+  - variable_name: pums_first_mortgage_pi_share_benchmark
+    concept: source_first_mortgage_pi_share_parameter
+    source_frequency: acs_5_year
   - variable_name: pums_first_mortgage_pi_share_applied_benchmark
     concept: applied_first_mortgage_pi_share_parameter
+    source_frequency: acs_5_year
+  - variable_name: pums_junior_lien_payment_per_mortgaged_unit_benchmark
+    concept: junior_lien_monthly_payment_diagnostic
     source_frequency: acs_5_year
   - variable_name: acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
     concept: aggregate_monthly_mortgage_payment
@@ -157,6 +209,18 @@ benchmark_outputs:
   - variable_name: acs_implied_first_mortgage_balance_cal_benchmark
     concept: calibrated_implied_mortgage_debt
     source_frequency: acs_5_year
+  - variable_name: acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark
+    concept: calibrated_debt_per_mortgaged_owner_unit
+    source_frequency: acs_5_year
+  - variable_name: acs_first_mortgage_debt_per_owner_unit_benchmark
+    concept: calibrated_debt_per_owner_unit
+    source_frequency: acs_5_year
+  - variable_name: acs_first_mortgage_debt_per_capita_benchmark
+    concept: calibrated_debt_per_resident
+    source_frequency: acs_5_year
+  - variable_name: acs_first_mortgage_debt_to_owner_income_benchmark
+    concept: calibrated_debt_to_aggregate_owner_income
+    source_frequency: acs_5_year
   - variable_name: hmda_median_downpayment_rate_benchmark
     concept: down_payment_rate
     source_frequency: annual
@@ -171,6 +235,15 @@ benchmark_outputs:
     source_frequency: acs_5_year
   - variable_name: acs_implied_owner_occupied_home_equity_all_benchmark
     concept: aggregate_home_equity
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark
+    concept: home_equity_per_owner_occupied_unit
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark
+    concept: aggregate_home_equity_constant_2024_dollars
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_all_real_2024_benchmark
+    concept: aggregate_home_equity_constant_2024_dollars
     source_frequency: acs_5_year
   - variable_name: acs_aggregate_ltv_mortgaged_benchmark
     concept: aggregate_mortgaged_owner_ltv

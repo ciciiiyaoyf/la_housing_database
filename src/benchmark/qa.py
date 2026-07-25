@@ -9,7 +9,44 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.benchmark.acs import CALIFORNIA_COUNTY_FIPS
 from src.benchmark.schema import benchmark_contract_errors, normalize_benchmark
+
+CALIFORNIA_COUNTY_COUNT = 58
+
+REQUIRED_DIRECT_ACS_VARIABLES = (
+    "acs_total_population_benchmark",
+    "acs_aggregate_selected_monthly_owner_costs_mortgaged_benchmark",
+    "acs_owner_occupied_units_benchmark",
+    "acs_mortgaged_owner_units_benchmark",
+    "acs_aggregate_owner_value_all_benchmark",
+    "acs_aggregate_owner_value_mortgaged_benchmark",
+    "acs_aggregate_owner_value_no_mortgage_benchmark",
+    "acs_aggregate_household_income_owner_benchmark",
+    "acs_aggregate_household_income_mortgaged_owner_benchmark",
+    "acs_aggregate_household_income_no_mortgage_owner_benchmark",
+)
+
+REQUIRED_DERIVED_VARIABLES = (
+    "pums_first_mortgage_pi_share_applied_benchmark",
+    "acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark",
+    "acs_first_mortgage_pi_per_mortgaged_unit_benchmark",
+    "acs_annual_first_mortgage_debt_service_benchmark",
+    "acs_mortgage_debt_service_to_income_benchmark",
+    "acs_implied_first_mortgage_balance_raw_benchmark",
+    "acs_implied_first_mortgage_balance_cal_benchmark",
+    "acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark",
+    "acs_first_mortgage_debt_per_owner_unit_benchmark",
+    "acs_first_mortgage_debt_per_capita_benchmark",
+    "acs_first_mortgage_debt_to_owner_income_benchmark",
+    "acs_implied_owner_occupied_home_equity_mortgaged_benchmark",
+    "acs_implied_owner_occupied_home_equity_all_benchmark",
+    "acs_aggregate_ltv_mortgaged_benchmark",
+    "acs_equity_rate_mortgaged_benchmark",
+    "acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark",
+    "acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark",
+    "acs_implied_owner_occupied_home_equity_all_real_2024_benchmark",
+)
 
 
 @dataclass(frozen=True)
@@ -80,6 +117,44 @@ def _identity_failures(
     output["expected"] = calculated.loc[failed].to_numpy()
     output["identity"] = check_id
     return output
+
+
+def _required_output_failures(
+    frame: pd.DataFrame,
+    direct_acs: pd.DataFrame,
+    *,
+    required_variables: tuple[str, ...],
+) -> pd.DataFrame:
+    """Return missing required rows for every county/ACS-vintage anchor.
+
+    Published or input-dependent missing values are valid, but the row itself
+    must remain present with an explicit quality flag where applicable.
+    """
+    keys = ["county_fips", "benchmark_vintage", "reference_date"]
+    anchors = direct_acs.loc[:, keys].drop_duplicates()
+    if anchors.empty:
+        return pd.DataFrame(columns=[*keys, "required_variable"])
+    required = pd.DataFrame({"required_variable": required_variables})
+    expected = anchors.assign(_join_key=1).merge(
+        required.assign(_join_key=1),
+        on="_join_key",
+        how="inner",
+    ).drop(columns="_join_key")
+    actual = (
+        frame.loc[:, [*keys, "variable_name"]]
+        .rename(columns={"variable_name": "required_variable"})
+        .drop_duplicates()
+    )
+    merged = expected.merge(
+        actual,
+        on=[*keys, "required_variable"],
+        how="left",
+        indicator=True,
+    )
+    return merged.loc[
+        merged["_merge"].eq("left_only"),
+        [*keys, "required_variable"],
+    ]
 
 
 def benchmark_qa_results(
@@ -202,22 +277,77 @@ def benchmark_qa_results(
         & work["variable_name"].astype("string").str.startswith("acs_")
     ]
     if require_complete_acs_counties and not direct_acs.empty:
-        county_counts = (
-            direct_acs.groupby(["benchmark_vintage", "variable_name"])
-            ["county_fips"]
-            .nunique()
-            .reset_index(name="county_count")
-        )
-        incomplete_acs = county_counts.loc[county_counts["county_count"].ne(58)]
+        expected_counties = set(CALIFORNIA_COUNTY_FIPS)
+        incomplete_rows: list[dict[str, Any]] = []
+        for (vintage, variable), group in direct_acs.groupby(
+            ["benchmark_vintage", "variable_name"],
+            dropna=False,
+            sort=True,
+        ):
+            actual_counties = set(group["county_fips"].dropna().astype(str))
+            if actual_counties != expected_counties:
+                incomplete_rows.append(
+                    {
+                        "benchmark_vintage": vintage,
+                        "variable_name": variable,
+                        "county_count": len(actual_counties),
+                        "missing_counties": "|".join(
+                            sorted(expected_counties - actual_counties)
+                        ),
+                        "unexpected_counties": "|".join(
+                            sorted(actual_counties - expected_counties)
+                        ),
+                    }
+                )
+        incomplete_acs = pd.DataFrame(incomplete_rows)
     else:
         incomplete_acs = pd.DataFrame(
-            columns=["benchmark_vintage", "variable_name", "county_count"]
+            columns=[
+                "benchmark_vintage",
+                "variable_name",
+                "county_count",
+                "missing_counties",
+                "unexpected_counties",
+            ]
         )
     check(
         "acs_all_california_counties",
         "error",
         incomplete_acs,
-        "Each direct ACS variable-vintage must contain all 58 California counties, including published missing rows.",
+        (
+            "Each direct ACS variable-vintage must contain the exact official "
+            "set of 58 California county FIPS codes, including published "
+            "missing rows."
+        ),
+    )
+
+    check(
+        "version_a_required_direct_acs_inventory",
+        "error",
+        _required_output_failures(
+            work,
+            direct_acs,
+            required_variables=REQUIRED_DIRECT_ACS_VARIABLES,
+        ),
+        (
+            "Every county/ACS-vintage must retain all ten direct ACS input "
+            "rows, including published nulls."
+        ),
+    )
+
+    check(
+        "version_a_required_output_inventory",
+        "error",
+        _required_output_failures(
+            work,
+            direct_acs,
+            required_variables=REQUIRED_DERIVED_VARIABLES,
+        ),
+        (
+            "Every county/ACS-vintage must retain every core Version A "
+            "derived row; unavailable inputs produce flagged nulls rather "
+            "than omitted variables."
+        ),
     )
 
     la_missing_rows: list[dict[str, Any]] = []
@@ -239,6 +369,40 @@ def benchmark_qa_results(
     )
 
     identities = (
+        (
+            "aggregate_owner_value_partition_identity",
+            "acs_aggregate_owner_value_all_benchmark",
+            (
+                "acs_aggregate_owner_value_mortgaged_benchmark",
+                "acs_aggregate_owner_value_no_mortgage_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_aggregate_owner_value_mortgaged_benchmark"
+            ]
+            + wide["acs_aggregate_owner_value_no_mortgage_benchmark"],
+            (
+                "Published all-owner aggregate value must equal the "
+                "mortgaged-owner plus mortgage-free-owner components."
+            ),
+        ),
+        (
+            "aggregate_owner_income_partition_identity",
+            "acs_aggregate_household_income_owner_benchmark",
+            (
+                "acs_aggregate_household_income_mortgaged_owner_benchmark",
+                "acs_aggregate_household_income_no_mortgage_owner_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_aggregate_household_income_mortgaged_owner_benchmark"
+            ]
+            + wide[
+                "acs_aggregate_household_income_no_mortgage_owner_benchmark"
+            ],
+            (
+                "Published all-owner aggregate income must equal the "
+                "mortgaged-owner plus mortgage-free-owner components."
+            ),
+        ),
         (
             "annual_payment_identity",
             "acs_annual_first_mortgage_debt_service_benchmark",
@@ -274,6 +438,58 @@ def benchmark_qa_results(
             ]
             / wide["acs_aggregate_household_income_mortgaged_owner_benchmark"],
             "Mortgage DSR must equal annual first-mortgage P&I divided by matched income.",
+        ),
+        (
+            "debt_per_mortgaged_unit_identity",
+            "acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark",
+            (
+                "acs_implied_first_mortgage_balance_cal_benchmark",
+                "acs_mortgaged_owner_units_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_implied_first_mortgage_balance_cal_benchmark"
+            ]
+            / wide["acs_mortgaged_owner_units_benchmark"],
+            "Debt per mortgaged owner unit must use the direct ACS mortgaged-unit denominator.",
+        ),
+        (
+            "debt_per_owner_unit_identity",
+            "acs_first_mortgage_debt_per_owner_unit_benchmark",
+            (
+                "acs_implied_first_mortgage_balance_cal_benchmark",
+                "acs_owner_occupied_units_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_implied_first_mortgage_balance_cal_benchmark"
+            ]
+            / wide["acs_owner_occupied_units_benchmark"],
+            "Debt per owner unit must use all owner-occupied units.",
+        ),
+        (
+            "debt_per_capita_identity",
+            "acs_first_mortgage_debt_per_capita_benchmark",
+            (
+                "acs_implied_first_mortgage_balance_cal_benchmark",
+                "acs_total_population_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_implied_first_mortgage_balance_cal_benchmark"
+            ]
+            / wide["acs_total_population_benchmark"],
+            "Debt per capita must use the direct ACS total-population denominator.",
+        ),
+        (
+            "debt_to_owner_income_identity",
+            "acs_first_mortgage_debt_to_owner_income_benchmark",
+            (
+                "acs_implied_first_mortgage_balance_cal_benchmark",
+                "acs_aggregate_household_income_owner_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_implied_first_mortgage_balance_cal_benchmark"
+            ]
+            / wide["acs_aggregate_household_income_owner_benchmark"],
+            "Debt-to-owner-income must use published aggregate income for all owner households.",
         ),
         (
             "mortgaged_equity_identity",
@@ -322,6 +538,19 @@ def benchmark_qa_results(
             - wide["acs_aggregate_ltv_mortgaged_benchmark"],
             "The matched-universe equity rate must equal one minus aggregate LTV.",
         ),
+        (
+            "equity_per_owner_unit_identity",
+            "acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark",
+            (
+                "acs_implied_owner_occupied_home_equity_all_benchmark",
+                "acs_owner_occupied_units_benchmark",
+            ),
+            lambda wide: wide[
+                "acs_implied_owner_occupied_home_equity_all_benchmark"
+            ]
+            / wide["acs_owner_occupied_units_benchmark"],
+            "Equity per owner unit must use all-owner equity and all owner-occupied units.",
+        ),
     )
     for check_id, result_variable, inputs, calculation, detail in identities:
         check(
@@ -344,6 +573,129 @@ def benchmark_qa_results(
         else pd.DataFrame(columns=["check_id", "severity"])
     )
     return summary, failure_frame
+
+
+def benchmark_coverage_reports(
+    frame: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return row-level county coverage and source-variable summaries.
+
+    Missing and suppressed observations remain rows in the county report.
+    The summary distinguishes county presence from nonmissing-value coverage
+    so a published null can never be mistaken for a missing county.
+    """
+    work = normalize_benchmark(frame)
+    county_columns = [
+        "benchmark_vintage",
+        "reference_date",
+        "release_date",
+        "source_release_dates",
+        "county_fips",
+        "source_id",
+        "variable_name",
+        "value",
+        "is_suppressed",
+        "sample_n",
+        "coverage_rate",
+        "parameter_geography",
+        "quality_flag",
+    ]
+    county = work.loc[:, county_columns].copy()
+    county["county_row_present"] = True
+    county["value_available"] = county["value"].notna()
+    county["value_missing"] = county["value"].isna()
+    county = county.sort_values(
+        ["benchmark_vintage", "source_id", "variable_name", "county_fips"],
+        na_position="last",
+    ).reset_index(drop=True)
+
+    keys = ["benchmark_vintage", "source_id", "variable_name"]
+    rows: list[dict[str, Any]] = []
+    for key, group in county.groupby(keys, dropna=False, sort=True):
+        vintage, source_id, variable_name = key
+        county_count = int(group["county_fips"].nunique())
+        available_count = int(group["value_available"].sum())
+        reported_coverage = pd.to_numeric(
+            group["coverage_rate"], errors="coerce"
+        )
+        release_dates = pd.to_datetime(group["release_date"], errors="coerce")
+        reference_dates = pd.to_datetime(
+            group["reference_date"], errors="coerce"
+        )
+        parameter_geographies = sorted(
+            {
+                str(value)
+                for value in group["parameter_geography"].dropna()
+                if str(value)
+            }
+        )
+        source_release_audits = sorted(
+            {
+                str(value)
+                for value in group["source_release_dates"].dropna()
+                if str(value)
+            }
+        )
+        rows.append(
+            {
+                "benchmark_vintage": vintage,
+                "source_id": source_id,
+                "variable_name": variable_name,
+                "county_count": county_count,
+                "expected_california_county_count": CALIFORNIA_COUNTY_COUNT,
+                "county_presence_rate": (
+                    county_count / CALIFORNIA_COUNTY_COUNT
+                ),
+                "value_available_count": available_count,
+                "value_missing_count": int(group["value_missing"].sum()),
+                "suppressed_count": int(
+                    group["is_suppressed"].fillna(False).sum()
+                ),
+                "value_coverage_rate": (
+                    available_count / county_count
+                    if county_count
+                    else np.nan
+                ),
+                "minimum_input_coverage_rate": (
+                    float(reported_coverage.min())
+                    if reported_coverage.notna().any()
+                    else np.nan
+                ),
+                "mean_input_coverage_rate": (
+                    float(reported_coverage.mean())
+                    if reported_coverage.notna().any()
+                    else np.nan
+                ),
+                "reference_date_min": (
+                    reference_dates.min()
+                    if reference_dates.notna().any()
+                    else pd.NaT
+                ),
+                "reference_date_max": (
+                    reference_dates.max()
+                    if reference_dates.notna().any()
+                    else pd.NaT
+                ),
+                "release_date_min": (
+                    release_dates.min()
+                    if release_dates.notna().any()
+                    else pd.NaT
+                ),
+                "release_date_max": (
+                    release_dates.max()
+                    if release_dates.notna().any()
+                    else pd.NaT
+                ),
+                "source_release_dates": "|".join(source_release_audits),
+                "parameter_geographies": "|".join(parameter_geographies),
+            }
+        )
+    source = pd.DataFrame(rows)
+    if not source.empty:
+        source = source.sort_values(
+            keys, na_position="last"
+        ).reset_index(drop=True)
+    return county, source
 
 
 def run_benchmark_qa(
@@ -372,6 +724,15 @@ def run_benchmark_qa(
         qa_dir.mkdir(parents=True, exist_ok=True)
         summary.to_csv(qa_dir / "version_a_qa_summary.csv", index=False)
         failures.to_csv(qa_dir / "version_a_qa_failures.csv", index=False)
+        county_coverage, source_coverage = benchmark_coverage_reports(frame)
+        coverage_dir = Path(root) / "output" / "coverage"
+        coverage_dir.mkdir(parents=True, exist_ok=True)
+        county_coverage.to_csv(
+            coverage_dir / "version_a_county_coverage.csv", index=False
+        )
+        source_coverage.to_csv(
+            coverage_dir / "version_a_source_coverage.csv", index=False
+        )
     errors = summary.loc[
         summary["severity"].eq("error") & summary["status"].eq("fail")
     ]
@@ -384,4 +745,8 @@ def run_benchmark_qa(
     return summary
 
 
-__all__ = ["benchmark_qa_results", "run_benchmark_qa"]
+__all__ = [
+    "benchmark_coverage_reports",
+    "benchmark_qa_results",
+    "run_benchmark_qa",
+]

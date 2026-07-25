@@ -33,7 +33,8 @@ from urllib.parse import urlparse
 import pandas as pd
 
 
-FHFA_NMDB_SOURCE_ID = "fhfa_nmdb_outstanding"
+FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID = "fhfa_nmdb_joint_distribution"
+FHFA_NMDB_CA_UPB_SOURCE_ID = "fhfa_nmdb_ca_upb"
 FHFA_NMDB_PROVIDER = "Federal Housing Finance Agency"
 
 _PERIOD_FIELDS = (
@@ -215,6 +216,8 @@ def _require_text(metadata: Mapping[str, Any], field: str) -> str:
 
 def _validate_source_metadata(
     source_metadata: Mapping[str, Any],
+    *,
+    expected_source_id: str,
 ) -> dict[str, Any]:
     if not isinstance(source_metadata, Mapping):
         raise TypeError("source_metadata must be a mapping")
@@ -253,13 +256,13 @@ def _validate_source_metadata(
         if flag in source_metadata and source_metadata[flag] is not False:
             raise NMDBFormatError(f"{flag} must be explicitly false when supplied")
 
-    source_id = source_metadata.get("source_id", FHFA_NMDB_SOURCE_ID)
-    if _token(source_id) != FHFA_NMDB_SOURCE_ID:
+    source_id = source_metadata.get("source_id", expected_source_id)
+    if _token(source_id) != expected_source_id:
         raise NMDBFormatError(
-            f"source_id must identify {FHFA_NMDB_SOURCE_ID}"
+            f"source_id must identify {expected_source_id}"
         )
     return {
-        "source_id": FHFA_NMDB_SOURCE_ID,
+        "source_id": expected_source_id,
         "provider": FHFA_NMDB_PROVIDER,
         "source_vintage": source_vintage,
         "retrieved_at": retrieved,
@@ -353,8 +356,9 @@ def _period_columns(
             "source periods must satisfy start <= reference <= end <= release"
         )
 
-    # build_version_a_benchmark selects distributions and controls by benchmark
-    # vintage first.  One vintage therefore must identify one period/geography.
+    # A normalized benchmark vintage identifies one source period/geography.
+    # The builder still requires an exact reference-date match in addition to
+    # this vintage identity before using either an NMDB distribution or control.
     identity = period[
         [
             "benchmark_vintage",
@@ -403,6 +407,11 @@ def _common_output(
     result["source_filename"] = source_filename
     result["checksum_sha256"] = checksum_sha256
     result["source_page_url"] = provenance["source_page_url"]
+    result["source_release_dates"] = (
+        provenance["source_id"]
+        + "="
+        + result["release_date"].dt.date.astype(str)
+    )
     result["transformation_id"] = transformation_id
     result["universe_definition"] = provenance["universe_definition"]
     result["notes"] = provenance["notes"]
@@ -438,7 +447,10 @@ def normalize_nmdb_joint_distribution(
     if not math.isfinite(float(weight_tolerance)) or weight_tolerance < 0:
         raise ValueError("weight_tolerance must be finite and nonnegative")
 
-    provenance = _validate_source_metadata(source_metadata)
+    provenance = _validate_source_metadata(
+        source_metadata,
+        expected_source_id=FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID,
+    )
     kind = _token(_require_text(source_metadata, "distribution_kind"))
     if kind not in _JOINT_KINDS:
         raise NMDBFormatError(
@@ -571,6 +583,7 @@ def normalize_nmdb_joint_distribution(
         "source_filename",
         "checksum_sha256",
         "source_page_url",
+        "source_release_dates",
         "transformation_id",
         "universe_definition",
         "notes",
@@ -608,7 +621,10 @@ def normalize_nmdb_california_upb(
     be only one California control for each benchmark vintage/reference date;
     duplicate controls are never summed or otherwise resolved silently.
     """
-    provenance = _validate_source_metadata(source_metadata)
+    provenance = _validate_source_metadata(
+        source_metadata,
+        expected_source_id=FHFA_NMDB_CA_UPB_SOURCE_ID,
+    )
     control_type = _token(_require_text(source_metadata, "control_type"))
     if control_type not in _UPB_CONTROL_TYPES:
         raise NMDBFormatError(
@@ -707,6 +723,7 @@ def normalize_nmdb_california_upb(
         "source_filename",
         "checksum_sha256",
         "source_page_url",
+        "source_release_dates",
         "transformation_id",
         "universe_definition",
         "notes",
@@ -720,8 +737,9 @@ def normalize_nmdb_california_upb(
 
 
 __all__ = [
+    "FHFA_NMDB_CA_UPB_SOURCE_ID",
+    "FHFA_NMDB_JOINT_DISTRIBUTION_SOURCE_ID",
     "FHFA_NMDB_PROVIDER",
-    "FHFA_NMDB_SOURCE_ID",
     "NMDBFormatError",
     "normalize_nmdb_california_upb",
     "normalize_nmdb_joint_distribution",
