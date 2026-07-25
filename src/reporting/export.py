@@ -39,6 +39,10 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
             final / "county_annual_controls.parquet",
             export_dir / "la_county_annual_controls.csv",
         ),
+        "county_quarterly_controls": (
+            final / "county_quarterly_controls.parquet",
+            export_dir / "la_county_quarterly_controls.csv",
+        ),
     }
     counts: dict[str, int] = {}
     for name, (parquet_path, csv_path) in exports.items():

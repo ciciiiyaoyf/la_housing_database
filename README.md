@@ -6,17 +6,18 @@ The database is a static snapshot. DuckDB is not continuously connected to Censu
 
 ## Current generated outputs
 
-The current local build contains 31 active configured source IDs, 112 variable-dictionary rows, and 420,873 long-form fact observations.
+The current local build contains 35 active configured source IDs, 128 variable-dictionary rows, and 421,133 long-form fact observations.
 
 | Output | Rows | Date coverage in current build |
 |---|---:|---|
-| `analytics.fact_housing_observation` / `data/final/fact_housing_observation.parquet` | 420,873 | 1914-12-31 to 2026-06-30 |
+| `analytics.fact_housing_observation` / `data/final/fact_housing_observation.parquet` | 421,133 | 1914-12-31 to 2026-06-30 |
 | `analytics.county_monthly_panel` / `data/final/county_monthly_panel.parquet` | 437 | 1990-01-31 to 2026-05-31 |
 | `analytics.zip_monthly_panel` / `data/final/zip_monthly_panel.parquet` | 86,858 | 2000-01-31 to 2026-05-31 |
 | `analytics.state_quarterly_panel` / `data/final/state_quarterly_panel.parquet` | 313 | 1948-03-31 to 2026-03-31 |
 | `analytics.metro_monthly_controls` / `data/final/metro_monthly_controls.parquet` | 1,095 | 1914-12-31 to 2026-05-31 |
 | `analytics.metro_quarterly_controls` / `data/final/metro_quarterly_controls.parquet` | 226 | 1991-03-31 to 2026-03-31 |
 | `analytics.county_annual_controls` / `data/final/county_annual_controls.parquet` | 57 | 1969-12-31 to 2025-12-31 |
+| `analytics.county_quarterly_controls` / `data/final/county_quarterly_controls.parquet` | 72 | 2007-03-31 to 2024-12-31 |
 
 CSV exports are written under `output/exports/`:
 
@@ -26,6 +27,7 @@ CSV exports are written under `output/exports/`:
 - `la_metro_monthly_controls.csv`
 - `la_metro_quarterly_controls.csv`
 - `la_county_annual_controls.csv`
+- `la_county_quarterly_controls.csv`
 
 ## Source groups
 
@@ -43,6 +45,8 @@ Exact source pages, download URLs/API endpoints, file formats, source IDs, key v
 | FHFA HPI | `fhfa_hpi_state_purchase_only`, `fhfa_hpi_metro_purchase_only`, `fhfa_hpi_county_annual` | State, metro, and county HPI benchmarks |
 | BEA | `bea_state_personal_income`, `bea_county_personal_income` | Personal income and per-capita personal income |
 | IRS SOI | `irs_soi_county_migration` | LA County annual in-migration, out-migration, and net migration from IRS county migration returns, exemptions, and AGI |
+| CDC WONDER / NCHS | `cdc_wonder_natality_county`, `cdc_wonder_ucd_1999_2020_la_county`, `cdc_wonder_ucd_2018_2024_county` | Annual LA County live births, deaths, annual natural population change, and quarterly allocated natural population change |
+| Eviction Lab | `eviction_lab_county_estimates` | Annual LA County eviction filing estimates, households-threatened estimates, filing/threatened rates, credible interval bounds, and source-observation flags |
 
 ACS appears as multiple source IDs because ACS Detailed Tables are official table-level files. Keeping B11001, B19013, B25001, etc. separate preserves the exact source file, checksum, table methodology, and variable/MOE mapping. Modeling users should usually consume the unified fact table, `analytics.county_annual_controls`, or the catalog rather than treating each ACS table as a separate modeling dataset.
 
@@ -55,6 +59,8 @@ Important semantics:
 - Census BPS permits are authorizations, not starts or completions.
 - Freddie Mac mortgage rates are national, not Los Angeles-specific.
 - BLS LAUS county data are not seasonally adjusted.
+- CDC WONDER live births and deaths are annual county observations. `natural_population_change_annual` is births minus deaths; `natural_population_change_quarterly_allocated` evenly allocates the annual total to four quarters and is flagged as imputed/interpolated timing, not observed quarterly vital events.
+- Eviction Lab LA County eviction trends are annual modeled county estimates for 2000-2018. They are not monthly ETS observations and not a direct local court filing feed. The pipeline preserves Eviction Lab's court-issued/observed source flags and 95% credible interval bounds.
 - Missing values remain null. The pipeline does not interpolate, backfill, zero-fill, substitute county values into ZIPs, or silently drop incomplete source periods.
 
 ## Housing Variables.docx audit and source catalog
@@ -65,28 +71,33 @@ The repository now writes explicit audit/catalog outputs for the variables reque
 |---|---|
 | `metadata/docx_variable_requirements.csv` | Extracted requirement rows from `Housing Variables.docx`, preserving the sheet source, frequency, LA availability, notes, and best-public-workaround fields |
 | `metadata/docx_variable_audit.csv` and `.xlsx` | One row per requested DOCX variable, with status, implemented source/variable IDs, tables, coverage, missingness, limitations, and next action |
-| `metadata/proxy_methodology_assumptions.csv` | Explicit assumptions used in constructed/proxy variables, including the ACS B25106 implied mortgage-debt proxy |
+| `metadata/proxy_methodology_assumptions.csv` | Explicit assumptions used in constructed/proxy variables, including the ACS B25106 implied mortgage-debt proxy and Eviction Lab annual-rate construction |
 | `metadata/data_catalog.csv` and `.xlsx` | Active source catalog; the first four columns are `Source`, `Frequency`, `Geography`, `Key variables` |
 | `metadata/data_gap_analysis.csv` | Variables that are deferred, partially implemented, unavailable, or need mentor decisions |
 | `metadata/source_discovery.csv` | Source catalog copy for discovery/tracking workflows |
-| `metadata/LA_Housing_Source_Tracker.xlsx` | Workbook version of the catalog, raw completeness, and gaps |
+| `metadata/LA_Housing_Source_Tracker.xlsx` | Human-readable workbook that combines the source summary, DOCX variable audit, active variable dictionary, source coverage summary, raw file inventory/completeness, missing/deferred variables, proxy assumptions, and update commands. It tracks what exists and where it lives; observation rows remain in DuckDB, Parquet, and CSV exports. |
 | `output/qa/raw_repository_completeness.csv` | Raw-file, manifest, checksum, URL, frequency, geography, and key-variable completeness checks |
 | `quality.raw_repository_completeness` | DuckDB copy of the raw completeness report |
 
 Current DOCX audit status:
 
-- Implemented: 18
+- Implemented: 19
+- Implemented with quarterly allocation: 1
 - Scenario implemented: 3
 - Proxy implemented: 3
 - Partially implemented: 4
 - Partially implemented with alternate source: 1
 - Proxy input only: 3
-- Not implemented: 5
+- Not implemented: 3
 - Not implemented because the sheet source endpoint is not verified: 1
 
 The audit is source-aligned to the sheet. For example, rental inventory is not satisfied by Redfin for-sale active listings, and ZORI itself is not treated as a rental-inventory stock count. That row remains not implemented until a verified official Zillow rental-listings/inventory endpoint is available. Difficult-variable rows also preserve the sheet's best-public-workaround text and report whether the current database implements the workaround, only has inputs, or has no source yet.
 
 The aggregate mortgage-debt workaround is implemented as an annual ACS proxy, not an observed balance. It allocates ACS B25081 owner-with-mortgage counts across ACS B25106 positive-income owner cost-burden bins, infers monthly debt service from income and burden midpoints, and converts payment to an implied balance using a fixed-rate amortization formula and Freddie Mac PMMS rates averaged over the ACS five-year window. All assumptions are recorded in `metadata/proxy_methodology_assumptions.csv`.
+
+The natural-population-change workaround is implemented from official CDC WONDER/NCHS exports. Annual LA County live births and deaths are loaded as observed annual facts for 2007-2024. Annual natural population change is births minus deaths. The quarterly series is a modeling timing allocation equal to annual natural population change divided by four in each quarter, and it is explicitly flagged as imputed/interpolated.
+
+The eviction-trends workaround is implemented from the official Eviction Lab county annual estimates file for 2000-2018. Eviction Lab ETS does not cover Los Angeles County, and the official observed/validated county analysis files do not contain LA County rows, so the database uses Eviction Lab's annual modeled county estimates for LA County instead. The active variables include annual filing estimates, households-threatened estimates, constructed rates per 100 renter households, 95% credible interval bounds, and Eviction Lab source-observation flags. This is a low-frequency eviction-pressure control, not monthly ETS or direct local court filing data.
 
 Historical refresh note: the proxy-input ACS tables `census_acs_5year_b25003`, `census_acs_5year_b25077`, `census_acs_5year_b25081`, and `census_acs_5year_b25106` are configured for the official Census ACS 5-year API from the 2010 through 2024 ACS 5-year vintages. The downloader uses the same Census Data API pattern shown by data.census.gov's More Tools -> API modal, for example `get=group(B25106)&ucgid=050C0US06037`. It also queries the versioned local LA ZIP/ZCTA list as `860Z200US...` UCGIDs in chunks. If Census redirects the automated request to `missing_key.html`, set `CENSUS_API_KEY` in the shell before refreshing; if the key is missing or invalid, the downloader exits before archiving any partial raw file.
 
@@ -255,7 +266,7 @@ Raw payloads are never edited, replaced, or deleted by the pipeline. Clean and a
 - `analytics`
 - `quality`
 
-`metadata.source_registry` and `raw.file_manifest` are provenance tables. They contain source-vintage/raw-manifest rows, not copies of provider payloads. The current build has 29 distinct configured source IDs and 1,307 source-registry rows because Census BPS stores one row per archived monthly file.
+`metadata.source_registry` and `raw.file_manifest` are provenance tables. They contain source-vintage/raw-manifest rows, not copies of provider payloads. The current build has 35 distinct configured source IDs and 1,338 source-registry rows because Census BPS stores one row per archived monthly file and CDC WONDER/Eviction Lab store archived CSV exports as immutable vintages.
 
 The `clean` schema is rebuilt from active configured sources only. It contains one table per active source ID, except `redfin_zip_monthly`, whose raw national file is filtered into `clean.redfin_zip_monthly`.
 
@@ -268,6 +279,7 @@ The `analytics` schema contains:
 - `analytics.metro_monthly_controls`
 - `analytics.metro_quarterly_controls`
 - `analytics.county_annual_controls`
+- `analytics.county_quarterly_controls`
 - `analytics.homeowner_market_monthly`
 - `analytics.renter_market_monthly`
 - `analytics.overall_market_monthly`
@@ -340,6 +352,7 @@ python -m pytest -q
 - Freddie Mac PMMS runs from April 1971 through June 2026.
 - ACS table-based variables currently use the 2024 ACS 5-year detailed-table files.
 - HVS rental-vacancy series are state/metro quarterly controls, not LA County observations.
+- Eviction Lab county eviction estimates run from 2000 through 2018 for Los Angeles County. This is annual modeled coverage; ETS/high-frequency LA coverage is not available in the integrated source.
 
 ## Query examples
 
@@ -396,6 +409,7 @@ ORDER BY postal_zip;
 - HVS official raw workbooks are archived, but the current cleaner uses a narrow prepared observation-contract fallback for the irregular workbook layout and flags those rows with `prepared_clean_contract`.
 - Redfin ZIP Key Metrics has no verified stable direct endpoint for the selected CSV export and requires manual official download/import.
 - Rental inventory is not implemented because no verified official rental-listing inventory source is integrated; ZORI is not inventory.
+- Eviction trends are implemented only as annual Eviction Lab modeled county estimates for 2000-2018; they should not be interpreted as high-frequency ETS or direct LA court filing data.
 - Permits are not starts, completions, or units under construction.
 - County values are not allocated to ZIPs, and ZIP values are not treated as ZCTAs.
 - Deferred variables and mentor-decision items are documented in `metadata/data_gap_analysis.csv`.

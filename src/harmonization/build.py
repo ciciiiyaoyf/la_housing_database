@@ -386,6 +386,65 @@ def _wide_control_panel(
     return panel.sort_values(["geo_id", "date"])
 
 
+def _county_quarterly_from_annual_controls(county_annual: pd.DataFrame) -> pd.DataFrame:
+    """Allocate selected annual county controls to quarters with explicit flags."""
+
+    required = {
+        "date",
+        "geo_id",
+        "county_fips",
+        "county_name",
+        "state_fips",
+        "natural_population_change_annual",
+    }
+    if county_annual.empty or not required.issubset(county_annual.columns):
+        return pd.DataFrame(
+            columns=[
+                "date",
+                "geo_id",
+                "county_fips",
+                "county_name",
+                "state_fips",
+                "natural_population_change_quarterly_allocated",
+                "source_annual_date",
+                "latest_source_vintage",
+                "source_coverage_count",
+                "is_imputed",
+                "is_interpolated",
+                "allocation_method",
+            ]
+        )
+    rows: list[dict[str, object]] = []
+    for _, row in county_annual.iterrows():
+        annual_value = pd.to_numeric(
+            row.get("natural_population_change_annual"), errors="coerce"
+        )
+        if pd.isna(annual_value):
+            continue
+        year = pd.Timestamp(row["date"]).year
+        for quarter in range(1, 5):
+            rows.append(
+                {
+                    "date": pd.Timestamp(year=year, month=quarter * 3, day=1)
+                    + pd.offsets.MonthEnd(0),
+                    "geo_id": row["geo_id"],
+                    "county_fips": row["county_fips"],
+                    "county_name": row["county_name"],
+                    "state_fips": row["state_fips"],
+                    "natural_population_change_quarterly_allocated": (
+                        float(annual_value) / 4.0
+                    ),
+                    "source_annual_date": row["date"],
+                    "latest_source_vintage": row.get("latest_source_vintage"),
+                    "source_coverage_count": 1,
+                    "is_imputed": True,
+                    "is_interpolated": True,
+                    "allocation_method": "annual_total_evenly_allocated_to_four_quarters",
+                }
+            )
+    return pd.DataFrame(rows).sort_values(["geo_id", "date"])
+
+
 def _redfin_yoy_report(config: ProjectConfig, panel: pd.DataFrame) -> None:
     pairs = {
         "homes_sold": (
@@ -603,6 +662,15 @@ def build_analytical_outputs(
             county_annual["acs_owner_occupied_home_value_proxy"]
             - county_annual["acs_implied_aggregate_mortgage_debt_proxy"]
         )
+    if {
+        "cdc_wonder_live_births_annual",
+        "cdc_wonder_deaths_annual",
+    }.issubset(county_annual.columns):
+        county_annual["natural_population_change_annual"] = (
+            county_annual["cdc_wonder_live_births_annual"]
+            - county_annual["cdc_wonder_deaths_annual"]
+        )
+    county_quarterly = _county_quarterly_from_annual_controls(county_annual)
     final_dir = config.root / "data" / "final"
     final_dir.mkdir(parents=True, exist_ok=True)
     fact.to_parquet(final_dir / "fact_housing_observation.parquet", index=False)
@@ -619,6 +687,9 @@ def build_analytical_outputs(
     )
     county_annual.to_parquet(
         final_dir / "county_annual_controls.parquet", index=False
+    )
+    county_quarterly.to_parquet(
+        final_dir / "county_quarterly_controls.parquet", index=False
     )
     geography, crosswalk = build_geography(config, fact)
     pd.DataFrame(config.variables).to_csv(
@@ -685,7 +756,8 @@ def build_analytical_outputs(
                     "data/final/state_quarterly_panel.parquet|"
                     "data/final/metro_monthly_controls.parquet|"
                     "data/final/metro_quarterly_controls.parquet|"
-                    "data/final/county_annual_controls.parquet"
+                    "data/final/county_annual_controls.parquet|"
+                    "data/final/county_quarterly_controls.parquet"
                 ),
                 "input_rows_or_shape": len(fact),
                 "output_rows": (
@@ -693,13 +765,16 @@ def build_analytical_outputs(
                     + len(metro_monthly)
                     + len(metro_quarterly)
                     + len(county_annual)
+                    + len(county_quarterly)
                 ),
                 "description": (
                     "Pivot state, metro, and annual county controls at native "
                     "frequency without expanding them into monthly panels. "
                     "Also compute documented annual ACS proxies such as "
                     "owner-occupied housing value and implied aggregate mortgage "
-                    "debt from B25106/B25081/Freddie Mac assumptions."
+                    "debt from B25106/B25081/Freddie Mac assumptions, plus the "
+                    "CDC WONDER annual natural population change and its clearly "
+                    "flagged quarterly allocation."
                 ),
                 "code_module": "src.harmonization.build",
                 "source_vintage": fact["source_vintage"].max() if not fact.empty else None,
@@ -726,6 +801,7 @@ def build_analytical_outputs(
         "metro_monthly": metro_monthly,
         "metro_quarterly": metro_quarterly,
         "county_annual": county_annual,
+        "county_quarterly": county_quarterly,
         "geography": geography,
         "crosswalk": crosswalk,
     }

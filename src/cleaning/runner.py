@@ -10,7 +10,9 @@ from src.cleaning.acs import clean_acs_table
 from src.cleaning.bea import clean_bea
 from src.cleaning.bls import clean_bls
 from src.cleaning.bls_flat import clean_bls_flat
+from src.cleaning.cdc_wonder import clean_cdc_wonder
 from src.cleaning.census_bps import clean_bps_archive
+from src.cleaning.eviction_lab import clean_eviction_lab_county_estimates
 from src.cleaning.fhfa import clean_fhfa
 from src.cleaning.freddie import clean_freddie
 from src.cleaning.irs_migration import clean_irs_soi_county_migration
@@ -210,6 +212,14 @@ def clean_sources(
                         record,
                         output_path,
                         output_path,
+                    )
+                elif source.source_id.startswith("cdc_wonder_"):
+                    frame = clean_cdc_wonder(
+                        path, record, source.source_id, output_path
+                    )
+                elif source.source_id == "eviction_lab_county_estimates":
+                    frame = clean_eviction_lab_county_estimates(
+                        path, record, output_path
                     )
                 else:
                     logger.warning(

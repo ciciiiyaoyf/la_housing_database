@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import duckdb
 import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from src.common.config import ProjectConfig, SourceConfig
 
@@ -189,13 +194,13 @@ IMPLEMENTATION = {
     "Homebuying Costs - Closing Costs": _impl("Scenario implemented", "", "closing_cost_2pct|closing_cost_3pct|closing_cost_5pct", "analytics.county_monthly_panel", "closing_cost_2pct|closing_cost_3pct|closing_cost_5pct", "scenario assumption", "Scenario percentages of Redfin county median sale price; not observed closing-cost data."),
     "Homebuying Costs - Property Insurance": _impl("Not implemented", "", "", "", "", "deferred", "The sheet specifies a CA state NAIC series; NAIC/state homeowners-insurance data is not loaded yet."),
     "Rental price increase in non-rent-controlled locations": _impl("Not implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "proxy input", "ZORI is loaded, but the sheet workaround also requires construction-year/rent-control exposure filters that are not implemented."),
-    "Eviction trends (high-frequency, consistent)": _impl("Not implemented", "", "", "", "", "deferred", "The sheet specifies Eviction Lab ETS where available or annual filings; no eviction source is loaded yet."),
+    "Eviction trends (high-frequency, consistent)": _impl("Implemented", "eviction_lab_county_estimates", "eviction_lab_filings_estimate_annual|eviction_lab_filings_rate_estimate_annual|eviction_lab_households_threatened_estimate_annual|eviction_lab_households_threatened_rate_estimate_annual", "analytics.fact_housing_observation|analytics.county_annual_controls", "eviction_lab_filings_rate_estimate_annual|eviction_lab_households_threatened_rate_estimate_annual", "modeled", "Eviction Lab ETS does not cover Los Angeles County, and the official observed/validated county analysis files do not contain LA County rows. The implemented source is the official Eviction Lab annual county modeled estimates for 2000-2018, with source observation flags and 95% credible interval bounds preserved. Do not treat as monthly/high-frequency ETS or direct local court filings."),
     "New Apartments Completed (county time series)": _impl("Proxy input only", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "proxy input", "The sheet workaround is lagged multifamily permits with an explicit completion-lag structure; permits are loaded, but no completion proxy is calculated."),
     "Multifamily Under Construction": _impl("Proxy input only", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "proxy input", "The sheet workaround is cumulative MF permits minus assumed completions over a rolling window; permit inputs are loaded, but the stock pipeline calculation is not implemented."),
     "Single-Family Rental Construction": _impl("Proxy input only", "census_bps_county|census_bps_state", "permits_1_unit", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_1_unit", "proxy input", "The sheet workaround needs SFR permits combined with investor/rental-growth tract logic; only 1-unit permits are loaded."),
     "Net Change in Occupied Apartments (quarterly)": _impl("Partially implemented", "census_acs_5year_b25003", "acs_renter_occupied_units", "analytics.county_annual_controls|analytics.fact_housing_observation", "acs_renter_occupied_units", "observed", "ACS annual 5-year renter-occupied units are available; quarterly net change is not created."),
     "Price-to-Income Ratio (quarterly/local)": _impl("Partially implemented", "census_acs_5year_b19013|census_acs_5year_b25077", "county_annual_price_to_income_acs", "analytics.county_annual_controls", "county_annual_price_to_income_acs", "constructed", "Annual ACS ratio is implemented; quarterly/local alternatives are deferred."),
-    "Natural Population Change (quarterly)": _impl("Not implemented", "", "", "", "", "deferred", "The sheet workaround specifies annual CDC WONDER births/deaths; CDC WONDER is not loaded."),
+    "Natural Population Change (quarterly)": _impl("Implemented with quarterly allocation", "cdc_wonder_natality_county|cdc_wonder_ucd_1999_2020_la_county|cdc_wonder_ucd_2018_2024_county", "cdc_wonder_live_births_annual|cdc_wonder_deaths_annual|natural_population_change_annual|natural_population_change_quarterly_allocated", "analytics.fact_housing_observation|analytics.county_annual_controls|analytics.county_quarterly_controls", "natural_population_change_quarterly_allocated", "proxy", "Annual CDC WONDER births and deaths are loaded as observed annual county facts; annual natural population change is births minus deaths. The quarterly series evenly allocates the annual total to four quarters and is flagged as imputed/interpolated timing, not observed quarterly vital events."),
     "Net Immigration / Migration (county)": _impl("Implemented", "irs_soi_county_migration", "irs_soi_net_migration_exemptions|irs_soi_net_migration_returns|irs_soi_net_migration_agi", "analytics.county_annual_controls|analytics.fact_housing_observation", "irs_soi_net_migration_exemptions", "constructed", "Annual IRS SOI in-migration minus out-migration is implemented. Exemptions approximate people and are the preferred public proxy; returns approximate tax filing units; AGI captures income composition. This is migration based on tax return address changes, not complete immigration."),
     "Sheltered vs Unsheltered Homelessness (high frequency)": _impl("Not implemented", "", "", "", "", "deferred", "The sheet workaround specifies annual HUD PIT; HUD PIT/CoC data is not loaded."),
     "Home Price Index": _impl("Implemented", "fhfa_hpi_state_purchase_only|fhfa_hpi_metro_purchase_only|fhfa_hpi_county_annual", "fhfa_hpi_ca_purchase_only_nsa|fhfa_hpi_ca_purchase_only_sa|fhfa_hpi_la_metropolitan_division_purchase_only_nsa|fhfa_hpi_la_metropolitan_division_purchase_only_sa|fhfa_hpi_la_county_all_transactions_nsa_annual", "analytics.state_quarterly_panel|analytics.metro_quarterly_controls|analytics.county_annual_controls|analytics.fact_housing_observation", "fhfa_hpi_ca_purchase_only_nsa|fhfa_hpi_la_county_all_transactions_nsa_annual", "observed", "Aligned with the sheet's FHFA HPI source. Zillow ZHVI remains available separately but is not counted here as the sheet HPI source."),
@@ -231,6 +236,7 @@ PANEL_PATHS = {
     "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
     "analytics.metro_quarterly_controls": "metro_quarterly_controls.parquet",
     "analytics.county_annual_controls": "county_annual_controls.parquet",
+    "analytics.county_quarterly_controls": "county_quarterly_controls.parquet",
 }
 
 
@@ -594,8 +600,307 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
             "value": "B25106 zero/negative-income owner units are preserved as an input but excluded from payment-to-balance inference.",
             "rationale": "A positive income midpoint is required to infer monthly owner housing cost from cost-burden percentages.",
         },
+        {
+            "methodology_id": "eviction_lab_county_estimates_v1",
+            "variable_id": "eviction_lab_filings_estimate_annual",
+            "assumption": "LA eviction-source choice",
+            "value": "Use official Eviction Lab annual county modeled estimates for Los Angeles County because ETS and the observed/validated county analysis files do not provide LA County rows.",
+            "rationale": "This preserves the expected Eviction Lab source family without silently substituting another geography, and keeps the limitation explicit for modeling.",
+        },
+        {
+            "methodology_id": "eviction_lab_county_rate_v1",
+            "variable_id": "eviction_lab_filings_rate_estimate_annual",
+            "assumption": "Annual rate denominator",
+            "value": "filings_estimate divided by Eviction Lab renting_hh, multiplied by 100.",
+            "rationale": "A rate normalizes the trend for renter-household base changes while using only fields published in the same official Eviction Lab file.",
+        },
+        {
+            "methodology_id": "eviction_lab_county_rate_v1",
+            "variable_id": "eviction_lab_households_threatened_rate_estimate_annual",
+            "assumption": "Annual rate denominator",
+            "value": "hh_threat_estimate divided by Eviction Lab renting_hh, multiplied by 100.",
+            "rationale": "A rate normalizes households-threatened estimates for renter-household base changes while using only fields published in the same official Eviction Lab file.",
+        },
     ]
     return pd.DataFrame(rows)
+
+
+def _source_tracker_summary(catalog: pd.DataFrame) -> pd.DataFrame:
+    """Compact, human-readable source tracker sheet.
+
+    The full data catalog intentionally keeps every reproducibility field. This
+    sheet is the first place a mentor/reviewer should look when skimming what
+    data exists, where it came from, and how current it is.
+    """
+    columns = [
+        "Source",
+        "provider",
+        "active_status",
+        "Frequency",
+        "Geography",
+        "Key variables",
+        "start_date",
+        "end_date",
+        "row_count",
+        "observed_constructed_proxy_or_scenario",
+        "retrieval_date",
+        "raw_file_path",
+        "update_command",
+        "known_limitations",
+    ]
+    labels = {
+        "provider": "Provider",
+        "active_status": "Status",
+        "start_date": "Start date",
+        "end_date": "End date",
+        "row_count": "Rows",
+        "observed_constructed_proxy_or_scenario": "Observed / proxy / scenario",
+        "retrieval_date": "Retrieved at",
+        "raw_file_path": "Raw file",
+        "update_command": "Refresh command",
+        "known_limitations": "Limitations",
+    }
+    available = [column for column in columns if column in catalog.columns]
+    return catalog.loc[:, available].rename(columns=labels)
+
+
+def _source_tracker_overview(
+    catalog: pd.DataFrame,
+    audit: pd.DataFrame,
+    dictionary: pd.DataFrame,
+    coverage: pd.DataFrame,
+    manifest: pd.DataFrame,
+    raw_completeness: pd.DataFrame,
+    gap: pd.DataFrame,
+    assumptions_frame: pd.DataFrame,
+) -> pd.DataFrame:
+    """Workbook landing page explaining how to read the source tracker."""
+    active_sources = int(catalog["active_status"].eq("Active").sum())
+    completeness_pass = int(raw_completeness["completeness_status"].eq("pass").sum())
+    completeness_fail = int(raw_completeness["completeness_status"].eq("fail").sum())
+    earliest = catalog["start_date"].dropna().min()
+    latest = catalog["end_date"].dropna().max()
+    return pd.DataFrame(
+        [
+            {
+                "Item": "Purpose",
+                "Value": (
+                    "Human-readable tracker for current Los Angeles housing "
+                    "database requested variables, active sources, coverage, "
+                    "raw-file completeness, gaps, and proxy assumptions."
+                ),
+            },
+            {
+                "Item": "Generated by",
+                "Value": "python run_pipeline.py --stage catalog",
+            },
+            {
+                "Item": "Do not hand edit",
+                "Value": (
+                    "This workbook is regenerated from config, source manifests, "
+                    "DuckDB coverage, and pipeline metadata. Change the pipeline "
+                    "inputs/code, then regenerate."
+                ),
+            },
+            {
+                "Item": "How to skim",
+                "Value": (
+                    "Start with Source Summary for provider/source status, "
+                    "DOCX Variable Audit for requested-variable status, "
+                    "Variable Dictionary for active variable definitions, "
+                    "Coverage Summary for date/geography coverage, Data Catalog "
+                    "for full source metadata, Raw Completeness for archival "
+                    "checks, Missing Deferred for gaps, and Proxy Assumptions "
+                    "for constructed variables."
+                ),
+            },
+            {
+                "Item": "Tracker scope",
+                "Value": (
+                    "This workbook tracks metadata, source coverage, variable "
+                    "definitions, and implementation status. It does not duplicate "
+                    "every observation row; the observations live in DuckDB, "
+                    "Parquet, and CSV exports."
+                ),
+            },
+            {
+                "Item": "Eviction Trends location",
+                "Value": (
+                    "Requested variable row: DOCX Variable Audit. Source row: "
+                    "Data Catalog source_id eviction_lab_county_estimates. "
+                    "Implemented variable coverage: Coverage Summary rows whose "
+                    "variable_id starts with eviction_lab_."
+                ),
+            },
+            {"Item": "Catalog source rows", "Value": len(catalog)},
+            {"Item": "DOCX variable audit rows", "Value": len(audit)},
+            {"Item": "Active variable dictionary rows", "Value": len(dictionary)},
+            {"Item": "Coverage summary rows", "Value": len(coverage)},
+            {"Item": "Raw manifest rows", "Value": len(manifest)},
+            {"Item": "Active sources", "Value": active_sources},
+            {"Item": "Raw completeness pass", "Value": completeness_pass},
+            {"Item": "Raw completeness fail", "Value": completeness_fail},
+            {"Item": "Deferred / missing rows", "Value": len(gap)},
+            {"Item": "Proxy assumption rows", "Value": len(assumptions_frame)},
+            {"Item": "Earliest catalog date", "Value": earliest},
+            {"Item": "Latest catalog date", "Value": latest},
+        ]
+    )
+
+
+def _excel_table_name(sheet_name: str) -> str:
+    name = re.sub(r"[^A-Za-z0-9_]", "_", sheet_name)
+    name = re.sub(r"_+", "_", name).strip("_")
+    if not name or not re.match(r"[A-Za-z_]", name):
+        name = f"Table_{name}"
+    return f"{name[:240]}Table"
+
+
+def _format_tracker_sheet(
+    worksheet,
+    *,
+    tab_color: str,
+    table_style: str = "TableStyleMedium2",
+) -> None:
+    worksheet.sheet_view.showGridLines = False
+    worksheet.sheet_properties.tabColor = tab_color
+    worksheet.freeze_panes = "A2"
+
+    header_fill = PatternFill("solid", fgColor="1F4E78")
+    header_font = Font(bold=True, color="FFFFFF")
+    header_alignment = Alignment(
+        horizontal="center",
+        vertical="center",
+        wrap_text=True,
+    )
+    thin_border = Border(
+        bottom=Side(style="thin", color="B7C9D6"),
+    )
+
+    for cell in worksheet[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    worksheet.row_dimensions[1].height = 34
+
+    for row in worksheet.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+    if worksheet.max_row > 1 and worksheet.max_column > 1:
+        ref = (
+            f"A1:{get_column_letter(worksheet.max_column)}"
+            f"{worksheet.max_row}"
+        )
+        table = Table(displayName=_excel_table_name(worksheet.title), ref=ref)
+        table.tableStyleInfo = TableStyleInfo(
+            name=table_style,
+            showFirstColumn=False,
+            showLastColumn=False,
+            showRowStripes=True,
+            showColumnStripes=False,
+        )
+        worksheet.add_table(table)
+        worksheet.auto_filter.ref = ref
+
+    long_text_markers = {
+        "url",
+        "command",
+        "limitation",
+        "notes",
+        "rationale",
+        "value",
+        "variables",
+        "path",
+        "filename",
+        "issue",
+        "detail",
+        "workaround",
+        "source",
+    }
+    for column_index in range(1, worksheet.max_column + 1):
+        letter = get_column_letter(column_index)
+        header = str(worksheet.cell(row=1, column=column_index).value or "")
+        sample_values = [
+            worksheet.cell(row=row, column=column_index).value
+            for row in range(1, min(worksheet.max_row, 80) + 1)
+        ]
+        max_length = max(
+            [len(str(value)) for value in sample_values if value is not None]
+            or [len(header)]
+        )
+        cap = 62 if any(marker in header.lower() for marker in long_text_markers) else 28
+        worksheet.column_dimensions[letter].width = max(12, min(cap, max_length + 2))
+
+
+def _format_source_tracker_workbook(path: Path) -> None:
+    workbook = load_workbook(path)
+    tab_colors = {
+        "Overview": "17365D",
+        "Source Summary": "2F75B5",
+        "DOCX Variable Audit": "4472C4",
+        "Variable Dictionary": "9E480E",
+        "Coverage Summary": "00B0F0",
+        "Data Catalog": "5B9BD5",
+        "Raw File Inventory": "548235",
+        "Raw Completeness": "70AD47",
+        "Missing Deferred": "FFC000",
+        "Proxy Assumptions": "A64D79",
+        "Update Commands": "8064A2",
+    }
+    for worksheet in workbook.worksheets:
+        _format_tracker_sheet(
+            worksheet,
+            tab_color=tab_colors.get(worksheet.title, "808080"),
+        )
+    workbook.active = 0
+    workbook.save(path)
+
+
+def _write_source_tracker_workbook(
+    path: Path,
+    catalog: pd.DataFrame,
+    audit: pd.DataFrame,
+    dictionary: pd.DataFrame,
+    manifest: pd.DataFrame,
+    coverage: pd.DataFrame,
+    raw_completeness: pd.DataFrame,
+    gap: pd.DataFrame,
+    assumptions_frame: pd.DataFrame,
+) -> None:
+    overview = _source_tracker_overview(
+        catalog,
+        audit,
+        dictionary,
+        coverage,
+        manifest,
+        raw_completeness,
+        gap,
+        assumptions_frame,
+    )
+    source_summary = _source_tracker_summary(catalog)
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        overview.to_excel(writer, sheet_name="Overview", index=False)
+        source_summary.to_excel(writer, sheet_name="Source Summary", index=False)
+        audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
+        dictionary.to_excel(writer, sheet_name="Variable Dictionary", index=False)
+        coverage.to_excel(writer, sheet_name="Coverage Summary", index=False)
+        catalog.to_excel(writer, sheet_name="Data Catalog", index=False)
+        manifest.to_excel(writer, sheet_name="Raw File Inventory", index=False)
+        raw_completeness.to_excel(writer, sheet_name="Raw Completeness", index=False)
+        gap.to_excel(writer, sheet_name="Missing Deferred", index=False)
+        assumptions_frame.to_excel(
+            writer,
+            sheet_name="Proxy Assumptions",
+            index=False,
+        )
+        catalog[["source_id", "update_command"]].to_excel(
+            writer,
+            sheet_name="Update Commands",
+            index=False,
+        )
+    _format_source_tracker_workbook(path)
 
 
 def _write_workbooks(
@@ -658,13 +963,17 @@ def _write_workbooks(
         assumptions_frame.to_excel(
             writer, sheet_name="Proxy Assumptions", index=False
         )
-    with pd.ExcelWriter(metadata_dir / "LA_Housing_Source_Tracker.xlsx", engine="openpyxl") as writer:
-        catalog.to_excel(writer, sheet_name="Data Catalog", index=False)
-        raw_completeness.to_excel(writer, sheet_name="Raw Completeness", index=False)
-        gap.to_excel(writer, sheet_name="Missing Deferred", index=False)
-        assumptions_frame.to_excel(
-            writer, sheet_name="Proxy Assumptions", index=False
-        )
+    _write_source_tracker_workbook(
+        metadata_dir / "LA_Housing_Source_Tracker.xlsx",
+        catalog,
+        audit,
+        dictionary,
+        manifest,
+        coverage,
+        raw_completeness,
+        gap,
+        assumptions_frame,
+    )
 
 
 def _sync_raw_completeness_to_duckdb(

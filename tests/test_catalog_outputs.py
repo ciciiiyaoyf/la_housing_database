@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import duckdb
+from openpyxl import load_workbook
 import pandas as pd
 
 from src.common.config import load_config
@@ -68,6 +69,89 @@ def test_data_catalog_shape_and_active_sources_are_complete():
         raw_completeness["source_id"].isin(active_source_ids),
         "completeness_status",
     ].eq("pass").all()
+
+
+def test_source_tracker_workbook_is_human_readable():
+    workbook_path = ROOT / "metadata" / "LA_Housing_Source_Tracker.xlsx"
+    workbook = load_workbook(workbook_path)
+
+    assert workbook.sheetnames[:2] == ["Overview", "Source Summary"]
+    expected_sheets = {
+        "Overview",
+        "Source Summary",
+        "DOCX Variable Audit",
+        "Variable Dictionary",
+        "Coverage Summary",
+        "Data Catalog",
+        "Raw File Inventory",
+        "Raw Completeness",
+        "Missing Deferred",
+        "Proxy Assumptions",
+        "Update Commands",
+    }
+    assert expected_sheets.issubset(set(workbook.sheetnames))
+
+    for sheet_name in expected_sheets:
+        worksheet = workbook[sheet_name]
+        assert worksheet.freeze_panes == "A2"
+        assert worksheet.sheet_view.showGridLines is False
+        assert worksheet.tables
+
+    summary_headers = [
+        workbook["Source Summary"].cell(row=1, column=column).value
+        for column in range(1, workbook["Source Summary"].max_column + 1)
+    ]
+    assert summary_headers[:6] == [
+        "Source",
+        "Provider",
+        "Status",
+        "Frequency",
+        "Geography",
+        "Key variables",
+    ]
+
+    def sheet_records(sheet_name: str) -> list[dict[str, object]]:
+        worksheet = workbook[sheet_name]
+        headers = [
+            worksheet.cell(row=1, column=column).value
+            for column in range(1, worksheet.max_column + 1)
+        ]
+        records = []
+        for row in range(2, worksheet.max_row + 1):
+            records.append(
+                {
+                    headers[column - 1]: worksheet.cell(row=row, column=column).value
+                    for column in range(1, worksheet.max_column + 1)
+                }
+            )
+        return records
+
+    data_catalog = sheet_records("Data Catalog")
+    assert any(
+        row.get("source_id") == "eviction_lab_county_estimates"
+        for row in data_catalog
+    )
+
+    variable_audit = sheet_records("DOCX Variable Audit")
+    eviction_rows = [
+        row
+        for row in variable_audit
+        if row.get("variable_name") == "Eviction trends (high-frequency, consistent)"
+    ]
+    assert eviction_rows
+    assert eviction_rows[0]["current_status"] == "Implemented"
+    assert eviction_rows[0]["implemented_source_id"] == "eviction_lab_county_estimates"
+
+    variable_dictionary = sheet_records("Variable Dictionary")
+    dictionary_ids = {row.get("variable_id") for row in variable_dictionary}
+    assert "eviction_lab_filings_estimate_annual" in dictionary_ids
+    assert "natural_population_change_quarterly_allocated" in dictionary_ids
+
+    coverage = sheet_records("Coverage Summary")
+    assert any(
+        str(row.get("variable_id", "")).startswith("eviction_lab_")
+        for row in coverage
+    )
 
 
 def test_raw_repository_completeness_is_available_in_duckdb():
@@ -174,4 +258,100 @@ def test_irs_soi_net_migration_is_documented_and_loaded():
     assert county_coverage[0].year == 2011
     assert county_coverage[1].year == 2023
     assert county_coverage[2] == 13
+    assert duplicate_count == 0
+
+
+def test_cdc_wonder_natural_population_change_is_loaded_and_allocated():
+    audit = pd.read_csv(ROOT / "metadata" / "docx_variable_audit.csv")
+    natural = audit.loc[
+        audit["variable_name"].eq("Natural Population Change (quarterly)")
+    ].iloc[0]
+    assert natural["current_status"] == "Implemented with quarterly allocation"
+    assert "cdc_wonder_natality_county" in natural["implemented_source_id"]
+    assert "natural_population_change_quarterly_allocated" in natural[
+        "implemented_variable_id"
+    ]
+
+    with duckdb.connect(str(DATABASE_PATH), read_only=True) as connection:
+        annual = connection.execute(
+            """
+            SELECT min(date), max(date), count(*)
+            FROM analytics.county_annual_controls
+            WHERE natural_population_change_annual IS NOT NULL
+              AND county_fips = '06037'
+            """
+        ).fetchone()
+        quarterly = connection.execute(
+            """
+            SELECT min(date), max(date), count(*),
+                   bool_and(is_imputed), bool_and(is_interpolated)
+            FROM analytics.county_quarterly_controls
+            WHERE natural_population_change_quarterly_allocated IS NOT NULL
+              AND county_fips = '06037'
+            """
+        ).fetchone()
+
+    assert annual[0].year == 2007
+    assert annual[1].year == 2024
+    assert annual[2] == 18
+    assert quarterly[0] == pd.Timestamp("2007-03-31")
+    assert quarterly[1] == pd.Timestamp("2024-12-31")
+    assert quarterly[2] == 72
+    assert quarterly[3] is True
+    assert quarterly[4] is True
+
+
+def test_eviction_lab_county_estimates_are_documented_and_loaded():
+    audit = pd.read_csv(ROOT / "metadata" / "docx_variable_audit.csv")
+    evictions = audit.loc[
+        audit["variable_name"].eq("Eviction trends (high-frequency, consistent)")
+    ].iloc[0]
+    assert evictions["current_status"] == "Implemented"
+    assert evictions["implemented_source_id"] == "eviction_lab_county_estimates"
+    assert "eviction_lab_filings_rate_estimate_annual" in evictions[
+        "implemented_variable_id"
+    ]
+    assert "not cover Los Angeles County" in evictions["limitation"]
+
+    with duckdb.connect(str(DATABASE_PATH), read_only=True) as connection:
+        clean_coverage = connection.execute(
+            """
+            SELECT min(observation_date), max(observation_date),
+                   count(DISTINCT observation_date), count(*),
+                   count(DISTINCT county_fips)
+            FROM clean.eviction_lab_county_estimates
+            WHERE variable_id IN (
+                'eviction_lab_filings_estimate_annual',
+                'eviction_lab_households_threatened_estimate_annual'
+            )
+            """
+        ).fetchone()
+        county_coverage = connection.execute(
+            """
+            SELECT min(date), max(date), count(*)
+            FROM analytics.county_annual_controls
+            WHERE eviction_lab_filings_rate_estimate_annual IS NOT NULL
+              AND county_fips = '06037'
+            """
+        ).fetchone()
+        duplicate_count = connection.execute(
+            """
+            SELECT count(*)
+            FROM (
+                SELECT geo_id, observation_date, variable_id
+                FROM clean.eviction_lab_county_estimates
+                GROUP BY ALL
+                HAVING count(*) > 1
+            )
+            """
+        ).fetchone()[0]
+
+    assert clean_coverage[0].year == 2000
+    assert clean_coverage[1].year == 2018
+    assert clean_coverage[2] == 19
+    assert clean_coverage[3] == 38
+    assert clean_coverage[4] == 1
+    assert county_coverage[0].year == 2000
+    assert county_coverage[1].year == 2018
+    assert county_coverage[2] == 19
     assert duplicate_count == 0

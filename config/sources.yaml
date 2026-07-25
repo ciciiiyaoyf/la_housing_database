@@ -359,6 +359,103 @@ sources:
     official county inflow and county outflow CSV files for each filing-year pair
     and calculates net migration as inflow minus outflow. The current reliable CSV
     pattern covers 2010-2011 through 2022-2023.
+- source_id: cdc_wonder_natality_county
+  provider: CDC WONDER / National Center for Health Statistics
+  dataset_name: Natality, 2007-2024, year by county
+  source_page_url: https://wonder.cdc.gov/natality-current.html
+  download_url: https://wonder.cdc.gov/controller/datarequest/D66
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: csv
+  raw_subdir: cdc_wonder
+  key_variables:
+  - cdc_wonder_live_births_annual
+  enabled: true
+  auto_download: false
+  manual_reason: CDC WONDER's public web export is protected against direct headless
+    requests; archive the official CSV export without editing it.
+  selected_start_date: '2007-01-01'
+  selected_end_date: '2024-12-31'
+  license_or_use_notes: CDC WONDER/NCHS public-use data; use only for statistical
+    reporting and analysis and follow WONDER data-use restrictions.
+  revision_notes: Annual vital statistics may be revised; immutable WONDER CSV exports
+    preserve retrieval vintages and query footers.
+- source_id: cdc_wonder_ucd_1999_2020_la_county
+  provider: CDC WONDER / National Center for Health Statistics
+  dataset_name: Underlying Cause of Death, 1999-2020, Los Angeles County annual deaths
+  source_page_url: https://wonder.cdc.gov/ucd-icd10.html
+  download_url: https://wonder.cdc.gov/controller/datarequest/D76
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: csv
+  raw_subdir: cdc_wonder
+  key_variables:
+  - cdc_wonder_deaths_annual
+  enabled: true
+  auto_download: false
+  manual_reason: CDC WONDER's public web export is protected against direct headless
+    requests; archive the official CSV export without editing it.
+  selected_start_date: '2007-01-01'
+  selected_end_date: '2017-12-31'
+  license_or_use_notes: CDC WONDER/NCHS public-use mortality data; use only for
+    statistical reporting and analysis and follow WONDER data-use restrictions.
+  revision_notes: Uses the official 1999-2020 mortality database only for 2007-2017
+    to avoid overlap with the newer 2018-2024 single-race mortality database.
+- source_id: cdc_wonder_ucd_2018_2024_county
+  provider: CDC WONDER / National Center for Health Statistics
+  dataset_name: Underlying Cause of Death, 2018-2024, year by county
+  source_page_url: https://wonder.cdc.gov/ucd-icd10-expanded.html
+  download_url: https://wonder.cdc.gov/controller/datarequest/D158
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: csv
+  raw_subdir: cdc_wonder
+  key_variables:
+  - cdc_wonder_deaths_annual
+  enabled: true
+  auto_download: false
+  manual_reason: CDC WONDER's public web export is protected against direct headless
+    requests; archive the official CSV export without editing it.
+  selected_start_date: '2018-01-01'
+  selected_end_date: '2024-12-31'
+  license_or_use_notes: CDC WONDER/NCHS public-use mortality data; use only for
+    statistical reporting and analysis and follow WONDER data-use restrictions.
+  revision_notes: Uses the official 2018-2024 single-race mortality database for
+    2018-forward deaths.
+- source_id: eviction_lab_county_estimates
+  provider: Eviction Lab
+  dataset_name: County eviction estimates, 2000-2018
+  source_page_url: https://data-downloads.evictionlab.org/#estimating-eviction-prevalance-across-us/
+  download_url: https://eviction-lab-data-downloads.s3.amazonaws.com/estimating-eviction-prevalance-across-us/county_eviction_estimates_2000_2018.csv
+  native_frequency: annual
+  geography_levels:
+  - county
+  file_format: csv
+  raw_subdir: eviction_lab
+  key_variables:
+  - eviction_lab_filings_estimate_annual
+  - eviction_lab_filings_rate_estimate_annual
+  - eviction_lab_households_threatened_estimate_annual
+  - eviction_lab_households_threatened_rate_estimate_annual
+  enabled: true
+  auto_download: true
+  selected_start_date: '2000-01-01'
+  selected_end_date: '2018-12-31'
+  methodology_notes: Official Eviction Lab annual county modeled estimates from
+    the Estimating Eviction Prevalence across the United States release. Used
+    because Eviction Lab ETS does not cover Los Angeles County and the observed/
+    validated county analysis files do not contain LA County rows. Source
+    observation flags are preserved; values are annual estimates and should not
+    be treated as high-frequency ETS observations or direct local court filings.
+  license_or_use_notes: Eviction Lab data downloads are provided under the Open
+    Data Commons Attribution License (ODC-BY 1.0); cite the Princeton University
+    Eviction Lab release and follow provider terms.
+  revision_notes: Historical modeled estimates may be revised by the provider;
+    immutable CSV vintages preserve retrieval timestamps, source URL, filename,
+    byte size, and SHA-256 checksum.
 - source_id: census_hvs_state_rental_vacancy
   provider: U.S. Census Bureau
   dataset_name: HVS Rental Vacancy Rates by State, 2005-present

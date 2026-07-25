@@ -315,6 +315,7 @@ def build_database(
         "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
         "analytics.metro_quarterly_controls": "metro_quarterly_controls.parquet",
         "analytics.county_annual_controls": "county_annual_controls.parquet",
+        "analytics.county_quarterly_controls": "county_quarterly_controls.parquet",
     }
     expected_analytics_names = {
         table.split(".", 1)[1] for table in parquet_tables

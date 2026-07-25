@@ -1880,3 +1880,343 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
+- variable_id: cdc_wonder_live_births_annual
+  display_name: CDC WONDER LA County annual live births
+  definition: Annual live births for Los Angeles County from CDC WONDER Natality.
+  provider: CDC WONDER / National Center for Health Statistics
+  original_field: Births
+  unit: live_births
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Normalize official CDC WONDER CSV export and retain Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual observed vital-statistics count; not interpolated in the clean fact table.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: cdc_wonder_deaths_annual
+  display_name: CDC WONDER LA County annual deaths
+  definition: Annual deaths for Los Angeles County from CDC WONDER Underlying Cause of Death.
+  provider: CDC WONDER / National Center for Health Statistics
+  original_field: Deaths
+  unit: deaths
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Normalize official CDC WONDER mortality CSV exports and retain Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Uses the 1999-2020 database for 2007-2017 and the 2018-2024 single-race database for 2018-2024.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: natural_population_change_annual
+  display_name: Annual natural population change
+  definition: Los Angeles County annual live births minus annual deaths.
+  provider: Constructed from CDC WONDER
+  original_field: constructed
+  unit: persons
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: CDC WONDER live births annual minus CDC WONDER deaths annual.
+  missing_value_policy: preserve null when either input is missing
+  revision_policy: recompute when CDC WONDER inputs update
+  methodological_notes: Constructed annual vital-statistics balance; not migration and not total population change.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: false
+- variable_id: natural_population_change_quarterly_allocated
+  display_name: Quarterly allocated natural population change
+  definition: Annual natural population change evenly allocated to four quarters for quarterly modeling.
+  provider: Constructed from CDC WONDER
+  original_field: constructed
+  unit: persons
+  native_frequency: annual
+  final_frequency: quarterly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Divide annual births-minus-deaths by four and assign the same value to Q1-Q4 of the source year.
+  missing_value_policy: preserve null when annual inputs are missing
+  revision_policy: recompute when CDC WONDER inputs update
+  methodological_notes: Timing allocation, not observed quarterly vital events; flagged imputed/interpolated in quarterly controls.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: eviction_lab_renting_households_annual
+  display_name: Eviction Lab renter households
+  definition: Number of renting households in Los Angeles County used as the denominator in Eviction Lab annual county eviction estimates.
+  provider: Eviction Lab
+  original_field: renting_hh
+  unit: renter_households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Denominator supplied in the Eviction Lab county annual estimates file; not an ETS observation.
+  observed_constructed_proxy_or_scenario: modeled_source_input
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+  market_segment: Renter
+  variable_role: Control
+  data_domain: eviction
+- variable_id: eviction_lab_filings_estimate_annual
+  display_name: Eviction Lab annual eviction filings estimate
+  definition: Estimated annual number of eviction filings for Los Angeles County.
+  provider: Eviction Lab
+  original_field: filings_estimate
+  unit: filings
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037 and preserve source observation flags.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual modeled estimate; some source years are flagged by Eviction Lab as court-issued observed filings. Do not treat as monthly ETS data or direct LA court filing feed.
+  observed_constructed_proxy_or_scenario: modeled
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_filings_ci_95_lower_annual
+  display_name: Eviction Lab eviction filings lower 95% credible interval
+  definition: Lower bound of the 95% credible interval for annual eviction filings in Los Angeles County.
+  provider: Eviction Lab
+  original_field: filings_ci_95_lower
+  unit: filings
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_filings_ci_95_upper_annual
+  display_name: Eviction Lab eviction filings upper 95% credible interval
+  definition: Upper bound of the 95% credible interval for annual eviction filings in Los Angeles County.
+  provider: Eviction Lab
+  original_field: filings_ci_95_upper
+  unit: filings
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_filings_rate_estimate_annual
+  display_name: Eviction Lab annual eviction filing rate estimate
+  definition: Estimated annual eviction filings per 100 renter households in Los Angeles County.
+  provider: Constructed from Eviction Lab
+  original_field: filings_estimate / renting_hh * 100
+  unit: filings_per_100_renter_households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Divide Eviction Lab filings_estimate by Eviction Lab renting_hh and multiply by 100.
+  missing_value_policy: preserve null when numerator or denominator is missing
+  revision_policy: recompute when Eviction Lab input updates
+  methodological_notes: Annual constructed rate from official Eviction Lab fields; not high-frequency ETS.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_estimate_annual
+  display_name: Eviction Lab annual households threatened estimate
+  definition: Estimated annual number of renter households threatened with eviction in Los Angeles County.
+  provider: Eviction Lab
+  original_field: hh_threat_estimate
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037 and preserve source observation flags.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual modeled estimate; some source years are flagged by Eviction Lab as observed households threatened. Do not treat as monthly ETS data.
+  observed_constructed_proxy_or_scenario: modeled
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_ci_95_lower_annual
+  display_name: Eviction Lab households threatened lower 95% credible interval
+  definition: Lower bound of the 95% credible interval for annual renter households threatened with eviction in Los Angeles County.
+  provider: Eviction Lab
+  original_field: hh_threat_95_lower
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_ci_95_upper_annual
+  display_name: Eviction Lab households threatened upper 95% credible interval
+  definition: Upper bound of the 95% credible interval for annual renter households threatened with eviction in Los Angeles County.
+  provider: Eviction Lab
+  original_field: hh_threat_95_upper
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_rate_estimate_annual
+  display_name: Eviction Lab annual households threatened rate estimate
+  definition: Estimated annual renter households threatened with eviction per 100 renter households in Los Angeles County.
+  provider: Constructed from Eviction Lab
+  original_field: hh_threat_estimate / renting_hh * 100
+  unit: households_threatened_per_100_renter_households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Divide Eviction Lab hh_threat_estimate by Eviction Lab renting_hh and multiply by 100.
+  missing_value_policy: preserve null when numerator or denominator is missing
+  revision_policy: recompute when Eviction Lab input updates
+  methodological_notes: Annual constructed rate from official Eviction Lab fields; not high-frequency ETS.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_filings_court_issued_observed_flag
+  display_name: Eviction Lab filings court-issued observed flag
+  definition: Indicator that the number of filings was observed in court-issued data for the county-year.
+  provider: Eviction Lab
+  original_field: ind_filings_court_issued
+  unit: flag
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Preserve Eviction Lab source indicator.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Indicator from Eviction Lab codebook; 1 means filings observed in court-issued data, 0 means not observed in court-issued data.
+  observed_constructed_proxy_or_scenario: source_metadata
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  market_segment: Data quality
+  variable_role: Metadata
+  data_domain: eviction
+- variable_id: eviction_lab_filings_court_issued_landlord_tenant_flag
+  display_name: Eviction Lab filings landlord-tenant court data flag
+  definition: Indicator that court-issued filings data are landlord-tenant cases for the county-year.
+  provider: Eviction Lab
+  original_field: ind_filings_court_issued_LT
+  unit: flag
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Preserve Eviction Lab source indicator.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Indicator from Eviction Lab codebook.
+  observed_constructed_proxy_or_scenario: source_metadata
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  market_segment: Data quality
+  variable_role: Metadata
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_observed_flag
+  display_name: Eviction Lab households threatened observed flag
+  definition: Indicator that households threatened with eviction were observed in source data for the county-year.
+  provider: Eviction Lab
+  original_field: ind_hht_observed
+  unit: flag
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Preserve Eviction Lab source indicator.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Indicator from Eviction Lab codebook; 1 means households threatened were observed in data.
+  observed_constructed_proxy_or_scenario: source_metadata
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  market_segment: Data quality
+  variable_role: Metadata
+  data_domain: eviction

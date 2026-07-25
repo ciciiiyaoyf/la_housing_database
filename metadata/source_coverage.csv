@@ -1,4 +1,18 @@
 provider,variable_id,geo_type,first_observation,latest_observation,observation_count,nonnull_count,geography_count,latest_source_vintage
+CDC WONDER / National Center for Health Statistics,cdc_wonder_deaths_annual,county,2007-12-31,2024-12-31,18,18,1,2024
+CDC WONDER / National Center for Health Statistics,cdc_wonder_live_births_annual,county,2007-12-31,2024-12-31,18,18,1,2024
+Eviction Lab,eviction_lab_filings_ci_95_lower_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_filings_ci_95_upper_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_filings_court_issued_landlord_tenant_flag,county,2002-12-31,2017-12-31,15,15,1,2026-07-10
+Eviction Lab,eviction_lab_filings_court_issued_observed_flag,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_filings_estimate_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_filings_rate_estimate_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_households_threatened_ci_95_lower_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_households_threatened_ci_95_upper_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_households_threatened_estimate_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_households_threatened_observed_flag,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_households_threatened_rate_estimate_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
+Eviction Lab,eviction_lab_renting_households_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
 Federal Housing Finance Agency,fhfa_hpi_ca_purchase_only_nsa,state,1991-03-31,2026-03-31,141,141,1,2026-07-02
 Federal Housing Finance Agency,fhfa_hpi_ca_purchase_only_sa,state,1991-03-31,2026-03-31,141,141,1,2026-07-02
 Federal Housing Finance Agency,fhfa_hpi_la_county_all_transactions_nsa_annual,county,1975-12-31,2025-12-31,51,51,1,2026-07-02
