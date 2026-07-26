@@ -316,7 +316,7 @@ python run_pipeline.py --stage validate
 
 The current validation run completed with 0 structural errors and 3 warning checks. Structural QA failures stop validation. Plausible economic outliers and expected source gaps are warnings for review.
 
-QA and coverage include duplicate-key checks, geography ID/FIPS validation, ZORI product identity, Redfin ZIP rolling-window semantics, BPS archive coverage, missingness summaries, clean-to-panel equality checks, and raw repository completeness.
+QA and coverage include duplicate-key checks, geography ID/FIPS validation, ZORI product identity, Redfin ZIP rolling-window semantics, BPS archive coverage, missingness summaries, clean-to-panel equality checks, and raw repository completeness. Source coverage explicitly distinguishes `postal_zip`, `zcta`, `county`, `state`, `metro`, `metro_division`, and `national`; unsupported geography identifiers remain `unknown` and fail structural geography validation instead of being relabeled as national.
 
 Core reports:
 

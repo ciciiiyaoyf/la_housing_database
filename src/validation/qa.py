@@ -46,6 +46,24 @@ def _failure_rows(
     return result
 
 
+def _classify_geo_type(geo_id: object) -> str:
+    value = str(geo_id)
+    if value == "US":
+        return "national"
+    prefix_types = (
+        ("STATE_", "state"),
+        ("COUNTY_", "county"),
+        ("ZIP_", "postal_zip"),
+        ("ZCTA_", "zcta"),
+        ("METRODIV_", "metro_division"),
+        ("METRO_", "metro"),
+    )
+    for prefix, geo_type in prefix_types:
+        if value.startswith(prefix):
+            return geo_type
+    return "unknown"
+
+
 def _coverage_reports(
     config: ProjectConfig,
     fact: pd.DataFrame,
@@ -55,15 +73,7 @@ def _coverage_reports(
     coverage_dir = config.root / "output" / "coverage"
     coverage_dir.mkdir(parents=True, exist_ok=True)
     work = fact.copy()
-    work["geo_type"] = work["geo_id"].map(
-        lambda item: "postal_zip"
-        if str(item).startswith("ZIP_")
-        else "county"
-        if str(item).startswith("COUNTY_")
-        else "state"
-        if str(item).startswith("STATE_")
-        else "national"
-    )
+    work["geo_type"] = work["geo_id"].map(_classify_geo_type)
     source_coverage = (
         work.groupby(["provider", "variable_id", "geo_type"], dropna=False)
         .agg(

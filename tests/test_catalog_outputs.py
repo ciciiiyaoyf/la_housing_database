@@ -71,6 +71,37 @@ def test_data_catalog_shape_and_active_sources_are_complete():
     ].eq("pass").all()
 
 
+def test_source_coverage_preserves_geography_types():
+    coverage = pd.read_csv(ROOT / "metadata" / "source_coverage.csv")
+
+    zcta = coverage.loc[
+        coverage["variable_id"].eq("acs_median_gross_rent")
+        & coverage["geo_type"].eq("zcta")
+    ].iloc[0]
+    assert zcta["geography_count"] == 274
+    assert set(
+        coverage.loc[
+            coverage["variable_id"].eq("acs_median_gross_rent"),
+            "geo_type",
+        ]
+    ) == {"county", "zcta"}
+    assert coverage.loc[
+        coverage["variable_id"].eq(
+            "fhfa_hpi_la_metropolitan_division_purchase_only_nsa"
+        ),
+        "geo_type",
+    ].eq("metro_division").all()
+    assert coverage.loc[
+        coverage["variable_id"].eq("ces_total_nonfarm_employment_sa"),
+        "geo_type",
+    ].eq("metro").all()
+    assert coverage.loc[
+        coverage["variable_id"].eq("mortgage_rate_30y_weekly"),
+        "geo_type",
+    ].eq("national").all()
+    assert not coverage["geo_type"].eq("unknown").any()
+
+
 def test_source_tracker_workbook_is_human_readable():
     workbook_path = ROOT / "metadata" / "LA_Housing_Source_Tracker.xlsx"
     workbook = load_workbook(workbook_path)
@@ -150,6 +181,18 @@ def test_source_tracker_workbook_is_human_readable():
     coverage = sheet_records("Coverage Summary")
     assert any(
         str(row.get("variable_id", "")).startswith("eviction_lab_")
+        for row in coverage
+    )
+    assert any(
+        row.get("variable_id") == "acs_median_gross_rent"
+        and row.get("geo_type") == "zcta"
+        and row.get("geography_count") == 274
+        for row in coverage
+    )
+    assert any(
+        row.get("variable_id")
+        == "fhfa_hpi_la_metropolitan_division_purchase_only_nsa"
+        and row.get("geo_type") == "metro_division"
         for row in coverage
     )
 
