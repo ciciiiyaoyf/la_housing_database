@@ -9,6 +9,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from src.benchmark.acquisition import MANIFEST_COLUMNS
 from src.common.config import ProjectConfig
 
 
@@ -271,6 +272,22 @@ def _active_clean_tables(config: ProjectConfig) -> list[tuple[str, Path]]:
     return tables
 
 
+def _version_a_manifest(config: ProjectConfig) -> pd.DataFrame:
+    path = config.root / "metadata" / "version_a_raw_file_manifest.csv"
+    if not path.exists():
+        return pd.DataFrame(
+            {
+                column: pd.Series(dtype="string")
+                for column in MANIFEST_COLUMNS
+            }
+        )
+    return (
+        pd.read_csv(path, dtype="string")
+        .reindex(columns=MANIFEST_COLUMNS)
+        .astype("string")
+    )
+
+
 def sync_source_metadata(config: ProjectConfig) -> dict[str, int]:
     """Refresh source registry tables after a download without rebuilding analytics."""
     database_path = config.root / config.pipeline["database_path"]
@@ -318,6 +335,7 @@ def build_database(
     connection.execute((config.root / "sql" / "create_schema.sql").read_text())
     frames = {
         "source_registry_frame": _source_registry(config),
+        "version_a_manifest_frame": _version_a_manifest(config),
         "variable_dictionary_frame": pd.DataFrame(config.variables),
         "geography_frame": pd.read_parquet(
             config.root / "data" / "clean" / "geography.parquet"
@@ -432,6 +450,25 @@ def build_database(
     )
     _create_analytical_views(connection)
     connection.execute(
+        "CREATE OR REPLACE TABLE raw.version_a_file_manifest AS "
+        "SELECT * FROM version_a_manifest_frame"
+    )
+    benchmark_path = final_dir / "housing_finance_benchmark.parquet"
+    if benchmark_path.exists():
+        escaped_benchmark = benchmark_path.as_posix().replace("'", "''")
+        connection.execute(
+            "CREATE OR REPLACE TABLE analytics.housing_finance_benchmark AS "
+            f"SELECT * FROM read_parquet('{escaped_benchmark}')"
+        )
+        connection.execute(
+            "CREATE OR REPLACE VIEW analytics.v_la_version_a_benchmark AS "
+            "SELECT * FROM analytics.housing_finance_benchmark "
+            "WHERE county_fips = '06037'"
+        )
+        parquet_tables[
+            "analytics.housing_finance_benchmark"
+        ] = "housing_finance_benchmark.parquet"
+    connection.execute(
         "CREATE OR REPLACE TABLE quality.qa_summary "
         "(check_id VARCHAR, severity VARCHAR, status VARCHAR, failure_count BIGINT, detail VARCHAR)"
     )
@@ -515,6 +552,9 @@ def build_database(
         table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
         for table in parquet_tables
     }
+    counts["raw.version_a_file_manifest"] = connection.execute(
+        "SELECT count(*) FROM raw.version_a_file_manifest"
+    ).fetchone()[0]
     connection.close()
     logger.info("Built %s with %s", database_path, counts)
     return counts

@@ -16,6 +16,8 @@ data/interim/**
 !data/interim/.gitkeep
 data/clean/**
 !data/clean/.gitkeep
+data/benchmark/**
+!data/benchmark/**/.gitkeep
 data/final/**
 !data/final/.gitkeep
 database/*.duckdb
@@ -25,4 +27,6 @@ output/coverage/*.csv
 output/exports/*.csv
 metadata/pipeline_run_log.csv
 metadata/raw_file_manifest.csv
+metadata/version_a_raw_file_manifest.csv
 metadata/manual_downloads.csv
+metadata/version_a_pipeline_run_log.csv

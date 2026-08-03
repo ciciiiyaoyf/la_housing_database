@@ -25,6 +25,8 @@ DIRECTORIES = (
     "data/raw/fhfa",
     "data/raw/bea",
     "data/raw/geography",
+    "data/raw/version_a",
+    "data/benchmark/clean",
     "data/interim",
     "data/clean",
     "data/final",

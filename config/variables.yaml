@@ -430,7 +430,7 @@ variables:
   final_frequency: monthly
   geography: national
   seasonal_adjustment: not seasonally adjusted
-  smoothing: monthly mean
+  smoothing: monthly median
   transformation: arithmetic mean by calendar month
   missing_value_policy: preserve null
   revision_policy: archive file
