@@ -16,7 +16,7 @@ from src.cleaning.eviction_lab import clean_eviction_lab_county_estimates
 from src.cleaning.fhfa import clean_fhfa
 from src.cleaning.freddie import clean_freddie
 from src.cleaning.irs_migration import clean_irs_soi_county_migration
-from src.cleaning.prepared import clean_prepared_observation_contract
+from src.cleaning.official import clean_hvs
 from src.cleaning.redfin import clean_redfin
 from src.cleaning.redfin_zip import clean_redfin_zip_key_metrics
 from src.cleaning.zillow import clean_zillow
@@ -207,10 +207,10 @@ def clean_sources(
                         output_path,
                     )
                 elif source.source_id.startswith("census_hvs_"):
-                    frame = clean_prepared_observation_contract(
+                    frame = clean_hvs(
                         path,
                         record,
-                        output_path,
+                        source.source_id,
                         output_path,
                     )
                 elif source.source_id.startswith("cdc_wonder_"):

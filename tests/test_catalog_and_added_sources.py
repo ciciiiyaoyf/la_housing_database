@@ -56,8 +56,9 @@ def test_raw_repository_completeness_and_checksums():
         dtype=str,
     )
     assert not report.empty
-    assert report["completeness_status"].eq("PASS").all()
-    assert report[
+    active = report.loc[report["active_status"].eq("Active")]
+    assert active["completeness_status"].eq("PASS").all()
+    assert active[
         [
             "raw_snapshot_present",
             "manifest_present",
@@ -70,6 +71,12 @@ def test_raw_repository_completeness_and_checksums():
             "key_variables_present",
         ]
     ].eq("True").all().all()
+    quarantined = report.loc[
+        report["source_id"].eq("hud_usps_ncwm_quarterly")
+    ].iloc[0]
+    assert quarantined["active_status"] == "Quarantined"
+    assert quarantined["completeness_status"] == "QUARANTINED"
+    assert quarantined["provenance_status"] == "quarantined_derived_snapshot"
 
 
 def test_added_tables_views_fact_dictionary_and_keys():
@@ -91,10 +98,10 @@ def test_added_tables_views_fact_dictionary_and_keys():
             ("clean", "bea_state_personal_income"),
             ("clean", "bea_county_personal_income"),
             ("clean", "census_hvs_rental_vacancy"),
-            ("clean", "redfin_county_for_sale_market"),
-            ("clean", "redfin_zip_for_sale_market"),
-            ("clean", "zillow_county_home_values"),
-            ("clean", "zillow_county_rent_index"),
+            ("clean", "redfin_county_monthly"),
+            ("clean", "redfin_zip_monthly"),
+            ("clean", "zillow_county_zhvi"),
+            ("clean", "zillow_county_zori_smoothed_sa"),
             ("analytics", "metro_monthly_controls"),
             ("analytics", "state_quarterly_panel"),
             ("analytics", "metro_quarterly_panel"),
@@ -153,16 +160,22 @@ def test_added_geographies_frequencies_and_no_silent_expansion():
             ).fetchone()[0]
             == 0
         )
-        assert (
-            connection.execute(
-                """
-                SELECT count(*)
-                FROM analytics.fact_housing_observation
-                WHERE variable_id LIKE 'acs_%'
-                """
-            ).fetchone()[0]
-            == 0
-        )
+        acs_rows, invalid_acs_rows = connection.execute(
+            """
+            SELECT count(*),
+                   count(*) FILTER (
+                       WHERE final_frequency != 'annual'
+                          OR NOT (
+                              geo_id LIKE 'COUNTY_%'
+                              OR geo_id LIKE 'ZCTA_%'
+                          )
+                   )
+            FROM analytics.fact_housing_observation
+            WHERE variable_id LIKE 'acs_%'
+            """
+        ).fetchone()
+        assert acs_rows > 0
+        assert invalid_acs_rows == 0
         assert (
             connection.execute(
                 """

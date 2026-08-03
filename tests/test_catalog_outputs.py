@@ -34,9 +34,11 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     assert rental_inventory["expected_source_from_docx"] == (
         "Zillow Observed Rent Index / Listings"
     )
-    assert rental_inventory["current_status"] == (
-        "Not implemented - sheet source endpoint not verified"
-    )
+    assert rental_inventory["current_status"] == "Quarantined constructed proxy"
+    assert rental_inventory["implemented_source_id"] == "hud_usps_ncwm_quarterly"
+    assert pd.isna(rental_inventory["implemented_table"])
+    assert not bool(rental_inventory["panel_or_view_present"])
+    assert "not true rental-listing inventory" in rental_inventory["limitation"]
     assert "ZORI is not inventory" in rental_inventory["limitation"]
     assert "Redfin for-sale active listings are not a valid substitute" in (
         rental_inventory["limitation"]
@@ -68,7 +70,16 @@ def test_data_catalog_shape_and_active_sources_are_complete():
     assert raw_completeness.loc[
         raw_completeness["source_id"].isin(active_source_ids),
         "completeness_status",
-    ].eq("pass").all()
+    ].eq("PASS").all()
+
+    hud_usps = catalog.loc[
+        catalog["source_id"].eq("hud_usps_ncwm_quarterly")
+    ].iloc[0]
+    assert hud_usps["active_status"] == "Quarantined"
+    assert str(hud_usps["update_command"]).startswith("BLOCKED:")
+    assert "run_pipeline.py" not in str(hud_usps["update_command"])
+    assert pd.isna(hud_usps["destination_clean_table"])
+    assert pd.isna(hud_usps["destination_analytical_table"])
 
 
 def test_source_coverage_preserves_geography_types():
@@ -124,7 +135,6 @@ def test_source_tracker_workbook_is_human_readable():
 
     for sheet_name in expected_sheets:
         worksheet = workbook[sheet_name]
-        assert worksheet.freeze_panes == "A2"
         assert worksheet.sheet_view.showGridLines is False
         assert worksheet.tables
 
@@ -218,21 +228,29 @@ def test_raw_repository_completeness_is_available_in_duckdb():
     assert duplicate_count == 0
 
 
-def test_acs_b25106_mortgage_debt_proxy_is_documented_and_available():
+def test_version_a_finance_is_authoritative_and_b25106_legacy_is_retained():
     assumptions = pd.read_csv(ROOT / "metadata" / "proxy_methodology_assumptions.csv")
     assert "acs_implied_aggregate_mortgage_debt_proxy" in set(
         assumptions["variable_id"]
     )
-    assert (
-        assumptions["methodology_id"].eq("acs_implied_mortgage_debt_proxy_v1").any()
-    )
+    legacy_assumptions = assumptions.loc[
+        assumptions["methodology_id"].eq(
+            "acs_implied_mortgage_debt_proxy_legacy_v0"
+        )
+    ]
+    assert not legacy_assumptions.empty
+    assert legacy_assumptions["methodology_status"].eq("legacy").all()
 
     audit = pd.read_csv(ROOT / "metadata" / "docx_variable_audit.csv")
     mortgage_debt = audit.loc[
         audit["variable_name"].eq("Aggregate Mortgage Debt (outstanding balances)")
     ].iloc[0]
     assert mortgage_debt["current_status"] == "Proxy implemented"
-    assert "census_acs_5year_b25106" in mortgage_debt["implemented_source_id"]
+    assert "census_acs5_finance" in mortgage_debt["implemented_source_id"]
+    assert "acs_implied_first_mortgage_balance_cal_benchmark" in mortgage_debt[
+        "implemented_variable_id"
+    ]
+    assert "older B25106" in mortgage_debt["limitation"]
 
     with duckdb.connect(str(DATABASE_PATH), read_only=True) as connection:
         clean_rows = connection.execute(

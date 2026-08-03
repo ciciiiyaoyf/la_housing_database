@@ -20,6 +20,9 @@ data/benchmark/**
 !data/benchmark/**/.gitkeep
 data/final/**
 !data/final/.gitkeep
+# Licensed/restricted snapshots stay inside the project workspace but never enter Git.
+data/restricted/**
+!data/restricted/**/.gitkeep
 database/*.duckdb
 database/*.wal
 output/qa/*.csv

@@ -1,4 +1,4 @@
-verified_at: '2026-07-01'
+verified_at: '2026-08-02'
 sources:
 - source_id: zillow_county_zhvi
   provider: Zillow Research
@@ -782,3 +782,34 @@ sources:
     in the named vintage year; overlapping ACS 5-year vintages are not interpolated.
     Used as an input to an explicitly documented mortgage-debt proxy; ACS does not
     directly publish outstanding mortgage balances.
+- source_id: hud_usps_ncwm_quarterly
+  provider: HUD-USPS
+  dataset_name: HUD aggregated USPS administrative data on residential address vacancies
+  source_page_url: https://www.huduser.gov/portal/datasets/usps.html
+  download_url: https://www.huduser.gov/hudapi/public/uspsncwm
+  native_frequency: quarterly
+  geography_levels:
+  - county
+  - tract_2020
+  - postal_zip_county_part
+  file_format: json
+  raw_subdir: hud_usps_ncwm
+  access_method: authorized_official_api
+  selected_start_date: '2008-01-01'
+  selected_end_date: '2026-03-31'
+  key_variables:
+  - usps_total_residential_addresses
+  - usps_short_term_vacant_residential_addresses
+  - usps_long_term_vacant_residential_addresses
+  - usps_vacant_residential_addresses
+  - usps_no_stat_residential_addresses
+  - usps_active_residential_addresses
+  - usps_residential_vacancy_rate
+  - usps_residential_no_stat_rate
+  enabled: false
+  auto_download: false
+  provenance_status: quarantined_derived_snapshot
+  manual_reason: The surviving 2026-08-02 derived package lacks archived official quarterly API responses, the raw crosswalk response, exact UTC retrieval timestamps, source release dates, and raw checksums. Reacquire and archive official inputs before activation.
+  methodology_notes: The vacancy proxy is (short-term vacant residential addresses + long-term vacant residential addresses) / total residential addresses. No-stat remains separate. Modeled ZIP values represent Los Angeles County portions of postal ZIPs using a fixed crosswalk and are neither whole postal ZIPs nor Census ZCTAs. Do not expand quarterly values to observed months or label the proxy true rental-listing inventory.
+  license_or_use_notes: Census-tract information and derivatives are confidential and proprietary under the HUD-USPS sublicense. Keep licensed files access-controlled and outside Git history; preserve the required notice with every copy.
+  revision_notes: Archive every authorized raw response and crosswalk vintage with source URL/query, source filename, UTC retrieval timestamp, provider vintage, geography, file size, and SHA-256 checksum. USPS address-management changes can create longitudinal discontinuities that must remain visible.

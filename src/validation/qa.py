@@ -673,11 +673,17 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
         raw_completeness = pd.read_csv(
             raw_completeness_path, dtype=str
         )
+        active_rows = (
+            raw_completeness["active_status"].eq("Active")
+            if "active_status" in raw_completeness
+            else pd.Series(True, index=raw_completeness.index)
+        )
         check(
             "raw_repository_completeness",
             "error",
             raw_completeness.loc[
-                ~raw_completeness["completeness_status"].eq("PASS")
+                active_rows
+                & ~raw_completeness["completeness_status"].eq("PASS")
             ],
             "Every active implemented source must pass raw completeness.",
         )

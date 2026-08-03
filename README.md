@@ -6,7 +6,9 @@ The database is a static snapshot. DuckDB is not continuously connected to Censu
 
 ## Current generated outputs
 
-The current local build contains 35 active configured source IDs, 128 variable-dictionary rows, and 421,133 long-form fact observations.
+The consolidated configuration contract contains **218 unique variables**: 160 general variables in `config/variables.yaml` (including eight quarantined HUD/USPS variables) plus 58 Version A variables in `config/version_a_variables.yaml`. It contains **44 unique source IDs**: 36 general source IDs plus nine Version A source IDs, with `freddie_mac_pmms` present in both configurations and counted once. Of the 36 general sources, 35 are enabled; `hud_usps_ncwm_quarterly` is disabled and quarantined.
+
+The materialized general-pipeline snapshot summarized below contains 421,133 long-form fact observations. Version A is built separately into `data/final/housing_finance_benchmark.parquet`; quarantined HUD/USPS data are not part of active ingestion or these row counts.
 
 | Output | Rows | Date coverage in current build |
 |---|---:|---|
@@ -25,15 +27,32 @@ CSV exports are written under `output/exports/`:
 - `la_zip_monthly_panel.csv`
 - `la_state_quarterly_panel.csv`
 - `la_metro_monthly_controls.csv`
+- `la_metro_quarterly_panel.csv`
 - `la_metro_quarterly_controls.csv`
 - `la_county_annual_controls.csv`
 - `la_county_quarterly_controls.csv`
+- `la_version_a_benchmark.csv` when the Version A benchmark has been built
+
+## Consolidated variable and source contract
+
+The general pipeline and Version A benchmark are complementary parts of one repository contract:
+
+| Contract | General | Version A | Consolidated unique total |
+|---|---:|---:|---:|
+| Variables | 160 | 58 | 218 |
+| Source IDs | 36 | 9 | 44 |
+
+All 58 Version A variable IDs end in `_benchmark`. For mortgage debt and home equity, these Version A variables are the authoritative current standard. In particular, the benchmark uses direct ACS B25089/B25081/B25082/B25120 levels, weighted PUMS parameters, and exact-date, universe-compatible NMDB controls when available; PMMS is an explicitly labeled sensitivity fallback. The earlier B25106 midpoint/80%-debt-service/25-year mortgage construction remains available only as a **legacy modeled scenario** for reproducibility and must not be presented as the primary debt or equity estimate.
+
+The eight `usps_*` variables and `hud_usps_ncwm_quarterly` are present so the requested concept and its provenance gap remain explicit, but they are disabled and quarantined. `usps_residential_vacancy_rate = (STV + LTV residential addresses) / total residential addresses` is a quarterly **all-residential administrative vacancy proxy**. It is not renter-only, not a count of available rental listings, and not true rental-listing inventory. No-stat addresses remain a separate diagnostic. Modeled ZIP rows represent Los Angeles County portions of postal ZIPs, not whole postal ZIPs or Census ZCTAs.
+
+See the [HUD/USPS methodology and activation requirements](docs/hud_usps_residential_vacancy_proxy.md) and the [HUD/USPS quarantine manifest](metadata/hud_usps_quarantine_manifest.csv). The quarantined derived package is not an authorized raw vintage and cannot be activated until official inputs are reacquired and archived with source URLs/queries, filenames, UTC retrieval timestamps, provider vintages, geography, file sizes, and SHA-256 checksums.
 
 ## Source groups
 
-Exact source pages, download URLs/API endpoints, file formats, source IDs, key variables, and methodology notes live in `config/sources.yaml`. Variable definitions live in `config/variables.yaml`.
+General source pages, download URLs/API endpoints, file formats, source IDs, key variables, and methodology notes live in `config/sources.yaml`; Version A sources live in `config/version_a_benchmark.yaml`. Variable definitions live in `config/variables.yaml` and `config/version_a_variables.yaml`.
 
-| Group | Active source IDs | Main variables |
+| Group | Source IDs / status | Main variables |
 |---|---|---|
 | Zillow Research | `zillow_county_zhvi`, `zillow_zip_zhvi`, `zillow_county_zori_smoothed_sa`, `zillow_zip_zori_smoothed_sa` | ZHVI, active SA ZORI |
 | Redfin Data Center | `redfin_county_monthly`, `redfin_zip_monthly` | Sale price, sales volume, listings, days on market, inventory/listing indicators |
@@ -47,6 +66,8 @@ Exact source pages, download URLs/API endpoints, file formats, source IDs, key v
 | IRS SOI | `irs_soi_county_migration` | LA County annual in-migration, out-migration, and net migration from IRS county migration returns, exemptions, and AGI |
 | CDC WONDER / NCHS | `cdc_wonder_natality_county`, `cdc_wonder_ucd_1999_2020_la_county`, `cdc_wonder_ucd_2018_2024_county` | Annual LA County live births, deaths, annual natural population change, and quarterly allocated natural population change |
 | Eviction Lab | `eviction_lab_county_estimates` | Annual LA County eviction filing estimates, households-threatened estimates, filing/threatened rates, credible interval bounds, and source-observation flags |
+| HUD/USPS (quarantined) | `hud_usps_ncwm_quarterly` | Eight disabled county/tract/modeled-ZIP-part all-residential address variables and diagnostics; not rental-listing inventory |
+| Version A finance | Nine configured source IDs in `config/version_a_benchmark.yaml`, including the shared `freddie_mac_pmms` fallback | Authoritative `_benchmark` mortgage debt, home equity, debt-service, down-payment, CPI, and supporting variables |
 
 ACS appears as multiple source IDs because ACS Detailed Tables are official table-level files. Keeping B11001, B19013, B25001, etc. separate preserves the exact source file, checksum, table methodology, and variable/MOE mapping. Modeling users should usually consume the unified fact table, `analytics.county_annual_controls`, or the catalog rather than treating each ACS table as a separate modeling dataset.
 
@@ -58,6 +79,8 @@ Important semantics:
 - Redfin ZIP `ACTIVE LISTINGS` remains `active_listings`; it is not relabeled as inventory.
 - Census BPS permits are authorizations, not starts or completions.
 - Freddie Mac mortgage rates are national, not Los Angeles-specific.
+- Version A `_benchmark` mortgage debt and equity variables are authoritative; the older B25106 construction is a legacy modeled scenario only.
+- HUD/USPS is disabled and quarantined. Its vacancy rate is an all-residential administrative proxy, no-stat remains separate, and neither measure is rental-listing inventory.
 - BLS LAUS county data are not seasonally adjusted.
 - CDC WONDER live births and deaths are annual county observations. `natural_population_change_annual` is births minus deaths; `natural_population_change_quarterly_allocated` evenly allocates the annual total to four quarters and is flagged as imputed/interpolated timing, not observed quarterly vital events.
 - Eviction Lab LA County eviction trends are annual modeled county estimates for 2000-2018. They are not monthly ETS observations and not a direct local court filing feed. The pipeline preserves Eviction Lab's court-issued/observed source flags and 95% credible interval bounds.
@@ -88,12 +111,12 @@ Current DOCX audit status:
 - Partially implemented: 4
 - Partially implemented with alternate source: 1
 - Proxy input only: 3
+- Quarantined constructed proxy: 1
 - Not implemented: 3
-- Not implemented because the sheet source endpoint is not verified: 1
 
-The audit is source-aligned to the sheet. For example, rental inventory is not satisfied by Redfin for-sale active listings, and ZORI itself is not treated as a rental-inventory stock count. That row remains not implemented until a verified official Zillow rental-listings/inventory endpoint is available. Difficult-variable rows also preserve the sheet's best-public-workaround text and report whether the current database implements the workaround, only has inputs, or has no source yet.
+The audit is source-aligned to the sheet. True rental-listing inventory remains unavailable: Redfin for-sale active listings do not satisfy it, and ZORI is a rent index rather than an inventory stock. The separate HUD/USPS all-residential address-vacancy proxy is registered as a quarantined constructed proxy and remains outside active facts, panels, and views until official inputs and complete provenance are archived. Difficult-variable rows also preserve the sheet's best-public-workaround text and report whether the current database implements the workaround, only has inputs, or has no source yet.
 
-The aggregate mortgage-debt workaround is implemented as an annual ACS proxy, not an observed balance. It allocates ACS B25081 owner-with-mortgage counts across ACS B25106 positive-income owner cost-burden bins, infers monthly debt service from income and burden midpoints, and converts payment to an implied balance using a fixed-rate amortization formula and Freddie Mac PMMS rates averaged over the ACS five-year window. All assumptions are recorded in `metadata/proxy_methodology_assumptions.csv`.
+The original aggregate mortgage-debt workaround remains implemented for reproducibility as a legacy annual ACS modeled scenario, not an observed balance or the current benchmark. It allocates ACS B25081 owner-with-mortgage counts across ACS B25106 positive-income owner cost-burden bins, infers monthly debt service from income and burden midpoints, and converts payment to an implied balance using a fixed-rate amortization formula and Freddie Mac PMMS rates averaged over the ACS five-year window. Its assumptions remain recorded in `metadata/proxy_methodology_assumptions.csv`; analytical work should use the Version A `_benchmark` debt and equity variables as the authoritative current standard.
 
 The natural-population-change workaround is implemented from official CDC WONDER/NCHS exports. Annual LA County live births and deaths are loaded as observed annual facts for 2007-2024. Annual natural population change is births minus deaths. The quarterly series is a modeling timing allocation equal to annual natural population change divided by four in each quarter, and it is explicitly flagged as imputed/interpolated.
 
@@ -201,6 +224,19 @@ python run_pipeline.py --stage export
 python -m pytest -q
 ```
 
+Exact single-source refresh examples used by the regression contract:
+
+```powershell
+python run_pipeline.py --stage download --source bls_ces_la_metro --force-download
+python run_pipeline.py --stage download --source bls_cpi_la_metro --force-download
+python run_pipeline.py --stage download --source fhfa_hpi_state_purchase_only --force-download
+python run_pipeline.py --stage download --source fhfa_hpi_metro_purchase_only --force-download
+python run_pipeline.py --stage download --source fhfa_hpi_county_annual --force-download
+python run_pipeline.py --stage download --source bea_state_personal_income --force-download
+python run_pipeline.py --stage download --source bea_county_personal_income --force-download
+python run_pipeline.py --stage download --source census_hvs_state_rental_vacancy --force-download
+```
+
 Supported options:
 
 - `--source SOURCE_ID`: filters source-aware stages such as `discover`, `download`, and `clean`.
@@ -245,10 +281,12 @@ The Redfin ZIP import preserves the national CSV as immutable raw data. Cleaning
 | `data/interim/` | Reusable intermediate outputs, including Redfin ZIP long observations |
 | `data/clean/` | Source-specific normalized Parquet files |
 | `data/final/` | Long fact table, monthly panels, and native-frequency control panels |
+| `data/benchmark/` | Version A immutable raw archives, manifests, and benchmark clean intermediates |
 | `database/housing.duckdb` | Integrated query database |
 | `metadata/raw_file_manifest.csv` | Raw URL/API endpoint, retrieval timestamp, filename, size, checksum, source vintage, and request metadata |
 | `metadata/source_coverage.csv` | Variable/source date coverage and non-null counts |
-| `metadata/data_dictionary.csv` | Generated variable dictionary from `config/variables.yaml` |
+| `metadata/data_dictionary.csv` | Generated consolidated variable dictionary from `config/variables.yaml` and `config/version_a_variables.yaml` |
+| `metadata/hud_usps_quarantine_manifest.csv` | Provenance-gap record for the disabled HUD/USPS derived snapshot; not an active raw manifest |
 | `metadata/transformation_log.csv` | Transformation IDs, inputs, outputs, and execution metadata |
 | `output/coverage/` | Coverage, missingness, BPS, Redfin, and source-vintage reports |
 | `output/qa/` | QA summary/failure reports and raw repository completeness |
@@ -266,9 +304,9 @@ Raw payloads are never edited, replaced, or deleted by the pipeline. Clean and a
 - `analytics`
 - `quality`
 
-`metadata.source_registry` and `raw.file_manifest` are provenance tables. They contain source-vintage/raw-manifest rows, not copies of provider payloads. The current build has 35 distinct configured source IDs and 1,338 source-registry rows because Census BPS stores one row per archived monthly file and CDC WONDER/Eviction Lab store archived CSV exports as immutable vintages.
+`metadata.source_registry` and `raw.file_manifest` are provenance tables. They contain source-vintage/raw-manifest rows, not copies of provider payloads. The general configuration has 36 source IDs, of which 35 are enabled. Version A defines nine source IDs and shares `freddie_mac_pmms` with the general configuration, producing 44 unique source IDs across the repository. Census BPS may store multiple manifest rows per source because each archived monthly file remains an immutable vintage.
 
-The `clean` schema is rebuilt from active configured sources only. It contains one table per active source ID, except `redfin_zip_monthly`, whose raw national file is filtered into `clean.redfin_zip_monthly`.
+The `clean` schema is rebuilt from active configured sources only. It contains one table per active source ID, except `redfin_zip_monthly`, whose raw national file is filtered into `clean.redfin_zip_monthly`. It also exposes the union compatibility views `clean.fhfa_hpi` and `clean.census_hvs_rental_vacancy`; these views do not create new observations or change source-specific tables.
 
 The `analytics` schema contains:
 
@@ -406,9 +444,11 @@ ORDER BY postal_zip;
 ## Known limitations
 
 - Provider histories can be revised. Raw vintages preserve retrieved snapshots, but active clean/analytical tables select the latest configured local vintage.
-- HVS official raw workbooks are archived, but the current cleaner uses a narrow prepared observation-contract fallback for the irregular workbook layout and flags those rows with `prepared_clean_contract`.
+- HVS official raw workbooks are archived and parsed directly by the source-specific workbook cleaner. State and metro estimates remain at their published quarterly geographies; no LA County value is fabricated.
 - Redfin ZIP Key Metrics has no verified stable direct endpoint for the selected CSV export and requires manual official download/import.
 - Rental inventory is not implemented because no verified official rental-listing inventory source is integrated; ZORI is not inventory.
+- The HUD/USPS all-residential vacancy proxy is quarantined and disabled because its surviving derived package lacks the official raw API responses and complete provenance required for ingestion. It does not satisfy true rental-listing inventory.
+- The B25106 mortgage debt/equity scenario remains only for reproducibility; use Version A `_benchmark` variables as the current authoritative finance standard.
 - Eviction trends are implemented only as annual Eviction Lab modeled county estimates for 2000-2018; they should not be interpreted as high-frequency ETS or direct LA court filing data.
 - Permits are not starts, completions, or units under construction.
 - County values are not allocated to ZIPs, and ZIP values are not treated as ZCTAs.

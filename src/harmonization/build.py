@@ -819,9 +819,13 @@ def build_analytical_outputs(
     end_date: str | None = None,
 ) -> dict[str, pd.DataFrame]:
     logger = logging.getLogger("la_housing.harmonize")
-    active_variable_ids = {str(item["variable_id"]) for item in config.variables}
+    ingestible_variable_ids = {
+        str(item["variable_id"])
+        for item in config.variables
+        if str(item.get("active_status", "Active")).casefold() != "quarantined"
+    }
     fact = _date_filter(_read_clean_files(config), start_date, end_date)
-    fact = fact.loc[fact["variable_id"].isin(active_variable_ids)].copy()
+    fact = fact.loc[fact["variable_id"].isin(ingestible_variable_ids)].copy()
     fact = fact.sort_values(
         ["observation_date", "geo_id", "variable_id", "source_vintage"]
     )

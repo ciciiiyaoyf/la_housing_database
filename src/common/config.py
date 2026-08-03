@@ -38,6 +38,7 @@ class SourceConfig:
     methodology_notes: str = ""
     license_or_use_notes: str = ""
     revision_notes: str = ""
+    provenance_status: str = ""
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "SourceConfig":

@@ -1692,13 +1692,12 @@ variables:
     debt service from bin income and burden midpoints, then convert payment to balance with a fixed-rate amortization formula.
   missing_value_policy: preserve null when inputs missing
   revision_policy: recompute when ACS or Freddie Mac inputs update
-  methodological_notes: Proxy, not observed balance. Assumes income midpoints 10000, 27500, 42500, 62500, and 112500; cost-burden
-    midpoints 0.10, 0.25, and 0.40; debt-service share of owner housing cost 0.80; remaining term 25 years; and Freddie Mac
-    PMMS average rate over the ACS 5-year window.
+  methodological_notes: Legacy Version-0 modeled scenario retained for reproducibility only. The current finance standard is the Version A `_benchmark` method using direct ACS B25089/B25081/B25082/B25120 levels, weighted PUMS parameters, and exact-date NMDB controls or an explicitly labeled PMMS sensitivity.
   observed_constructed_proxy_or_scenario: proxy
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: acs_implied_average_mortgage_balance_proxy
   display_name: ACS implied average mortgage balance proxy
   definition: Aggregate implied mortgage debt proxy divided by ACS B25081 owner units with mortgage.
@@ -1718,6 +1717,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: acs_implied_annual_mortgage_debt_service_proxy
   display_name: ACS implied annual mortgage debt service proxy
   definition: Annualized mortgage debt-service proxy inferred from ACS B25106 owner cost-burden bins.
@@ -1737,6 +1737,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: acs_mortgage_debt_proxy_rate_assumption
   display_name: Mortgage debt proxy rate assumption
   definition: Freddie Mac PMMS annual average rate used in the ACS implied mortgage-debt proxy.
@@ -1756,6 +1757,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: acs_mortgage_debt_proxy_term_years_assumption
   display_name: Mortgage debt proxy remaining-term assumption
   definition: Remaining amortization term assumption used in the ACS implied mortgage-debt proxy.
@@ -1775,6 +1777,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: acs_mortgage_debt_proxy_debt_service_share_assumption
   display_name: Mortgage debt proxy debt-service-share assumption
   definition: Share of ACS owner housing cost assigned to mortgage debt service in the implied mortgage-debt proxy.
@@ -1795,6 +1798,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: acs_implied_aggregate_home_equity_proxy
   display_name: ACS implied aggregate home equity proxy
   definition: ACS owner-occupied housing value proxy minus ACS implied aggregate mortgage debt proxy.
@@ -1810,11 +1814,12 @@ variables:
     ACS median home value.
   missing_value_policy: preserve null when inputs missing
   revision_policy: recompute when inputs update
-  methodological_notes: Proxy for the DOCX aggregate home-equity workaround; not an observed balance-sheet series.
+  methodological_notes: Legacy Version-0 modeled scenario retained for reproducibility only. The current finance standard uses the matched-universe Version A `_benchmark` equity variables and never treats this midpoint proxy as the primary benchmark.
   observed_constructed_proxy_or_scenario: proxy
   is_observed: false
   is_constructed: true
   is_proxy: true
+  active_status: Legacy modeled scenario
 - variable_id: cdc_wonder_live_births_annual
   display_name: CDC WONDER LA County annual live births
   definition: Annual live births for Los Angeles County from CDC WONDER Natality.
@@ -2572,3 +2577,211 @@ variables:
   methodological_notes: Benchmark comparison only; the indexes have different methods and universes.
   is_observed: false
   is_constructed: true
+- variable_id: usps_total_residential_addresses
+  display_name: USPS total residential addresses
+  definition: Total residential delivery addresses in the HUD-USPS quarterly administrative data.
+  provider: HUD-USPS
+  original_field: TOTAL_RESIDENTIAL_ADDRESSES
+  unit: addresses
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Sum standardized 2020-tract counts before calculating any aggregate rate; modeled ZIP-part values use a versioned residential-address crosswalk.
+  missing_value_policy: preserve null; never substitute another geography or period
+  revision_policy: archive every authorized raw response and crosswalk vintage
+  methodological_notes: Administrative all-residential address count. The supplied 2026-08-02 snapshot is quarantined for missing raw provenance; ZIP-part rows are modeled and identified at row level.
+  market_segment: Both
+  variable_role: Control
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: usps_short_term_vacant_residential_addresses
+  display_name: USPS short-term vacant residential addresses
+  definition: Residential addresses in the source short-term vacancy category.
+  provider: HUD-USPS
+  original_field: STV_RESIDENTIAL_ADDRESSES
+  unit: addresses
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Preserve the source count; aggregate by summing counts before rate calculation.
+  missing_value_policy: preserve null; never infer from total or another component
+  revision_policy: archive every authorized raw response and crosswalk vintage
+  methodological_notes: Source administrative component. ZIP-part rows are modeled; the supplied snapshot is quarantined for missing raw provenance.
+  market_segment: Both
+  variable_role: Control
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: usps_long_term_vacant_residential_addresses
+  display_name: USPS long-term vacant residential addresses
+  definition: Residential addresses in the source long-term vacancy category.
+  provider: HUD-USPS
+  original_field: LTV_RESIDENTIAL_ADDRESSES
+  unit: addresses
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Preserve the source count; aggregate by summing counts before rate calculation.
+  missing_value_policy: preserve null; never infer from total or another component
+  revision_policy: archive every authorized raw response and crosswalk vintage
+  methodological_notes: Source administrative component. ZIP-part rows are modeled; the supplied snapshot is quarantined for missing raw provenance.
+  market_segment: Both
+  variable_role: Control
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: usps_vacant_residential_addresses
+  display_name: USPS vacant residential addresses proxy numerator
+  definition: Short-term plus long-term vacant residential addresses.
+  provider: Constructed from HUD-USPS
+  original_field: STV_RESIDENTIAL_ADDRESSES + LTV_RESIDENTIAL_ADDRESSES
+  unit: addresses
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Add short-term and long-term residential vacancy counts only; no-stat is excluded.
+  missing_value_policy: null if either vacancy component is missing
+  revision_policy: rebuild from each archived source vintage
+  methodological_notes: All-residential administrative vacancy proxy numerator; not rental-listing inventory. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  market_segment: Both
+  variable_role: Proxy
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: proxy
+- variable_id: usps_no_stat_residential_addresses
+  display_name: USPS no-stat residential addresses
+  definition: Residential addresses in the USPS no-stat administrative category.
+  provider: HUD-USPS
+  original_field: NO_STAT_RESIDENTIAL_ADDRESSES
+  unit: addresses
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Preserve no-stat separately; never add it to the vacancy numerator.
+  missing_value_policy: preserve null
+  revision_policy: archive every authorized raw response and crosswalk vintage
+  methodological_notes: No-stat can reflect construction, rural-route status, or addresses unlikely to become active soon. It is a diagnostic, not vacancy. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  market_segment: Both
+  variable_role: Diagnostic
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: usps_active_residential_addresses
+  display_name: USPS active residential addresses
+  definition: Residential addresses in active mail-delivery status.
+  provider: HUD-USPS
+  original_field: ACTIVE_RESIDENTIAL_ADDRESSES
+  unit: addresses
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Preserve the source component and validate total equals active plus vacant plus no-stat.
+  missing_value_policy: preserve null; never infer when a required component is missing
+  revision_policy: archive every authorized raw response and crosswalk vintage
+  methodological_notes: Administrative mail-delivery status, not occupied rental inventory. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  market_segment: Both
+  variable_role: Diagnostic
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: usps_residential_vacancy_rate
+  display_name: USPS residential vacancy rate proxy
+  definition: Short-term plus long-term vacant residential addresses divided by total residential addresses.
+  provider: Constructed from HUD-USPS
+  original_field: (STV_RESIDENTIAL_ADDRESSES + LTV_RESIDENTIAL_ADDRESSES) / TOTAL_RESIDENTIAL_ADDRESSES
+  unit: ratio
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Sum address counts to the target geography before dividing; never average tract percentages and never include no-stat.
+  missing_value_policy: null when the denominator is zero or any required component is missing
+  revision_policy: rebuild from each archived source and crosswalk vintage
+  methodological_notes: Quarterly all-residential administrative address-vacancy proxy; not renter-only and not true rental-listing inventory. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  market_segment: Both
+  variable_role: Proxy
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: proxy
+- variable_id: usps_residential_no_stat_rate
+  display_name: USPS residential no-stat rate
+  definition: No-stat residential addresses divided by total residential addresses.
+  provider: Constructed from HUD-USPS
+  original_field: NO_STAT_RESIDENTIAL_ADDRESSES / TOTAL_RESIDENTIAL_ADDRESSES
+  unit: ratio
+  native_frequency: quarterly
+  final_frequency: quarterly
+  geography: county|tract_2020|postal_zip_county_part
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: Divide no-stat residential addresses by total residential addresses after geography aggregation.
+  missing_value_policy: null when the denominator is zero or a required component is missing
+  revision_policy: rebuild from each archived source and crosswalk vintage
+  methodological_notes: Separate diagnostic; never combine with the vacancy numerator. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  market_segment: Both
+  variable_role: Diagnostic
+  data_domain: residential_address_availability
+  source_geography: county|2020 census tract|postal ZIP county part
+  source_frequency: quarterly
+  model_frequency: quarterly
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  active_status: Quarantined
+  observed_constructed_proxy_or_scenario: proxy

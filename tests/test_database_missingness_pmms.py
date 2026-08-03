@@ -51,7 +51,7 @@ def test_county_panel_exposes_all_pmms_monthly_aggregates():
     assert summary[2] <= 5
 
 
-def test_duckdb_clean_schema_contains_only_active_configured_sources():
+def test_duckdb_clean_schema_contains_active_sources_and_union_views():
     config = load_config(ROOT)
     expected = {
         source.destination_clean_table or source.source_id
@@ -70,7 +70,7 @@ def test_duckdb_clean_schema_contains_only_active_configured_sources():
             ).fetchall()
         }
 
-    assert actual == expected
+    assert actual == expected | {"fhfa_hpi", "census_hvs_rental_vacancy"}
 
 
 def test_missing_values_are_preserved_in_panels_and_reports():
@@ -94,7 +94,7 @@ def test_missing_values_are_preserved_in_panels_and_reports():
             """
             SELECT count(*)
             FROM analytics.county_monthly_panel
-            WHERE permits_total IS NULL
+            WHERE permits_1_unit IS NULL
             """
         ).fetchone()[0]
 

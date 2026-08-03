@@ -1,1 +1,205 @@
-Assumption/proxy variables\n\nAggregate Mortgage Debt\n\nVariable:\n\nacs_implied_aggregate_mortgage_debt_proxy\n\nHow it is built:\n\n1. Use ACS B25081 for owner-occupied units with mortgage.\n\n2. Use ACS B25106 owner income × housing-cost-burden bins.\n\n3. Allocate B25081 mortgaged units across positive-income B25106 bins proportionally.\n\n4. Infer monthly owner housing cost: income midpoint × cost-burden midpoint / 12\n\n5. Treat 80% of owner housing cost as mortgage debt service.\n\n6. Convert monthly payment to implied balance using a fixed-rate amortization formula.\n\n7. Use Freddie Mac PMMS average 30-year mortgage rate over the ACS 5-year window.\n\n8. Assume 25 years remaining term.\n\n9. Sum all bin-level balances.\n\nWhy:\n\nACS does not publish mortgage balances. It publishes mortgage-status counts and owner cost-burden distributions, so this is the closest public county-level workaround.\n\nMain assumptions:\n\n* Income midpoints: $10k, $27.5k, $42.5k, $62.5k, $112.5k\n\n* Cost-burden midpoints: 10%, 25%, 40%\n\n* Debt-service share: 80%\n\n* Remaining term: 25 years\n\n* Zero/negative income bins are preserved but excluded from balance inference.\n\nDocumented in:\n\nmetadata/proxy_methodology_assumptions.csv\n\n\n\n\n\nAggregate Home Equity\n\nVariable:\n\nacs_implied_aggregate_home_equity_proxy\n\nFormula:\n\nACS owner-occupied housing value proxy - aggregate mortgage debt proxy\n\nwhere:\n\nowner-occupied housing value proxy = ACS owner-occupied units × ACS median home value\n\nWhy:\n\nThere is no public LA County household balance-sheet series for aggregate home equity. This follows the sheet’s workaround: housing value minus debt.\n\n\n\n\n\nMonthly Mortgage Payment\n\nVariables:\n\nmortgage_payment_3_5pct_down mortgage_payment_10pct_down mortgage_payment_20pct_down\n\nFormula:\n\nmonthly principal-and-interest payment = amortized loan payment on Redfin median sale price\n\nAssumptions:\n\n* Down payment scenarios: 3.5%, 10%, 20%\n\n* Loan term: 30 years\n\n* Rate: Freddie Mac PMMS monthly average 30-year fixed rate\n\n* Excludes taxes, insurance, HOA, maintenance, and PMI\n\nWhy:\n\nActual realized mortgage payments are not public at LA County monthly frequency. These are affordability scenarios, not observed payments.\n\n\n\n\n\nDownpayment\n\nVariables:\n\ndown_payment_3_5pct down_payment_10pct down_payment_20pct\n\nFormula:\n\nRedfin median sale price × down payment share\n\nWhy:\n\nDown payment amounts are not publicly observed by county/month. These scenarios represent common affordability benchmarks: FHA-style low down, intermediate, and conventional 20%.\n\nClosing Costs\n\nVariables:\n\nclosing_cost_2pct closing_cost_3pct closing_cost_5pct\n\nFormula:\n\nRedfin median sale price × closing cost share\n\nWhy:\n\nPublic geography-specific closing-cost data are not available. The percentages give low/central/high scenario estimates.\n\n\n\n\n\nSingle-Family Housing Starts proxy\n\nVariable:\n\npermits_1_unit\n\nHow used:\n\nCensus BPS 1-unit permits are used as the public proxy for single-family starts.\n\nWhy:\n\nThe available public source is permits, not starts or completions. The database explicitly labels this as permits and does not relabel permits as starts.\n\n\n\n\n\nNet Migration / Immigration workaround\n\nMain variable:\n\nirs_soi_net_migration_exemptions\n\nFormula:\n\nIRS SOI in-migration exemptions - IRS SOI out-migration exemptions\n\nAlso loaded:\n\nirs_soi_net_migration_returns irs_soi_net_migration_agi\n\nWhy:\n\nIRS SOI county migration is the official public annual county migration workaround. Exemptions approximate people better than returns. Returns approximate filing units/households. AGI captures income composition.\n\nLimitation:\n\nThis is tax-return migration, not complete immigration. It misses nonfilers and does not fully capture international migration.\n\n\n\n\n\nPrice-to-Rent Ratio\n\nVariable:\n\nprice_to_rent_ratio\n\nFormula:\n\nZHVI / (12 × ZORI)\n\nWhy:\n\nThis gives a monthly price-to-annual-rent affordability ratio. It uses the active Zillow ZORI smoothed seasonally adjusted series. This is implemented as an alternate source version; the FHFA/ZORI version from the sheet is still not separately constructed.\n\n\n\n\n\nRental inventory\n\n– redfin or zillow?\n
+CURRENT METHOD PRECEDENCE (2026-08-02)
+
+The Version A variables ending in `_benchmark` are the authoritative mortgage-debt and home-equity standard. They use direct ACS B25089/B25081/B25082/B25120 levels, weighted ACS PUMS parameters, exact-date NMDB controls when compatible, and clearly labeled PMMS sensitivity fallbacks. The older B25106 midpoint / 80% debt-service / 25-year method documented below is retained only as a legacy modeled scenario for reproducibility.
+
+The HUD-USPS `usps_residential_vacancy_rate` method is a quarterly all-residential administrative address-vacancy proxy, not true rental-listing inventory. Its surviving 2026-08-02 package is quarantined and excluded from active facts until official raw responses and crosswalk provenance are reacquired and archived. No-stat remains a separate diagnostic.
+
+Assumption/proxy variables
+
+Aggregate Mortgage Debt
+
+Variable:
+
+acs_implied_aggregate_mortgage_debt_proxy
+
+How it is built:
+
+1. Use ACS B25081 for owner-occupied units with mortgage.
+
+2. Use ACS B25106 owner income × housing-cost-burden bins.
+
+3. Allocate B25081 mortgaged units across positive-income B25106 bins proportionally.
+
+4. Infer monthly owner housing cost: income midpoint × cost-burden midpoint / 12
+
+5. Treat 80% of owner housing cost as mortgage debt service.
+
+6. Convert monthly payment to implied balance using a fixed-rate amortization formula.
+
+7. Use Freddie Mac PMMS average 30-year mortgage rate over the ACS 5-year window.
+
+8. Assume 25 years remaining term.
+
+9. Sum all bin-level balances.
+
+Why:
+
+ACS does not publish mortgage balances. It publishes mortgage-status counts and owner cost-burden distributions, so this is the closest public county-level workaround.
+
+Main assumptions:
+
+* Income midpoints: $10k, $27.5k, $42.5k, $62.5k, $112.5k
+
+* Cost-burden midpoints: 10%, 25%, 40%
+
+* Debt-service share: 80%
+
+* Remaining term: 25 years
+
+* Zero/negative income bins are preserved but excluded from balance inference.
+
+Documented in:
+
+metadata/proxy_methodology_assumptions.csv
+
+
+
+
+
+Aggregate Home Equity
+
+Variable:
+
+acs_implied_aggregate_home_equity_proxy
+
+Formula:
+
+ACS owner-occupied housing value proxy - aggregate mortgage debt proxy
+
+where:
+
+owner-occupied housing value proxy = ACS owner-occupied units × ACS median home value
+
+Why:
+
+There is no public LA County household balance-sheet series for aggregate home equity. This follows the sheet’s workaround: housing value minus debt.
+
+
+
+
+
+Monthly Mortgage Payment
+
+Variables:
+
+mortgage_payment_3_5pct_down mortgage_payment_10pct_down mortgage_payment_20pct_down
+
+Formula:
+
+monthly principal-and-interest payment = amortized loan payment on Redfin median sale price
+
+Assumptions:
+
+* Down payment scenarios: 3.5%, 10%, 20%
+
+* Loan term: 30 years
+
+* Rate: Freddie Mac PMMS monthly average 30-year fixed rate
+
+* Excludes taxes, insurance, HOA, maintenance, and PMI
+
+Why:
+
+Actual realized mortgage payments are not public at LA County monthly frequency. These are affordability scenarios, not observed payments.
+
+
+
+
+
+Downpayment
+
+Variables:
+
+down_payment_3_5pct down_payment_10pct down_payment_20pct
+
+Formula:
+
+Redfin median sale price × down payment share
+
+Why:
+
+Down payment amounts are not publicly observed by county/month. These scenarios represent common affordability benchmarks: FHA-style low down, intermediate, and conventional 20%.
+
+Closing Costs
+
+Variables:
+
+closing_cost_2pct closing_cost_3pct closing_cost_5pct
+
+Formula:
+
+Redfin median sale price × closing cost share
+
+Why:
+
+Public geography-specific closing-cost data are not available. The percentages give low/central/high scenario estimates.
+
+
+
+
+
+Single-Family Housing Starts proxy
+
+Variable:
+
+permits_1_unit
+
+How used:
+
+Census BPS 1-unit permits are used as the public proxy for single-family starts.
+
+Why:
+
+The available public source is permits, not starts or completions. The database explicitly labels this as permits and does not relabel permits as starts.
+
+
+
+
+
+Net Migration / Immigration workaround
+
+Main variable:
+
+irs_soi_net_migration_exemptions
+
+Formula:
+
+IRS SOI in-migration exemptions - IRS SOI out-migration exemptions
+
+Also loaded:
+
+irs_soi_net_migration_returns irs_soi_net_migration_agi
+
+Why:
+
+IRS SOI county migration is the official public annual county migration workaround. Exemptions approximate people better than returns. Returns approximate filing units/households. AGI captures income composition.
+
+Limitation:
+
+This is tax-return migration, not complete immigration. It misses nonfilers and does not fully capture international migration.
+
+
+
+
+
+Price-to-Rent Ratio
+
+Variable:
+
+price_to_rent_ratio
+
+Formula:
+
+ZHVI / (12 × ZORI)
+
+Why:
+
+This gives a monthly price-to-annual-rent affordability ratio. It uses the active Zillow ZORI smoothed seasonally adjusted series. This is implemented as an alternate source version; the FHFA/ZORI version from the sheet is still not separately constructed.
+
+
+
+
+
+Rental inventory
+
+– redfin or zillow?

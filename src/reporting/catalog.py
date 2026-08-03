@@ -12,6 +12,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
+import yaml
 
 from src.common.config import ProjectConfig, SourceConfig
 
@@ -46,13 +47,13 @@ DOCX_VARIABLES = [
         "Difficult Variables",
         "Aggregate Home Equity",
         why_hard="No public state/county balance-sheet series; Fed Flow of Funds is national only",
-        best_public_workaround="Construct proxy: owner-occupied housing value minus aggregate mortgage debt proxy. Housing value from ACS owner units times median value or Zillow; debt proxy below.",
+        best_public_workaround="Use the Version A benchmark: published ACS B25082 aggregate owner values less the matched-universe, California-calibrated first-mortgage debt benchmark; add published mortgage-free owner value in full for all-owner equity.",
     ),
     _req(
         "Difficult Variables",
         "Aggregate Mortgage Debt (outstanding balances)",
         why_hard="ACS reports payments, not balances; no public CA/LA balance series",
-        best_public_workaround="Approximate via owner-occupied-with-mortgage counts times implied balance from payment distributions (ACS B25106) plus interest rate assumptions.",
+        best_public_workaround="Use the Version A benchmark: direct ACS B25089/B25081 levels, weighted ACS PUMS first-mortgage P&I parameters, an exact-date joint NMDB rate-term distribution, and a compatible California UPB control. Retain PMMS only as a labeled sensitivity fallback.",
     ),
     _req(
         "Difficult Variables",
@@ -188,8 +189,24 @@ def _impl(
 
 
 IMPLEMENTATION = {
-    "Aggregate Home Equity": _impl("Proxy implemented", "census_acs_5year_b25003|census_acs_5year_b25077|census_acs_5year_b25081|census_acs_5year_b25106|freddie_mac_pmms", "acs_implied_aggregate_home_equity_proxy", "analytics.county_annual_controls", "acs_implied_aggregate_home_equity_proxy", "proxy", "Implements the sheet workaround as owner-occupied units times ACS median home value minus the implied aggregate mortgage-debt proxy. This is not an observed balance-sheet series."),
-    "Aggregate Mortgage Debt (outstanding balances)": _impl("Proxy implemented", "census_acs_5year_b25081|census_acs_5year_b25106|freddie_mac_pmms", "acs_implied_aggregate_mortgage_debt_proxy", "analytics.county_annual_controls", "acs_implied_aggregate_mortgage_debt_proxy", "proxy", "Implied from ACS B25106 owner income/cost-burden bins, ACS B25081 owner-with-mortgage counts, and Freddie Mac rate assumptions. ACS does not directly publish balances."),
+    "Aggregate Home Equity": _impl(
+        "Proxy implemented",
+        "census_acs5_finance|census_acs5_pums_housing_ca|census_tract_to_puma_2010|census_tract_to_puma_2020|fhfa_nmdb_joint_distribution|fhfa_nmdb_ca_upb|freddie_mac_pmms|bls_cpi_u_us_city_average",
+        "acs_implied_owner_occupied_home_equity_mortgaged_benchmark|acs_implied_owner_occupied_home_equity_all_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark|acs_implied_owner_occupied_home_equity_all_real_2024_benchmark",
+        "analytics.housing_finance_benchmark",
+        "acs_implied_owner_occupied_home_equity_all_benchmark",
+        "proxy",
+        "Version A is authoritative: published ACS matched-universe owner values less exact-date California-calibrated first-mortgage debt, with mortgage-free value added in full for the all-owner measure. Calibrated debt and equity remain null when an exact-date, universe-compatible California NMDB UPB control is unavailable. The older B25106 midpoint proxy remains only as a labeled legacy modeled scenario.",
+    ),
+    "Aggregate Mortgage Debt (outstanding balances)": _impl(
+        "Proxy implemented",
+        "census_acs5_finance|census_acs5_pums_housing_ca|census_tract_to_puma_2010|census_tract_to_puma_2020|fhfa_nmdb_joint_distribution|fhfa_nmdb_ca_upb|freddie_mac_pmms",
+        "acs_implied_first_mortgage_balance_raw_benchmark|acs_implied_first_mortgage_balance_cal_benchmark|acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark|acs_first_mortgage_debt_per_owner_unit_benchmark|acs_first_mortgage_debt_per_capita_benchmark|acs_first_mortgage_debt_to_owner_income_benchmark",
+        "analytics.housing_finance_benchmark",
+        "acs_implied_first_mortgage_balance_cal_benchmark",
+        "proxy",
+        "Version A is authoritative: direct ACS B25089/B25081 levels, weighted PUMS first-mortgage P&I parameters, an exact-date joint NMDB rate-term distribution, and a compatible California UPB control. PMMS is only a labeled sensitivity fallback. Calibrated values remain null without the compatible control. The older B25106 midpoint/80%/25-year proxy is legacy.",
+    ),
     "Monthly Mortgage Payment": _impl("Scenario implemented", "", "mortgage_payment_3_5pct_down|mortgage_payment_10pct_down|mortgage_payment_20pct_down", "analytics.county_monthly_panel", "mortgage_payment_3_5pct_down|mortgage_payment_10pct_down|mortgage_payment_20pct_down", "scenario assumption", "Principal-and-interest scenarios only; excludes taxes, insurance, HOA, maintenance, and PMI."),
     "Homebuying Costs - Downpayment": _impl("Scenario implemented", "", "down_payment_3_5pct|down_payment_10pct|down_payment_20pct", "analytics.county_monthly_panel", "down_payment_3_5pct|down_payment_10pct|down_payment_20pct", "scenario assumption", "Scenario percentages of Redfin county median sale price."),
     "Homebuying Costs - Closing Costs": _impl("Scenario implemented", "", "closing_cost_2pct|closing_cost_3pct|closing_cost_5pct", "analytics.county_monthly_panel", "closing_cost_2pct|closing_cost_3pct|closing_cost_5pct", "scenario assumption", "Scenario percentages of Redfin county median sale price; not observed closing-cost data."),
@@ -214,7 +231,15 @@ IMPLEMENTATION = {
     "Single-Family Housing Starts (permits)": _impl("Proxy implemented", "census_bps_county|census_bps_state", "permits_1_unit", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_1_unit", "proxy", "Census BPS permits are authorizations, not starts or completions."),
     "Market Rent Index (ZORI)": _impl("Implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "observed", "Active ZORI is smoothed, seasonally adjusted, all homes plus multifamily."),
     "Rent Growth (YoY / MoM)": _impl("Implemented", "", "zori_growth_mom|zori_growth_yoy", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "constructed", "Calculated from seasonally adjusted ZORI with initial missing months preserved."),
-    "Rental Inventory": _impl("Not implemented - sheet source endpoint not verified", "", "", "", "", "unavailable", "The sheet specifies Zillow Observed Rent Index / Listings. ZORI is loaded, but ZORI is not inventory; it is a rent index, not a rental-listing stock count. Redfin for-sale active listings are not a valid substitute. A verified official Zillow rental-listings/inventory endpoint is still needed."),
+    "Rental Inventory": _impl(
+        "Quarantined constructed proxy",
+        "hud_usps_ncwm_quarterly",
+        "usps_total_residential_addresses|usps_short_term_vacant_residential_addresses|usps_long_term_vacant_residential_addresses|usps_vacant_residential_addresses|usps_no_stat_residential_addresses|usps_active_residential_addresses|usps_residential_vacancy_rate|usps_residential_no_stat_rate",
+        "",
+        "usps_residential_vacancy_rate",
+        "constructed proxy (quarantined)",
+        "Quarterly all-residential USPS address-vacancy proxy only: (short-term vacant + long-term vacant) / total residential addresses. No-stat remains a separate diagnostic. It is not true rental-listing inventory; ZORI is not inventory (it is a rent index), and Redfin for-sale active listings are not a valid substitute. The surviving derived snapshot is quarantined because the official raw responses, raw crosswalk, exact retrieval timestamps, source release dates, and raw checksums were not preserved.",
+    ),
     "Rental Vacancy (HVS / CPS)": _impl("Implemented", "census_hvs_state_rental_vacancy|census_hvs_metro_rental_vacancy_2005_2014|census_hvs_metro_rental_vacancy_2015_2025|census_hvs_metro_rental_vacancy_2026", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "analytics.state_quarterly_panel|analytics.metro_quarterly_controls", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "observed", "State/metro quarterly only; not LA County."),
     "Multifamily Permits (5+ units)": _impl("Implemented", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "observed", "Supply-pipeline authorization measure; not starts or completions."),
     "Price-to-Rent Ratio": _impl("Partially implemented - alternate source", "zillow_county_zhvi|zillow_county_zori_smoothed_sa", "price_to_rent_ratio", "analytics.county_monthly_panel", "price_to_rent_ratio", "constructed", "The active monthly panel ratio uses ZHVI/ZORI. The sheet specifies FHFA/ZORI; that version needs an explicit FHFA index-to-rent construction choice and is not yet implemented."),
@@ -227,6 +252,266 @@ IMPLEMENTATION = {
     "Personal Income (proxy)": _impl("Partially implemented", "bea_state_personal_income|bea_county_personal_income", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "analytics.state_quarterly_panel|analytics.county_annual_controls", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "observed", "Aligned with BEA as the sheet source. State quarterly is loaded; county is annual because county quarterly personal income is limited/noisier as noted in the sheet."),
     "CPI / Inflation": _impl("Implemented", "bls_cpi_la_metro", "cpi_u_all_items_la_nsa", "analytics.metro_monthly_controls", "cpi_u_all_items_la_nsa", "observed", "LA metro CPI-U, not county."),
 }
+
+
+# Version A defines nine source IDs, but ``freddie_mac_pmms`` is already in the
+# general source registry. These are the eight additional IDs needed for one
+# consolidated, duplicate-free data catalog.
+VERSION_A_UNIQUE_SOURCE_IDS = (
+    "census_acs5_finance",
+    "census_acs5_pums_housing_ca",
+    "census_tract_to_puma_2010",
+    "census_tract_to_puma_2020",
+    "cfpb_hmda_modified_lar",
+    "fhfa_nmdb_joint_distribution",
+    "fhfa_nmdb_ca_upb",
+    "bls_cpi_u_us_city_average",
+)
+
+VERSION_A_SOURCE_PRODUCTS = {
+    "census_acs5_finance": "ACS 5-Year Housing Finance Benchmark Tables",
+    "census_acs5_pums_housing_ca": (
+        "ACS 5-Year PUMS California Housing Records"
+    ),
+    "census_tract_to_puma_2010": (
+        "2010 Census Tract-to-PUMA Relationship"
+    ),
+    "census_tract_to_puma_2020": (
+        "2020 Census Tract-to-PUMA Relationship"
+    ),
+    "cfpb_hmda_modified_lar": "HMDA Modified Loan/Application Register",
+    "fhfa_nmdb_joint_distribution": (
+        "NMDB Joint Outstanding Mortgage Rate-Term Distribution"
+    ),
+    "fhfa_nmdb_ca_upb": "NMDB California Unpaid Principal Balance Control",
+    "bls_cpi_u_us_city_average": (
+        "CPI-U U.S. City Average All Items Annual Average"
+    ),
+}
+
+VERSION_A_SOURCE_VARIABLES = {
+    "census_acs5_finance": (
+        "acs_total_population_benchmark",
+        "acs_aggregate_selected_monthly_owner_costs_mortgaged_benchmark",
+        "acs_owner_occupied_units_benchmark",
+        "acs_mortgaged_owner_units_benchmark",
+        "acs_aggregate_owner_value_all_benchmark",
+        "acs_aggregate_owner_value_mortgaged_benchmark",
+        "acs_aggregate_owner_value_no_mortgage_benchmark",
+        "acs_aggregate_household_income_owner_benchmark",
+        "acs_aggregate_household_income_mortgaged_owner_benchmark",
+        "acs_aggregate_household_income_no_mortgage_owner_benchmark",
+    ),
+    "census_acs5_pums_housing_ca": (
+        "pums_first_mortgage_pi_share_benchmark",
+        "pums_first_mortgage_pi_share_applied_benchmark",
+        "pums_junior_lien_payment_per_mortgaged_unit_benchmark",
+    ),
+    "census_tract_to_puma_2010": ("tract_to_puma_relationship_2010",),
+    "census_tract_to_puma_2020": ("tract_to_puma_relationship_2020",),
+    "cfpb_hmda_modified_lar": (
+        "hmda_median_downpayment_rate_benchmark",
+        "hmda_property_value_weighted_downpayment_rate_benchmark",
+        "hmda_aggregate_downpayment_flow_benchmark",
+    ),
+    "fhfa_nmdb_joint_distribution": (
+        "nmdb_joint_outstanding_rate_remaining_term_distribution",
+    ),
+    "fhfa_nmdb_ca_upb": ("nmdb_california_upb_control",),
+    "bls_cpi_u_us_city_average": (
+        "cpi_u_us_city_average_annual_average_benchmark",
+    ),
+}
+
+
+def _source_lifecycle_status(source: SourceConfig) -> str:
+    """Return the single provenance-aware source status used by all catalogs."""
+
+    provenance = str(source.provenance_status or "").strip().lower()
+    if provenance.startswith("quarantined"):
+        return "Quarantined"
+    return "Active" if source.enabled else "Inactive"
+
+
+def _version_a_source_settings(config: ProjectConfig) -> dict[str, dict]:
+    path = config.root / "config" / "version_a_benchmark.yaml"
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as handle:
+        document = yaml.safe_load(handle) or {}
+    sources = document.get("sources", {})
+    if not isinstance(sources, dict):
+        raise ValueError("version_a_benchmark.yaml sources must be a mapping")
+    missing = sorted(set(VERSION_A_UNIQUE_SOURCE_IDS) - set(sources))
+    if missing:
+        raise ValueError(
+            "Version A catalog source definitions are missing: "
+            f"{missing}"
+        )
+    return sources
+
+
+def _latest_version_a_manifest_rows(config: ProjectConfig) -> pd.DataFrame:
+    path = config.root / "metadata" / "version_a_raw_file_manifest.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    manifest = pd.read_csv(path, dtype=str)
+    if manifest.empty:
+        return manifest
+    required = {"source_id", "retrieved_at"}
+    if not required.issubset(manifest.columns):
+        raise ValueError(
+            "Version A raw manifest is missing columns: "
+            f"{sorted(required - set(manifest.columns))}"
+        )
+    return (
+        manifest.sort_values(["source_id", "retrieved_at"])
+        .drop_duplicates("source_id", keep="last")
+        .set_index("source_id", drop=False)
+    )
+
+
+def _clean_text(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return str(value)
+
+
+def _version_a_catalog_records(config: ProjectConfig) -> list[dict[str, object]]:
+    settings = _version_a_source_settings(config)
+    if not settings:
+        return []
+    manifest = _latest_version_a_manifest_rows(config)
+    benchmark = _read_parquet(
+        config.root / "data" / "final" / "housing_finance_benchmark.parquet"
+    )
+    records: list[dict[str, object]] = []
+    for source_id in VERSION_A_UNIQUE_SOURCE_IDS:
+        source = settings[source_id]
+        manifest_row = (
+            manifest.loc[source_id].to_dict()
+            if not manifest.empty and source_id in manifest.index
+            else {}
+        )
+        raw_relative_path = _clean_text(manifest_row.get("relative_path"))
+        raw_path = config.root / raw_relative_path if raw_relative_path else None
+        archived = bool(raw_path and raw_path.is_file())
+        if benchmark.empty or "source_id" not in benchmark:
+            source_rows = pd.DataFrame()
+        else:
+            source_pattern = rf"(?:^|\|){re.escape(source_id)}(?:\||$)"
+            source_rows = benchmark.loc[
+                benchmark["source_id"]
+                .astype("string")
+                .str.contains(source_pattern, regex=True, na=False)
+            ].copy()
+        date_column = next(
+            (
+                column
+                for column in (
+                    "source_period_end",
+                    "reference_date",
+                    "month",
+                )
+                if column in source_rows
+            ),
+            None,
+        )
+        dates = (
+            pd.to_datetime(source_rows[date_column], errors="coerce")
+            if date_column
+            else pd.Series(dtype="datetime64[ns]")
+        )
+        acquisition = _clean_text(source.get("acquisition"))
+        manual = (
+            _clean_text(source.get("implementation_status"))
+            == "manual_required"
+        )
+        download_url = next(
+            (
+                _clean_text(source.get(key))
+                for key in (
+                    "download_url",
+                    "download_url_template",
+                    "api_url_template",
+                )
+                if _clean_text(source.get(key))
+            ),
+            "",
+        )
+        source_page_url = _clean_text(source.get("source_page_url")) or download_url
+        source_filename = _clean_text(manifest_row.get("source_filename"))
+        file_format = Path(source_filename).suffix.lstrip(".")
+        if not file_format:
+            file_format = "provider_export" if manual else "provider_file"
+        update_command = (
+            "python -m src.benchmark.pipeline --stage download --source "
+            f"{source_id}"
+            + (
+                " --local-file PATH_TO_OFFICIAL_FILE --release-date YYYY-MM-DD"
+                if manual
+                else " --force-download"
+            )
+        )
+        geography = _clean_text(source.get("geography"))
+        notes = _clean_text(source.get("notes"))
+        records.append(
+            {
+                "source_id": source_id,
+                "provider": _clean_text(source.get("provider")),
+                "dataset_name": VERSION_A_SOURCE_PRODUCTS[source_id],
+                "source_page_url": source_page_url,
+                "download_url": download_url,
+                "access_method": acquisition,
+                "active_status": "Version A benchmark",
+                "provenance_status": (
+                    "archived_official_source"
+                    if archived
+                    else "registered_official_source_no_archived_vintage"
+                ),
+                "manual_download_required": manual,
+                "manual_reason": notes if manual else "",
+                "file_format": file_format,
+                "raw_file_path": raw_relative_path,
+                "original_filename": _clean_text(
+                    manifest_row.get("original_filename")
+                ),
+                "retrieved_at": _clean_text(manifest_row.get("retrieved_at")),
+                "provider_vintage": _clean_text(
+                    manifest_row.get("release_date")
+                )
+                or _clean_text(manifest_row.get("data_vintage")),
+                "checksum_sha256": _clean_text(
+                    manifest_row.get("checksum_sha256")
+                ),
+                "native_frequency": _clean_text(source.get("native_frequency")),
+                "geography": geography,
+                "variable_ids": VERSION_A_SOURCE_VARIABLES[source_id],
+                "start_date": dates.min() if dates.notna().any() else None,
+                "end_date": dates.max() if dates.notna().any() else None,
+                "row_count": len(source_rows),
+                "destination_clean_table": "data/benchmark/clean",
+                "destination_analytical_table": (
+                    "analytics.housing_finance_benchmark"
+                ),
+                "update_command": update_command,
+                "known_limitations": notes,
+                "license_or_use_notes": "Official public source; cite provider terms.",
+                "observed_constructed_proxy_or_scenario": (
+                    "geography crosswalk"
+                    if source_id.startswith("census_tract_to_puma_")
+                    else "published parameter input"
+                    if source_id.startswith("fhfa_nmdb_")
+                    else "observed source input"
+                ),
+                "notes": (
+                    "Version A source archived with immutable provenance."
+                    if archived
+                    else "Version A source registered; no archived vintage is active."
+                ),
+            }
+        )
+    return records
 
 
 PANEL_PATHS = {
@@ -298,8 +583,70 @@ def _panel_stats(config: ProjectConfig, tables: str, columns: str) -> dict[str, 
     }
 
 
+def _benchmark_stats(
+    config: ProjectConfig,
+    tables: str,
+    variable_ids: str,
+) -> dict[str, object]:
+    if "analytics.housing_finance_benchmark" not in str(tables).split("|"):
+        return {
+            "start_date": None,
+            "end_date": None,
+            "row_count": 0,
+            "missingness_summary": "",
+        }
+    frame = _read_parquet(
+        config.root / "data" / "final" / "housing_finance_benchmark.parquet"
+    )
+    ids = [item for item in str(variable_ids).split("|") if item]
+    if frame.empty or not ids or "variable_id" not in frame:
+        return {
+            "start_date": None,
+            "end_date": None,
+            "row_count": 0,
+            "missingness_summary": "",
+        }
+    work = frame.loc[frame["variable_id"].isin(ids)].copy()
+    if work.empty:
+        return {
+            "start_date": None,
+            "end_date": None,
+            "row_count": 0,
+            "missingness_summary": "",
+        }
+    date_column = next(
+        (
+            column
+            for column in ("source_period_end", "reference_date", "month")
+            if column in work
+        ),
+        None,
+    )
+    dates = (
+        pd.to_datetime(work[date_column], errors="coerce")
+        if date_column
+        else pd.Series(dtype="datetime64[ns]")
+    )
+    missing = int(work["value"].isna().sum()) if "value" in work else 0
+    return {
+        "start_date": dates.min() if dates.notna().any() else None,
+        "end_date": dates.max() if dates.notna().any() else None,
+        "row_count": len(work),
+        "missingness_summary": (
+            f"{missing} missing of {len(work)} Version A benchmark rows"
+        ),
+    }
+
+
 def _best_stats(config: ProjectConfig, fact: pd.DataFrame, implementation: dict[str, str]) -> dict[str, object]:
     stats = _fact_stats(fact, implementation["implemented_variable_id"])
+    if stats["row_count"]:
+        return stats
+    stats = _benchmark_stats(
+        config,
+        implementation["implemented_table"],
+        implementation["implemented_variable_id"],
+    )
     if stats["row_count"]:
         return stats
     return _panel_stats(
@@ -323,6 +670,26 @@ def _latest_manifest_rows(config: ProjectConfig) -> pd.DataFrame:
         .drop_duplicates("source_id", keep="last")
         .set_index("source_id", drop=False)
     )
+
+
+def _quarantined_package_row(
+    config: ProjectConfig,
+    source: SourceConfig,
+) -> dict[str, object]:
+    """Return protected-package metadata without treating it as official raw."""
+
+    if source.source_id != "hud_usps_ncwm_quarterly":
+        return {}
+    path = config.root / "metadata" / "hud_usps_quarantine_manifest.csv"
+    if not path.exists():
+        return {}
+    manifest = pd.read_csv(path, dtype=str)
+    package = manifest.loc[manifest["artifact_type"].eq("package")]
+    if len(package) != 1:
+        raise ValueError(
+            "HUD/USPS quarantine manifest must contain exactly one package row"
+        )
+    return package.iloc[0].to_dict()
 
 
 def _raw_path(config: ProjectConfig, manifest_row: dict[str, object]) -> Path | None:
@@ -452,7 +819,21 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
         )
         variables = list(source.key_variables)
         stats = _source_stats(config, source)
-        raw_path = _raw_path(config, manifest_row)
+        lifecycle_status = _source_lifecycle_status(source)
+        quarantine_row = (
+            _quarantined_package_row(config, source)
+            if lifecycle_status == "Quarantined"
+            else {}
+        )
+        update_command = (
+            "BLOCKED: reacquire and archive the official HUD/USPS API responses "
+            "and crosswalk, complete provenance, and enable the source before "
+            "running a download workflow."
+            if lifecycle_status == "Quarantined"
+            else f"python run_pipeline.py --stage download --source {source.source_id} --force-download"
+        )
+        catalog_file_row = manifest_row or quarantine_row
+        raw_path = _raw_path(config, catalog_file_row)
         rows.append(
             {
                 "Source": source.dataset_name,
@@ -465,18 +846,30 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                 "official_source_page": source.source_page_url,
                 "exact_download_url_or_api": source.download_url,
                 "access_method": source.access_method,
-                "active_status": "Active" if source.enabled else "Inactive",
-                "observed_constructed_proxy_or_scenario": "observed",
+                "active_status": lifecycle_status,
+                "provenance_status": source.provenance_status,
+                "observed_constructed_proxy_or_scenario": (
+                    "constructed proxy (quarantined)"
+                    if lifecycle_status == "Quarantined"
+                    else "observed"
+                ),
                 "manual_download_required": not source.auto_download,
                 "manual_reason": source.manual_reason,
-                "raw_file_format": source.file_format,
-                "raw_file_path": manifest_row.get("relative_path"),
-                "original_filename": manifest_row.get("original_filename"),
+                "raw_file_format": (
+                    "zip (quarantined derived package)"
+                    if lifecycle_status == "Quarantined"
+                    else source.file_format
+                ),
+                "raw_file_path": catalog_file_row.get("relative_path"),
+                "original_filename": catalog_file_row.get("original_filename")
+                or catalog_file_row.get("source_filename"),
                 "retrieval_date": manifest_row.get("retrieved_at"),
                 "provider_vintage": manifest_row.get("provider_last_updated")
                 or manifest_row.get("source_last_updated")
-                or manifest_row.get("data_vintage"),
-                "checksum_sha256": manifest_row.get("checksum_sha256"),
+                or manifest_row.get("data_vintage")
+                or quarantine_row.get("snapshot_vintage"),
+                "checksum_sha256": catalog_file_row.get("checksum_sha256")
+                or catalog_file_row.get("sha256"),
                 "native_frequency": source.native_frequency,
                 "analytical_frequency": source.native_frequency,
                 "geography_level": "|".join(source.geography_levels),
@@ -489,18 +882,92 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                 "seasonal_adjustment": "",
                 "smoothing": "",
                 "units": "",
-                "destination_clean_table": _source_clean_name(source),
-                "destination_analytical_table": source.destination_analytical_table
-                or "analytics.fact_housing_observation",
-                "update_command": f"python run_pipeline.py --stage download --source {source.source_id} --force-download",
+                "destination_clean_table": (
+                    ""
+                    if lifecycle_status == "Quarantined"
+                    else _source_clean_name(source)
+                ),
+                "destination_analytical_table": (
+                    ""
+                    if lifecycle_status == "Quarantined"
+                    else source.destination_analytical_table
+                    or "analytics.fact_housing_observation"
+                ),
+                "update_command": update_command,
                 "missing_value_policy": "preserve null",
                 "revision_policy": source.revision_notes,
                 "known_limitations": source.methodology_notes,
                 "license_or_use_notes": source.license_or_use_notes,
                 "last_verified": config.verified_at,
-                "notes": "Raw file exists" if raw_path and raw_path.exists() else "No local raw file",
+                "notes": (
+                    "Intentional quarantine; excluded from active ingestion"
+                    if lifecycle_status == "Quarantined"
+                    else "Raw file exists"
+                    if raw_path and raw_path.exists()
+                    else "No local raw file"
+                ),
             }
         )
+    existing_ids = {str(row["source_id"]) for row in rows}
+    for source in _version_a_catalog_records(config):
+        if source["source_id"] in existing_ids:
+            continue
+        variable_ids = tuple(source["variable_ids"])
+        rows.append(
+            {
+                "Source": source["dataset_name"],
+                "Frequency": source["native_frequency"],
+                "Geography": source["geography"],
+                "Key variables": "|".join(variable_ids),
+                "source_id": source["source_id"],
+                "provider": source["provider"],
+                "product": source["dataset_name"],
+                "official_source_page": source["source_page_url"],
+                "exact_download_url_or_api": source["download_url"],
+                "access_method": source["access_method"],
+                "active_status": source["active_status"],
+                "provenance_status": source["provenance_status"],
+                "observed_constructed_proxy_or_scenario": source[
+                    "observed_constructed_proxy_or_scenario"
+                ],
+                "manual_download_required": source[
+                    "manual_download_required"
+                ],
+                "manual_reason": source["manual_reason"],
+                "raw_file_format": source["file_format"],
+                "raw_file_path": source["raw_file_path"],
+                "original_filename": source["original_filename"],
+                "retrieval_date": source["retrieved_at"],
+                "provider_vintage": source["provider_vintage"],
+                "checksum_sha256": source["checksum_sha256"],
+                "native_frequency": source["native_frequency"],
+                "analytical_frequency": source["native_frequency"],
+                "geography_level": source["geography"],
+                "geography_name": source["geography"],
+                "geography_id": "",
+                "start_date": source["start_date"],
+                "end_date": source["end_date"],
+                "row_count": source["row_count"],
+                "variable_ids": "|".join(variable_ids),
+                "seasonal_adjustment": "not applicable",
+                "smoothing": "none",
+                "units": "source-specific",
+                "destination_clean_table": source[
+                    "destination_clean_table"
+                ],
+                "destination_analytical_table": source[
+                    "destination_analytical_table"
+                ],
+                "update_command": source["update_command"],
+                "missing_value_policy": "preserve null",
+                "revision_policy": "Archive every immutable source vintage.",
+                "known_limitations": source["known_limitations"],
+                "license_or_use_notes": source["license_or_use_notes"],
+                "last_verified": config.verified_at,
+                "notes": source["notes"],
+            }
+        )
+        existing_ids.add(str(source["source_id"]))
     first_columns = ["Source", "Frequency", "Geography", "Key variables"]
     catalog = pd.DataFrame(rows)
     return catalog[first_columns + [col for col in catalog.columns if col not in first_columns]]
@@ -529,14 +996,22 @@ def _raw_repository_completeness(config: ProjectConfig) -> pd.DataFrame:
             "key_variables_present": bool(source.key_variables),
         }
         issues = [name for name, ok in checks.items() if not ok]
+        lifecycle_status = _source_lifecycle_status(source)
+        if lifecycle_status == "Active":
+            completeness_status = "PASS" if not issues else "FAIL"
+        elif lifecycle_status == "Quarantined":
+            completeness_status = "QUARANTINED"
+        else:
+            completeness_status = "INACTIVE"
         rows.append(
             {
                 "source_id": source.source_id,
                 "provider": source.provider,
                 "dataset_name": source.dataset_name,
-                "active_status": "Active" if source.enabled else "Inactive",
+                "active_status": lifecycle_status,
+                "provenance_status": source.provenance_status,
                 **checks,
-                "completeness_status": "pass" if not issues else "fail",
+                "completeness_status": completeness_status,
                 "issue": "|".join(issues),
             }
         )
@@ -546,11 +1021,39 @@ def _raw_repository_completeness(config: ProjectConfig) -> pd.DataFrame:
 def _proxy_methodology_assumptions() -> pd.DataFrame:
     rows = [
         {
+            "methodology_id": "version_a_first_mortgage_debt_benchmark_v1",
+            "variable_id": "acs_implied_first_mortgage_balance_cal_benchmark",
+            "assumption": "Authoritative aggregate mortgage-debt method",
+            "value": "Use direct ACS B25089/B25081 source-period levels, weighted PUMS first-mortgage P&I parameters, an exact-date joint NMDB outstanding rate-term distribution, and an exact-date universe-compatible California UPB control.",
+            "rationale": "This is the consolidated Version A standard. PMMS may be retained only as a labeled sensitivity fallback; calibrated values remain null when the required California control is unavailable.",
+        },
+        {
+            "methodology_id": "version_a_owner_equity_benchmark_v1",
+            "variable_id": "acs_implied_owner_occupied_home_equity_all_benchmark",
+            "assumption": "Authoritative aggregate home-equity method",
+            "value": "Subtract Version A California-calibrated first-mortgage debt from published ACS B25082 mortgaged-owner aggregate value, then add published mortgage-free owner value in full for the all-owner measure.",
+            "rationale": "The value and debt universes remain matched. No Zillow level, median-times-count construction, or B25106 payment-bin balance substitutes for the Version A benchmark.",
+        },
+        {
+            "methodology_id": "hud_usps_residential_vacancy_proxy_v1",
+            "variable_id": "usps_residential_vacancy_rate",
+            "assumption": "All-residential vacancy-proxy formula",
+            "value": "(short-term vacant residential addresses + long-term vacant residential addresses) / total residential addresses; rates remain ratios in [0, 1].",
+            "rationale": "No-stat residential addresses remain a separate count and rate diagnostic and never enter the vacancy numerator. This is an all-residential address-status proxy, not rental-listing inventory.",
+        },
+        {
+            "methodology_id": "hud_usps_residential_vacancy_proxy_v1",
+            "variable_id": "usps_residential_vacancy_rate",
+            "assumption": "Quarantined provenance status",
+            "value": "provenance_status=quarantined_derived_snapshot; excluded from active facts and panels until official raw quarterly responses and the raw crosswalk are reacquired with complete immutable provenance.",
+            "rationale": "The derived snapshot alone cannot establish official ingestion, release dates, retrieval timestamps, source filenames, or raw checksums. Modeled ZIP rows are Los Angeles County postal-ZIP portions, not whole ZIPs or ZCTAs.",
+        },
+        {
             "methodology_id": "acs_implied_mortgage_debt_proxy_v1",
             "variable_id": "acs_implied_aggregate_mortgage_debt_proxy",
-            "assumption": "ACS B25106 table role",
-            "value": "B25106 owner income x housing-cost-burden bins are used to infer monthly owner housing costs; B25106 is not treated as observed mortgage balance.",
-            "rationale": "The Housing Variables sheet requests an implied balance workaround, not a direct balance observation.",
+            "assumption": "Legacy ACS B25106 table role",
+            "value": "Legacy scenario only: B25106 owner income x housing-cost-burden bins infer monthly owner housing costs; B25106 is not an observed mortgage balance and is not the authoritative Version A method.",
+            "rationale": "Retained in facts for reproducibility and labeled legacy; do not select it in place of the Version A _benchmark variables.",
         },
         {
             "methodology_id": "acs_implied_mortgage_debt_proxy_v1",
@@ -623,7 +1126,20 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
             "rationale": "A rate normalizes households-threatened estimates for renter-household base changes while using only fields published in the same official Eviction Lab file.",
         },
     ]
-    return pd.DataFrame(rows)
+    frame = pd.DataFrame(rows)
+    legacy = frame["variable_id"].eq(
+        "acs_implied_aggregate_mortgage_debt_proxy"
+    )
+    frame.loc[legacy, "methodology_id"] = (
+        "acs_implied_mortgage_debt_proxy_legacy_v0"
+    )
+    frame["methodology_status"] = "active"
+    frame.loc[legacy, "methodology_status"] = "legacy"
+    frame.loc[
+        frame["variable_id"].eq("usps_residential_vacancy_rate"),
+        "methodology_status",
+    ] = "quarantined"
+    return frame
 
 
 def _source_tracker_summary(catalog: pd.DataFrame) -> pd.DataFrame:
@@ -677,8 +1193,8 @@ def _source_tracker_overview(
 ) -> pd.DataFrame:
     """Workbook landing page explaining how to read the source tracker."""
     active_sources = int(catalog["active_status"].eq("Active").sum())
-    completeness_pass = int(raw_completeness["completeness_status"].eq("pass").sum())
-    completeness_fail = int(raw_completeness["completeness_status"].eq("fail").sum())
+    completeness_pass = int(raw_completeness["completeness_status"].eq("PASS").sum())
+    completeness_fail = int(raw_completeness["completeness_status"].eq("FAIL").sum())
     earliest = catalog["start_date"].dropna().min()
     latest = catalog["end_date"].dropna().max()
     return pd.DataFrame(
@@ -1042,6 +1558,8 @@ CATALOG_COLUMNS = [
     "exact_download_url_or_api",
     "access_method",
     "active_status",
+    "provenance_status",
+    "observed_constructed_proxy_or_scenario",
     "manual_download_required",
     "raw_file_format",
     "raw_file_path",
@@ -1080,11 +1598,15 @@ UNAVAILABLE_ROWS = [
         "Key variables": "rental_inventory",
         "source_id": "unavailable_rental_inventory",
         "provider": "No verified official public source",
-        "product": "Rental listing inventory",
-        "active_status": "Missing — no verified public source",
+        "product": "True rental-listing inventory",
+        "active_status": "Inactive",
+        "provenance_status": "unavailable_verified_source",
         "known_limitations": (
-            "ZORI is a rent index, not inventory. A documented public listing "
-            "universe, stable geography, history, and revision policy are required."
+            "True rental-listing inventory remains unavailable. ZORI is a rent "
+            "index, not inventory. The quarantined HUD/USPS measure is an "
+            "all-residential address-vacancy proxy, not a rental-listing stock. "
+            "A documented listing universe, stable geography, history, and "
+            "revision policy are still required."
         ),
     },
     {
@@ -1185,15 +1707,21 @@ def build_raw_repository_completeness(
             "key_variables_present": bool(source.key_variables),
         }
         issues = [name for name, passed in checks.items() if not passed]
+        lifecycle_status = _source_lifecycle_status(source)
+        if lifecycle_status == "Active":
+            completeness_status = "PASS" if not issues else "FAIL"
+        elif lifecycle_status == "Quarantined":
+            completeness_status = "QUARANTINED"
+        else:
+            completeness_status = "INACTIVE"
         rows.append(
             {
                 "source_id": source.source_id,
                 "provider": source.provider,
-                "active_status": (
-                    "ACTIVE_MANUAL" if not source.auto_download else "ACTIVE"
-                ),
+                "active_status": lifecycle_status,
+                "provenance_status": source.provenance_status,
                 **checks,
-                "completeness_status": "PASS" if not issues else "FAIL",
+                "completeness_status": completeness_status,
                 "issue": "|".join(issues),
             }
         )
@@ -1372,8 +1900,13 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                     }
                 )
             )
+        lifecycle_status = _source_lifecycle_status(source)
         command = (
-            "python run_pipeline.py --stage download --source "
+            "BLOCKED: reacquire and archive the official HUD/USPS API responses "
+            "and crosswalk, complete provenance, and enable the source before "
+            "running a download workflow."
+            if lifecycle_status == "Quarantined"
+            else "python run_pipeline.py --stage download --source "
             f"{source.source_id} --force-download"
             if source.auto_download
             else "python run_pipeline.py --stage download --source "
@@ -1383,6 +1916,14 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
             provider_vintage = f"data through {str(end_date)[:10]}"
         else:
             provider_vintage = raw.get("data_vintage", "")
+        quarantine_row = (
+            _quarantined_package_row(config, source)
+            if lifecycle_status == "Quarantined"
+            else {}
+        )
+        catalog_file_row = raw or quarantine_row
+        if quarantine_row and not provider_vintage:
+            provider_vintage = quarantine_row.get("snapshot_vintage", "")
         rows.append(
             {
                 "Source": source.dataset_name,
@@ -1395,14 +1936,26 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                 "official_source_page": source.source_page_url,
                 "exact_download_url_or_api": source.download_url,
                 "access_method": source.access_method,
-                "active_status": "Active",
+                "active_status": lifecycle_status,
+                "provenance_status": source.provenance_status,
+                "observed_constructed_proxy_or_scenario": (
+                    "constructed proxy (quarantined)"
+                    if lifecycle_status == "Quarantined"
+                    else "observed"
+                ),
                 "manual_download_required": not source.auto_download,
-                "raw_file_format": source.file_format,
-                "raw_file_path": raw.get("relative_path", ""),
-                "original_filename": raw.get("original_filename", ""),
+                "raw_file_format": (
+                    "zip (quarantined derived package)"
+                    if lifecycle_status == "Quarantined"
+                    else source.file_format
+                ),
+                "raw_file_path": catalog_file_row.get("relative_path", ""),
+                "original_filename": catalog_file_row.get("original_filename", "")
+                or catalog_file_row.get("source_filename", ""),
                 "retrieval_date": raw.get("retrieved_at", ""),
                 "provider_vintage": provider_vintage,
-                "checksum_sha256": raw.get("checksum_sha256", ""),
+                "checksum_sha256": catalog_file_row.get("checksum_sha256", "")
+                or catalog_file_row.get("sha256", ""),
                 "native_frequency": source.native_frequency,
                 "analytical_frequency": (
                     analytical_frequency or source.native_frequency
@@ -1417,10 +1970,16 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                 "seasonal_adjustment": variable_text["seasonal_adjustment"],
                 "smoothing": variable_text["smoothing"],
                 "units": coverage_units or variable_text["units"],
-                "destination_clean_table": source.destination_clean_table
-                or f"clean.{source.source_id}",
+                "destination_clean_table": (
+                    ""
+                    if lifecycle_status == "Quarantined"
+                    else source.destination_clean_table
+                    or f"clean.{source.source_id}"
+                ),
                 "destination_analytical_table": (
-                    source.destination_analytical_table
+                    ""
+                    if lifecycle_status == "Quarantined"
+                    else source.destination_analytical_table
                 ),
                 "update_command": command,
                 "missing_value_policy": variable_text[
@@ -1433,10 +1992,71 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                 "license_or_use_notes": source.license_or_use_notes,
                 "last_verified": config.verified_at,
                 "notes": (
-                    "Identifiers remain strings; raw vintages are immutable."
+                    "Intentional quarantine; excluded from active ingestion."
+                    if lifecycle_status == "Quarantined"
+                    else "Identifiers remain strings; raw vintages are immutable."
                 ),
             }
         )
+    existing_ids = {str(row["source_id"]) for row in rows}
+    for source in _version_a_catalog_records(config):
+        if source["source_id"] in existing_ids:
+            continue
+        variable_ids = tuple(source["variable_ids"])
+        rows.append(
+            {
+                "Source": source["dataset_name"],
+                "Frequency": source["native_frequency"],
+                "Geography": source["geography"],
+                "Key variables": "|".join(variable_ids),
+                "source_id": source["source_id"],
+                "provider": source["provider"],
+                "product": source["dataset_name"],
+                "official_source_page": source["source_page_url"],
+                "exact_download_url_or_api": source["download_url"],
+                "access_method": source["access_method"],
+                "active_status": source["active_status"],
+                "provenance_status": source["provenance_status"],
+                "observed_constructed_proxy_or_scenario": source[
+                    "observed_constructed_proxy_or_scenario"
+                ],
+                "manual_download_required": source[
+                    "manual_download_required"
+                ],
+                "raw_file_format": source["file_format"],
+                "raw_file_path": source["raw_file_path"],
+                "original_filename": source["original_filename"],
+                "retrieval_date": source["retrieved_at"],
+                "provider_vintage": source["provider_vintage"],
+                "checksum_sha256": source["checksum_sha256"],
+                "native_frequency": source["native_frequency"],
+                "analytical_frequency": source["native_frequency"],
+                "geography_level": source["geography"],
+                "geography_name": source["geography"],
+                "geography_id": "",
+                "start_date": source["start_date"],
+                "end_date": source["end_date"],
+                "row_count": source["row_count"],
+                "variable_ids": "|".join(variable_ids),
+                "seasonal_adjustment": "not applicable",
+                "smoothing": "none",
+                "units": "source-specific",
+                "destination_clean_table": source[
+                    "destination_clean_table"
+                ],
+                "destination_analytical_table": source[
+                    "destination_analytical_table"
+                ],
+                "update_command": source["update_command"],
+                "missing_value_policy": "preserve null",
+                "revision_policy": "Archive every immutable source vintage.",
+                "known_limitations": source["known_limitations"],
+                "license_or_use_notes": source["license_or_use_notes"],
+                "last_verified": config.verified_at,
+                "notes": source["notes"],
+            }
+        )
+        existing_ids.add(str(source["source_id"]))
     for unavailable in UNAVAILABLE_ROWS:
         row = {column: "" for column in CATALOG_COLUMNS}
         row.update(unavailable)
@@ -1482,6 +2102,34 @@ def _gap_row(
 
 def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
     rows = [
+        _gap_row(
+            "aggregate mortgage debt",
+            "Homeowner",
+            "Balance-sheet benchmark",
+            "ACS PUMS and FHFA NMDB",
+            "Yes, as a constructed benchmark",
+            "Version A authoritative method implemented",
+            "analytics.housing_finance_benchmark",
+            "acs_implied_first_mortgage_balance_raw_benchmark|acs_implied_first_mortgage_balance_cal_benchmark",
+            "ACS 5-year plus exact-date parameter period",
+            "California counties",
+            limitation="The calibrated value remains null without an exact-date, universe-compatible California NMDB UPB control. The B25106 midpoint method remains in facts only as a labeled legacy scenario.",
+            recommended_action="Use Version A _benchmark variables; never silently substitute the legacy B25106 scenario.",
+        ),
+        _gap_row(
+            "aggregate home equity",
+            "Homeowner",
+            "Balance-sheet benchmark",
+            "ACS and FHFA NMDB",
+            "Yes, as a constructed benchmark",
+            "Version A authoritative method implemented",
+            "analytics.housing_finance_benchmark",
+            "acs_implied_owner_occupied_home_equity_mortgaged_benchmark|acs_implied_owner_occupied_home_equity_all_benchmark",
+            "ACS 5-year plus exact-date parameter period",
+            "California counties",
+            limitation="Matched-universe equity depends on the Version A calibrated first-mortgage balance and remains null when that control is unavailable.",
+            recommended_action="Use Version A _benchmark variables and retain published mortgage-free owner value in full for all-owner equity.",
+        ),
         _gap_row("ZHVI", "Homeowner", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zhvi", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Provider modeled index; histories can be revised.", "Keep as the local home-value index."),
         _gap_row("FHFA HPI", "Homeowner", "Benchmark", "FHFA", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel|analytics.county_annual_controls", "FHFA HPI columns", "quarterly and annual", "California; Los Angeles metro; Los Angeles County", "1975-12-31", "2026-03-31", "Products differ by geography, frequency, method, and seasonal adjustment.", "Retain at native frequency."),
         _gap_row("median sale price", "Homeowner", "Outcome", "Redfin Data Center", "Yes", "Implemented", "analytics.county_monthly_panel", "median_sale_price", "monthly", "Los Angeles County", "2012-01-31", "2026-05-31", "Transaction mix can change the median.", "Retain as a transaction-price indicator."),
@@ -1497,7 +2145,7 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
         _gap_row("monthly mortgage payment", "Homeowner", "Constructed indicator", "Redfin and Freddie Mac", "Yes", "Constructed variable", "analytics.county_monthly_panel", "mortgage_payment_10pct_down|mortgage_payment_20pct_down", "monthly", "Los Angeles County with U.S. rate", "2012-01-31", "2026-05-31", "Principal-and-interest scenarios exclude taxes, insurance, HOA, maintenance, and mortgage insurance.", "Keep scenario assumptions visible."),
         _gap_row("ZORI", "Renter", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zori", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Smoothed seasonally adjusted rent index; not inventory.", "Use as primary rent index."),
         _gap_row("rent growth", "Renter", "Constructed indicator", "Zillow ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "monthly", "Los Angeles County", "2015-02-28", "2026-05-31", "Depends on the active SA ZORI vintage.", "Rebuild when ZORI refreshes."),
-        _gap_row("rental inventory", "Renter", "Supply", "No verified official public source", "No", "Missing — no verified public source", "", "", "unknown", "Los Angeles County or ZIPs", "", "", "ZORI measures rent levels and cannot serve as rental inventory.", "Leave unavailable until a documented public source is verified."),
+        _gap_row("rental inventory", "Renter", "Supply", "True rental-listing inventory; HUD/USPS all-residential proxy", "No verified source for true rental-listing inventory", "Quarantined constructed proxy only", "quarantined derived snapshot; excluded from active facts", "usps_total_residential_addresses|usps_short_term_vacant_residential_addresses|usps_long_term_vacant_residential_addresses|usps_vacant_residential_addresses|usps_no_stat_residential_addresses|usps_active_residential_addresses|usps_residential_vacancy_rate|usps_residential_no_stat_rate", "quarterly", "California counties; Los Angeles County 2020 tracts; modeled Los Angeles County postal-ZIP portions", "2008-03-31", "2026-03-31", "HUD/USPS is an all-residential address-vacancy proxy, not rental-listing inventory. The surviving derived snapshot lacks complete raw provenance and is intentionally quarantined.", "Keep true rental-listing inventory unavailable; reacquire and archive official HUD/USPS raw responses and crosswalk before activating the separate proxy."),
         _gap_row("rental vacancy", "Renter", "Supply", "Census HVS", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "quarterly", "California and published metro geographies", "2005-03-31", "2026-03-31", "Los Angeles County is not an HVS published geography; sampling uncertainty is retained.", "Retain native geography/frequency."),
         _gap_row("multifamily permits", "Renter", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_5_plus_units", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not completed or occupied rental units.", "Retain as multifamily supply proxy."),
         _gap_row("price-to-rent", "Overall housing market", "Constructed indicator", "Zillow ZHVI and ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "price_to_rent_ratio", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Index-based valuation ratio.", "Keep explicit formula."),
@@ -1669,13 +2317,13 @@ def build_data_catalog(config: ProjectConfig) -> dict[str, int]:
             "SELECT * FROM gap_analysis_frame"
         )
         connection.close()
-    failures = int(completeness["completeness_status"].ne("PASS").sum())
+    active_failures = completeness.loc[
+        completeness["active_status"].eq("Active")
+        & completeness["completeness_status"].ne("PASS")
+    ]
+    failures = len(active_failures)
     if failures:
-        failed = ", ".join(
-            completeness.loc[
-                completeness["completeness_status"].ne("PASS"), "source_id"
-            ]
-        )
+        failed = ", ".join(active_failures["source_id"])
         raise RuntimeError(
             f"Raw repository completeness failed for {failures} sources: {failed}"
         )

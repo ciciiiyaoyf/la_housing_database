@@ -34,7 +34,7 @@ def test_redfin_zip_clean_and_fact_contract():
                           OR frequency != 'Rolling 3 Months'
                           OR rolling_window_months != 3
                    ) AS invalid_rows
-            FROM clean.redfin_zip_for_sale_market
+            FROM clean.redfin_zip_monthly
             """
         ).fetchone()
         assert summary[0] > 0
@@ -59,6 +59,13 @@ def test_redfin_zip_clean_and_fact_contract():
             "redfin_zip_median_days_on_market_rolling_3m",
             "redfin_zip_new_listings_rolling_3m",
             "redfin_zip_active_listings_rolling_3m",
+            "redfin_zip_pending_sales_rolling_3m",
+            "redfin_zip_homes_sold_yoy_pct_provider_rolling_3m",
+            "redfin_zip_median_sale_price_nsa_yoy_pct_provider_rolling_3m",
+            "redfin_zip_median_days_on_market_yoy_pct_provider_rolling_3m",
+            "redfin_zip_new_listings_yoy_pct_provider_rolling_3m",
+            "redfin_zip_active_listings_yoy_pct_provider_rolling_3m",
+            "redfin_zip_pending_sales_yoy_pct_provider_rolling_3m",
         }
         invalid_fact_geographies = connection.execute(
             """
@@ -92,7 +99,7 @@ def test_redfin_left_join_preserves_zillow_spine_and_values():
         redfin_mismatches = connection.execute(
             """
             SELECT count(*)
-            FROM clean.redfin_zip_for_sale_market AS clean
+            FROM clean.redfin_zip_monthly AS clean
             LEFT JOIN analytics.zip_monthly_panel AS panel
               ON panel.postal_zip = clean.postal_zip
              AND panel.date = clean.period_end
