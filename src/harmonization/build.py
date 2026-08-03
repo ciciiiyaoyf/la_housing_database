@@ -861,6 +861,12 @@ def build_analytical_outputs(
             "state_fips": "06",
         },
     )
+    state_annual = _wide_control_panel(
+        fact,
+        geo_prefixes=("STATE_",),
+        frequency="annual",
+        id_columns={"state_fips": "06", "state_name": "California"},
+    )
     state_quarterly = _merge_structural_columns(
         state_quarterly,
         slow["state_quarterly"],
@@ -890,6 +896,17 @@ def build_analytical_outputs(
             * county_annual["acs_median_home_value"]
         )
     county_annual = _add_acs_mortgage_debt_proxy(county_annual, fact)
+    if {"acs_for_rent_vacant_units", "acs_renter_occupied_units"}.issubset(
+        county_annual.columns
+    ):
+        denominator = (
+            county_annual["acs_for_rent_vacant_units"]
+            + county_annual["acs_renter_occupied_units"]
+        )
+        county_annual["acs_rental_availability_rate"] = (
+            county_annual["acs_for_rent_vacant_units"]
+            / denominator.where(denominator > 0)
+        )
     if {
         "acs_owner_occupied_home_value_proxy",
         "acs_implied_aggregate_mortgage_debt_proxy",
@@ -920,6 +937,9 @@ def build_analytical_outputs(
     zip_panel.to_parquet(final_dir / "zip_monthly_panel.parquet", index=False)
     state_quarterly.to_parquet(
         final_dir / "state_quarterly_panel.parquet", index=False
+    )
+    state_annual.to_parquet(
+        final_dir / "state_annual_controls.parquet", index=False
     )
     metro_monthly.to_parquet(
         final_dir / "metro_monthly_controls.parquet", index=False
@@ -1043,6 +1063,7 @@ def build_analytical_outputs(
         "county": county,
         "zip": zip_panel,
         "state_quarterly": state_quarterly,
+        "state_annual": state_annual,
         "metro_monthly": metro_monthly,
         "metro_quarterly": metro_quarterly,
         "metro_quarterly_panel": slow["metro_quarterly"],

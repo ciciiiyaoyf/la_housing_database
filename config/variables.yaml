@@ -2785,3 +2785,117 @@ variables:
   is_proxy: true
   active_status: Quarantined
   observed_constructed_proxy_or_scenario: proxy
+- variable_id: acs_for_rent_vacant_units
+  display_name: ACS vacant units for rent
+  definition: ACS B25004 estimate of vacant housing units offered for rent
+  provider: U.S. Census Bureau
+  original_field: B25004_002E
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: five-year pooled survey estimate
+  transformation: direct estimate
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Survey estimate; not a monthly rental-listing stock.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: acs_for_rent_vacant_units_moe
+  display_name: ACS vacant units for rent MOE
+  definition: ACS B25004 margin of error for vacant housing units offered for rent
+  provider: U.S. Census Bureau
+  original_field: B25004_002M
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: five-year pooled survey estimate
+  transformation: direct margin of error
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Use for reliability screening.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: acs_rental_availability_rate
+  display_name: ACS rental availability rate
+  definition: For-rent vacant units divided by renter-occupied plus for-rent vacant units
+  provider: Constructed from U.S. Census Bureau ACS
+  original_field: B25004_002E / (B25003_003E + B25004_002E)
+  unit: fraction
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: five-year pooled survey inputs
+  transformation: same-vintage ratio
+  missing_value_policy: require both same-vintage inputs and positive denominator
+  revision_policy: rebuild with source vintages
+  methodological_notes: Annual rental availability proxy; not true rental-listing inventory.
+  observed_constructed_proxy_or_scenario: constructed survey estimate
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: ca_homeowners_written_premium
+  display_name: California homeowners written premium
+  definition: Total written premium for Homeowners Multi-Peril policies
+  provider: California Department of Insurance
+  original_field: WP
+  unit: current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: state
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: sum across insurance ranges within policy form and year
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Statewide policy-form aggregate, not LA County.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: ca_homeowners_written_exposure
+  display_name: California homeowners written exposure
+  definition: Total written exposure for Homeowners Multi-Peril policies
+  provider: California Department of Insurance
+  original_field: WE
+  unit: policy_year_exposures
+  native_frequency: annual
+  final_frequency: annual
+  geography: state
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: sum across insurance ranges within policy form and year
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Statewide policy-form aggregate, not LA County.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: ca_homeowners_avg_written_premium
+  display_name: California homeowners average written premium
+  definition: Homeowners Multi-Peril written premium divided by written exposure
+  provider: California Department of Insurance
+  original_field: WP / WE
+  unit: current_dollars_per_exposure
+  native_frequency: annual
+  final_frequency: annual
+  geography: state
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: annual written premium divided by annual written exposure
+  missing_value_policy: require positive written exposure
+  revision_policy: rebuild with source vintage
+  methodological_notes: California annual affordability control; not an LA County or monthly observation.
+  observed_constructed_proxy_or_scenario: derived observed
+  is_observed: false
+  is_constructed: true
+  is_proxy: false

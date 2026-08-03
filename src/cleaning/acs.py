@@ -34,6 +34,10 @@ ACS_TABLE_MAP = {
         "B25003_E003": ("acs_renter_occupied_units", "housing_units"),
         "B25003_M003": ("acs_renter_occupied_units_moe", "housing_units"),
     },
+    "b25004": {
+        "B25004_E002": ("acs_for_rent_vacant_units", "housing_units"),
+        "B25004_M002": ("acs_for_rent_vacant_units_moe", "housing_units"),
+    },
     "b25064": {
         "B25064_E001": (
             "acs_median_gross_rent",

@@ -6,7 +6,7 @@ The database is a static snapshot. DuckDB is not continuously connected to Censu
 
 ## Current generated outputs
 
-The consolidated configuration contract contains **218 unique variables**: 160 general variables in `config/variables.yaml` (including eight quarantined HUD/USPS variables) plus 58 Version A variables in `config/version_a_variables.yaml`. It contains **44 unique source IDs**: 36 general source IDs plus nine Version A source IDs, with `freddie_mac_pmms` present in both configurations and counted once. Of the 36 general sources, 35 are enabled; `hud_usps_ncwm_quarterly` is disabled and quarantined.
+The consolidated configuration contract contains **224 unique variables**: 166 general variables in `config/variables.yaml` (including eight quarantined HUD/USPS variables) plus 58 Version A variables in `config/version_a_variables.yaml`. It contains **46 unique source IDs**: 38 general source IDs plus nine Version A source IDs, with `freddie_mac_pmms` present in both configurations and counted once. Of the 38 general sources, 37 are enabled; `hud_usps_ncwm_quarterly` is disabled and quarantined.
 
 The materialized general-pipeline snapshot summarized below contains 421,133 long-form fact observations. Version A is built separately into `data/final/housing_finance_benchmark.parquet`; quarantined HUD/USPS data are not part of active ingestion or these row counts.
 
@@ -16,6 +16,7 @@ The materialized general-pipeline snapshot summarized below contains 421,133 lon
 | `analytics.county_monthly_panel` / `data/final/county_monthly_panel.parquet` | 437 | 1990-01-31 to 2026-05-31 |
 | `analytics.zip_monthly_panel` / `data/final/zip_monthly_panel.parquet` | 86,858 | 2000-01-31 to 2026-05-31 |
 | `analytics.state_quarterly_panel` / `data/final/state_quarterly_panel.parquet` | 313 | 1948-03-31 to 2026-03-31 |
+| `analytics.state_annual_controls` / `data/final/state_annual_controls.parquet` | Rebuilt on next full run | California DOI 2008-2023 |
 | `analytics.metro_monthly_controls` / `data/final/metro_monthly_controls.parquet` | 1,095 | 1914-12-31 to 2026-05-31 |
 | `analytics.metro_quarterly_controls` / `data/final/metro_quarterly_controls.parquet` | 226 | 1991-03-31 to 2026-03-31 |
 | `analytics.county_annual_controls` / `data/final/county_annual_controls.parquet` | 57 | 1969-12-31 to 2025-12-31 |
@@ -39,8 +40,8 @@ The general pipeline and Version A benchmark are complementary parts of one repo
 
 | Contract | General | Version A | Consolidated unique total |
 |---|---:|---:|---:|
-| Variables | 160 | 58 | 218 |
-| Source IDs | 36 | 9 | 44 |
+| Variables | 166 | 58 | 224 |
+| Source IDs | 38 | 9 | 46 |
 
 All 58 Version A variable IDs end in `_benchmark`. For mortgage debt and home equity, these Version A variables are the authoritative current standard. In particular, the benchmark uses direct ACS B25089/B25081/B25082/B25120 levels, weighted PUMS parameters, and exact-date, universe-compatible NMDB controls when available; PMMS is an explicitly labeled sensitivity fallback. The earlier B25106 midpoint/80%-debt-service/25-year mortgage construction remains available only as a **legacy modeled scenario** for reproducibility and must not be presented as the primary debt or equity estimate.
 
@@ -64,6 +65,7 @@ General source pages, download URLs/API endpoints, file formats, source IDs, key
 | FHFA HPI | `fhfa_hpi_state_purchase_only`, `fhfa_hpi_metro_purchase_only`, `fhfa_hpi_county_annual` | State, metro, and county HPI benchmarks |
 | BEA | `bea_state_personal_income`, `bea_county_personal_income` | Personal income and per-capita personal income |
 | IRS SOI | `irs_soi_county_migration` | LA County annual in-migration, out-migration, and net migration from IRS county migration returns, exemptions, and AGI |
+| California DOI | `ca_doi_residential_property_insurance` | California annual Homeowners Multi-Peril written premium, written exposure, and average written premium, 2008-2023 |
 | CDC WONDER / NCHS | `cdc_wonder_natality_county`, `cdc_wonder_ucd_1999_2020_la_county`, `cdc_wonder_ucd_2018_2024_county` | Annual LA County live births, deaths, annual natural population change, and quarterly allocated natural population change |
 | Eviction Lab | `eviction_lab_county_estimates` | Annual LA County eviction filing estimates, households-threatened estimates, filing/threatened rates, credible interval bounds, and source-observation flags |
 | HUD/USPS (quarantined) | `hud_usps_ncwm_quarterly` | Eight disabled county/tract/modeled-ZIP-part all-residential address variables and diagnostics; not rental-listing inventory |
@@ -314,6 +316,7 @@ The `analytics` schema contains:
 - `analytics.county_monthly_panel`
 - `analytics.zip_monthly_panel`
 - `analytics.state_quarterly_panel`
+- `analytics.state_annual_controls`
 - `analytics.metro_monthly_controls`
 - `analytics.metro_quarterly_controls`
 - `analytics.county_annual_controls`

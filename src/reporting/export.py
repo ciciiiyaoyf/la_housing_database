@@ -27,6 +27,10 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
             final / "state_quarterly_panel.parquet",
             export_dir / "la_state_quarterly_panel.csv",
         ),
+        "state_annual_controls": (
+            final / "state_annual_controls.parquet",
+            export_dir / "la_state_annual_controls.csv",
+        ),
         "metro_monthly_controls": (
             final / "metro_monthly_controls.parquet",
             export_dir / "la_metro_monthly_controls.csv",

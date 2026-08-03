@@ -41,6 +41,7 @@ USER_AGENT = "UCLA housing research data pipeline yifan@g.ucla.edu"
 
 ACS_HISTORICAL_TABLES = {
     "census_acs_5year_b25003",
+    "census_acs_5year_b25004",
     "census_acs_5year_b25077",
     "census_acs_5year_b25081",
     "census_acs_5year_b25106",
@@ -356,7 +357,9 @@ def _download_census_acs_5year_api(
         )
     variables = [_acs_api_variable(column) for column in variable_map]
     group_clause = f"group({table_id.upper()})"
-    zcta_ucgids = _la_zcta_ucgids(config)
+    zcta_ucgids = (
+        _la_zcta_ucgids(config) if "zcta" in source.geography_levels else []
+    )
     zcta_ucgid_chunks = _chunks(zcta_ucgids, ACS_UCGID_ZCTA_CHUNK_SIZE)
     requests_made: list[dict] = []
     observation_count = 0

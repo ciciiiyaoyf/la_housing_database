@@ -12,6 +12,7 @@ from src.cleaning.bls import clean_bls
 from src.cleaning.bls_flat import clean_bls_flat
 from src.cleaning.cdc_wonder import clean_cdc_wonder
 from src.cleaning.census_bps import clean_bps_archive
+from src.cleaning.ca_insurance import clean_ca_residential_property_insurance
 from src.cleaning.eviction_lab import clean_eviction_lab_county_estimates
 from src.cleaning.fhfa import clean_fhfa
 from src.cleaning.freddie import clean_freddie
@@ -205,6 +206,10 @@ def clean_sources(
                         source.source_id,
                         config.root / "data" / "clean" / "geography.parquet",
                         output_path,
+                    )
+                elif source.source_id == "ca_doi_residential_property_insurance":
+                    frame = clean_ca_residential_property_insurance(
+                        path, record, output_path
                     )
                 elif source.source_id.startswith("census_hvs_"):
                     frame = clean_hvs(

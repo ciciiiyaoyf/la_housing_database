@@ -360,6 +360,7 @@ def build_database(
         "analytics.zip_monthly_panel": "zip_monthly_panel.parquet",
         "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
         "analytics.state_quarterly_panel": "state_quarterly_panel.parquet",
+        "analytics.state_annual_controls": "state_annual_controls.parquet",
         "analytics.metro_quarterly_panel": "metro_quarterly_panel.parquet",
         "analytics.metro_quarterly_controls": "metro_quarterly_controls.parquet",
         "analytics.county_annual_controls": "county_annual_controls.parquet",
