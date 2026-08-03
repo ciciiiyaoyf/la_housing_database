@@ -1126,6 +1126,79 @@ variables:
   revision_policy: archive every retrieval
   methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
   observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_for_rent_vacant_units
+  display_name: ACS for-rent vacant units
+  definition: Housing units classified as vacant and for rent in ACS Detailed Table B25004.
+  provider: U.S. Census Bureau
+  original_field: B25004_E002
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: five-year pooled survey estimate
+  transformation: ACS table-based summary normalization; no frequency expansion
+  missing_value_policy: preserve published nulls and ACS missing-value sentinels
+  revision_policy: archive every retrieval and retain the named ACS vintage
+  methodological_notes: >-
+    Direct ACS estimate used as the numerator of the county annual rental-availability
+    proxy. It is not a count of active rental listings. ZCTA observations remain
+    Census ZCTAs and must never be relabeled as postal ZIP codes.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Active
+- variable_id: acs_for_rent_vacant_units_moe
+  display_name: ACS for-rent vacant units 90% MOE
+  definition: Published 90 percent margin of error for ACS B25004 for-rent vacant units.
+  provider: U.S. Census Bureau
+  original_field: B25004_M002
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: five-year pooled survey estimate
+  transformation: ACS table-based summary normalization; no frequency expansion
+  missing_value_policy: preserve published nulls and ACS missing-value sentinels
+  revision_policy: archive every retrieval and retain the named ACS vintage
+  methodological_notes: >-
+    Published component uncertainty retained for reliability screening of the
+    constructed rental-availability proxy; this is not a modeled listing-stock MOE.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  active_status: Active
+- variable_id: acs_rental_availability_rate
+  display_name: ACS county rental-availability rate proxy
+  definition: ACS for-rent vacant units divided by renter-occupied units plus for-rent vacant units.
+  provider: Constructed from U.S. Census Bureau ACS
+  original_field: B25004_E002 / (B25003_E003 + B25004_E002)
+  unit: ratio
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: five-year pooled survey inputs
+  transformation: >-
+    Match B25003 and B25004 on county and ACS ending year, then calculate
+    for_rent_vacant / (renter_occupied + for_rent_vacant).
+  missing_value_policy: >-
+    Preserve null when an estimate or component MOE is missing or negative, the
+    denominator is nonpositive, or either component 90% MOE is at least its estimate.
+  revision_policy: recompute from matched archived ACS vintages
+  methodological_notes: >-
+    Annual renter-market availability proxy required by the current methodology.
+    Component estimates and published MOEs remain in the fact table, and the county
+    panel carries an explicit quality flag. This is neither observed monthly active
+    rental-listing inventory nor the HUD-USPS all-residential vacancy proxy.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  active_status: Active
 - variable_id: acs_median_gross_rent
   display_name: ACS median gross rent
   definition: ACS 5-year median gross rent

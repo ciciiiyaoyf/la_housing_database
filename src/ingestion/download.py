@@ -41,7 +41,6 @@ BLS_SERIES = (
 USER_AGENT = "UCLA housing research data pipeline yifan@g.ucla.edu"
 
 ACS_HISTORICAL_TABLES = {
-    "census_acs_5year_b25003",
     "census_acs_5year_b25077",
     "census_acs_5year_b25081",
     "census_acs_5year_b25106",
@@ -315,6 +314,8 @@ def _la_zcta_ucgids(config: ProjectConfig) -> list[str]:
         raise RuntimeError(
             "data/clean/geography.parquet does not contain a postal_zip column"
         )
+    if "geo_type" in geography and geography["geo_type"].eq("postal_zip").any():
+        geography = geography.loc[geography["geo_type"].eq("postal_zip")].copy()
     zips = sorted(
         {
             str(value).zfill(5)

@@ -163,6 +163,76 @@ def _hud_usps_county_coverage_failures(fact: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=columns)
 
 
+def _acs_rental_availability_failures(
+    county_annual: pd.DataFrame,
+) -> pd.DataFrame:
+    """Return structural or formula failures for the annual ACS proxy."""
+
+    required = {
+        "date",
+        "acs_renter_occupied_units",
+        "acs_renter_occupied_units_moe",
+        "acs_for_rent_vacant_units",
+        "acs_for_rent_vacant_units_moe",
+        "acs_rental_availability_rate",
+        "acs_rental_availability_quality_flag",
+    }
+    missing = sorted(required - set(county_annual.columns))
+    if missing:
+        return pd.DataFrame(
+            [{"failure_reason": "missing_columns", "columns": "|".join(missing)}]
+        )
+
+    work = county_annual[list(sorted(required))].copy()
+    numeric_columns = [
+        "acs_renter_occupied_units",
+        "acs_renter_occupied_units_moe",
+        "acs_for_rent_vacant_units",
+        "acs_for_rent_vacant_units_moe",
+        "acs_rental_availability_rate",
+    ]
+    for column in numeric_columns:
+        work[column] = pd.to_numeric(work[column], errors="coerce")
+    rate = work["acs_rental_availability_rate"]
+    renter = work["acs_renter_occupied_units"]
+    renter_moe = work["acs_renter_occupied_units_moe"]
+    for_rent = work["acs_for_rent_vacant_units"]
+    for_rent_moe = work["acs_for_rent_vacant_units_moe"]
+    denominator = renter + for_rent
+    expected = for_rent / denominator
+    high_relative_moe = (
+        ((renter.eq(0) & renter_moe.gt(0)) | (renter.gt(0) & renter_moe.ge(renter)))
+        | (
+            (for_rent.eq(0) & for_rent_moe.gt(0))
+            | (for_rent.gt(0) & for_rent_moe.ge(for_rent))
+        )
+    )
+    quality = work["acs_rental_availability_quality_flag"].astype("string")
+    frames: list[pd.DataFrame] = []
+
+    def add(reason: str, mask: pd.Series) -> None:
+        if mask.fillna(False).any():
+            rows = work.loc[mask.fillna(False)].copy()
+            rows["failure_reason"] = reason
+            frames.append(rows)
+
+    add("rate_outside_unit_interval", rate.notna() & ~rate.between(0, 1))
+    add(
+        "formula_mismatch",
+        rate.notna() & expected.notna() & rate.sub(expected).abs().gt(1e-12),
+    )
+    add("unsuppressed_high_relative_moe", rate.notna() & high_relative_moe)
+    add("nonnull_rate_without_ok_flag", rate.notna() & quality.ne("ok"))
+    add("ok_flag_without_rate", quality.eq("ok") & rate.isna())
+    if not rate.notna().any():
+        frames.append(
+            pd.DataFrame(
+                [{"failure_reason": "no_constructed_rate_observation"}]
+            )
+        )
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
 def _coverage_reports(
     config: ProjectConfig,
     fact: pd.DataFrame,
@@ -636,6 +706,8 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
                 "permits_1_unit",
                 "permits_2_to_4_units",
                 "permits_5_plus_units",
+                "acs_for_rent_vacant_units",
+                "acs_for_rent_vacant_units_moe",
             }
         )
         & fact["value"].lt(0)
@@ -684,6 +756,12 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             panel.loc[panel.duplicated(key, keep=False), key],
             f"Panel key must be unique: {key}.",
         )
+    check(
+        "acs_rental_availability_formula_and_suppression",
+        "error",
+        _acs_rental_availability_failures(county_annual),
+        "ACS rental availability must use matched B25003/B25004 annual inputs, remain in [0,1], and suppress unreliable component MOEs.",
+    )
     metro_variables = fact["variable_id"].str.startswith(
         ("ces_", "cpi_", "hvs_rental_vacancy_rate_la_", "fhfa_hpi_la_metropolitan_")
     )

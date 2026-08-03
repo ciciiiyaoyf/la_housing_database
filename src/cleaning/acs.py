@@ -34,6 +34,10 @@ ACS_TABLE_MAP = {
         "B25003_E003": ("acs_renter_occupied_units", "housing_units"),
         "B25003_M003": ("acs_renter_occupied_units_moe", "housing_units"),
     },
+    "b25004": {
+        "B25004_E002": ("acs_for_rent_vacant_units", "housing_units"),
+        "B25004_M002": ("acs_for_rent_vacant_units_moe", "housing_units"),
+    },
     "b25064": {
         "B25064_E001": (
             "acs_median_gross_rent",
@@ -285,6 +289,10 @@ def clean_acs_table(
     if variable_map is None:
         raise ValueError(f"No ACS variable map is configured for {source_id}")
     geography = pd.read_parquet(geography_path)
+    # HUD-USPS adds postal-ZIP county-part rows to the shared geography table.
+    # Those identifiers are not Census ZCTAs and must not expand the ACS filter.
+    if "geo_type" in geography and geography["geo_type"].eq("postal_zip").any():
+        geography = geography.loc[geography["geo_type"].eq("postal_zip")].copy()
     eligible_zips = set(
         geography.loc[geography["postal_zip"].notna(), "postal_zip"].astype(str)
     )

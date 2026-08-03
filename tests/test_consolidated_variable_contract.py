@@ -49,30 +49,30 @@ def test_consolidated_variable_and_source_counts_are_exact() -> None:
         str(variable["variable_id"]) for variable in version_a_variables
     }
 
-    assert len(general_variables) == len(general_variable_ids) == 160
+    assert len(general_variables) == len(general_variable_ids) == 163
     assert len(version_a_variables) == len(version_a_variable_ids) == 58
     assert general_variable_ids.isdisjoint(version_a_variable_ids)
-    assert len(general_variable_ids | version_a_variable_ids) == 218
+    assert len(general_variable_ids | version_a_variable_ids) == 221
     assert all(variable_id.endswith("_benchmark") for variable_id in version_a_variable_ids)
 
     loaded_variable_ids = [
         str(variable["variable_id"]) for variable in load_config(ROOT).variables
     ]
-    assert len(loaded_variable_ids) == len(set(loaded_variable_ids)) == 218
+    assert len(loaded_variable_ids) == len(set(loaded_variable_ids)) == 221
     assert set(loaded_variable_ids) == general_variable_ids | version_a_variable_ids
 
     dictionary = pd.read_csv(ROOT / "metadata/data_dictionary.csv", dtype=str)
-    assert len(dictionary) == dictionary["variable_id"].nunique() == 218
+    assert len(dictionary) == dictionary["variable_id"].nunique() == 221
     assert set(dictionary["variable_id"]) == set(loaded_variable_ids)
 
     general_sources = _yaml("config/sources.yaml")["sources"]
     general_source_ids = {str(source["source_id"]) for source in general_sources}
     version_a_source_ids = set(_yaml("config/version_a_benchmark.yaml")["sources"])
 
-    assert len(general_sources) == len(general_source_ids) == 36
+    assert len(general_sources) == len(general_source_ids) == 37
     assert len(version_a_source_ids) == 9
     assert general_source_ids & version_a_source_ids == {"freddie_mac_pmms"}
-    assert len(general_source_ids | version_a_source_ids) == 44
+    assert len(general_source_ids | version_a_source_ids) == 45
 
 
 def test_version_a_finance_is_authoritative_and_b25106_is_legacy() -> None:
@@ -159,13 +159,37 @@ def test_hud_usps_is_active_proxy_and_not_rental_inventory() -> None:
     assert (ROOT / "metadata/hud_usps_quarantine_manifest.csv").is_file()
 
 
+def test_acs_rental_availability_is_annual_and_separate_from_listings() -> None:
+    sources = _by_id(_yaml("config/sources.yaml")["sources"], "source_id")
+    source = sources["census_acs_5year_b25004"]
+    assert source["enabled"] is True
+    assert source["file_format"] == "dat"
+    assert "2024" in source["dataset_name"]
+    assert "acsdt5y2024-b25004.dat" in source["download_url"]
+
+    variables = _by_id(_yaml("config/variables.yaml")["variables"], "variable_id")
+    for variable_id in {
+        "acs_for_rent_vacant_units",
+        "acs_for_rent_vacant_units_moe",
+        "acs_rental_availability_rate",
+    }:
+        assert variables[variable_id]["active_status"] == "Active"
+        assert variables[variable_id]["final_frequency"] == "annual"
+    rate = variables["acs_rental_availability_rate"]
+    assert rate["unit"] == "ratio"
+    assert rate["geography"] == "county"
+    assert rate["is_constructed"] is True
+    assert rate["is_proxy"] is True
+    assert "rental-listing inventory" in rate["methodological_notes"]
+
+
 def test_readme_records_the_consolidated_contract_and_refresh_examples() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for phrase in (
-        "218 unique variables",
-        "160 general variables",
+        "221 unique variables",
+        "163 general variables",
         "58 Version A variables",
-        "44 unique source IDs",
+        "45 unique source IDs",
         "legacy modeled scenario",
         "all-residential administrative vacancy proxy",
         "not true rental-listing inventory",

@@ -742,6 +742,82 @@ def _pmms_average_rate_for_acs_window(
     return float(rates.mean())
 
 
+def _add_acs_rental_availability(
+    county_annual: pd.DataFrame,
+) -> pd.DataFrame:
+    """Add the matched-vintage ACS renter-market availability proxy.
+
+    The published B25003 and B25004 component estimates and 90% margins of
+    error remain as separate columns.  A rate is exposed only when both
+    estimates and MOEs are usable and neither component MOE is as large as
+    its estimate.  This keeps the annual ACS proxy distinct from monthly
+    rental-listing inventory and from the quarterly HUD-USPS proxy.
+    """
+
+    result = county_annual.copy()
+    rate_column = "acs_rental_availability_rate"
+    quality_column = "acs_rental_availability_quality_flag"
+    result[rate_column] = pd.Series(float("nan"), index=result.index, dtype="float64")
+    result[quality_column] = "not_available"
+    required = {
+        "acs_renter_occupied_units",
+        "acs_renter_occupied_units_moe",
+        "acs_for_rent_vacant_units",
+        "acs_for_rent_vacant_units_moe",
+    }
+    if result.empty or not required.issubset(result.columns):
+        return result
+
+    values = result[list(sorted(required))].apply(
+        pd.to_numeric, errors="coerce"
+    )
+    renter = values["acs_renter_occupied_units"]
+    renter_moe = values["acs_renter_occupied_units_moe"]
+    for_rent = values["acs_for_rent_vacant_units"]
+    for_rent_moe = values["acs_for_rent_vacant_units_moe"]
+    estimate_missing = renter.isna() | for_rent.isna()
+    estimate_negative = renter.lt(0) | for_rent.lt(0)
+    moe_missing = renter_moe.isna() | for_rent_moe.isna()
+    moe_negative = renter_moe.lt(0) | for_rent_moe.lt(0)
+    denominator = renter + for_rent
+    nonpositive_denominator = denominator.le(0) & ~estimate_missing
+    high_relative_moe = (
+        ((renter.eq(0) & renter_moe.gt(0)) | (renter.gt(0) & renter_moe.ge(renter)))
+        | (
+            (for_rent.eq(0) & for_rent_moe.gt(0))
+            | (for_rent.gt(0) & for_rent_moe.ge(for_rent))
+        )
+    )
+
+    result.loc[estimate_missing, quality_column] = (
+        "suppressed_missing_component_estimate"
+    )
+    result.loc[~estimate_missing & estimate_negative, quality_column] = (
+        "suppressed_negative_component_estimate"
+    )
+    result.loc[
+        ~estimate_missing & ~estimate_negative & nonpositive_denominator,
+        quality_column,
+    ] = "suppressed_nonpositive_denominator"
+    eligible_estimates = (
+        ~estimate_missing & ~estimate_negative & ~nonpositive_denominator
+    )
+    result.loc[eligible_estimates & moe_missing, quality_column] = (
+        "suppressed_missing_component_moe"
+    )
+    result.loc[eligible_estimates & ~moe_missing & moe_negative, quality_column] = (
+        "suppressed_negative_component_moe"
+    )
+    reliability_evaluable = eligible_estimates & ~moe_missing & ~moe_negative
+    result.loc[reliability_evaluable & high_relative_moe, quality_column] = (
+        "suppressed_high_relative_moe"
+    )
+    valid = reliability_evaluable & ~high_relative_moe
+    result.loc[valid, rate_column] = for_rent.loc[valid] / denominator.loc[valid]
+    result.loc[valid, quality_column] = "ok"
+    return result
+
+
 def _add_acs_mortgage_debt_proxy(
     county_annual: pd.DataFrame, fact: pd.DataFrame
 ) -> pd.DataFrame:
@@ -861,6 +937,7 @@ def build_analytical_outputs(
             "state_fips": "06",
         },
     )
+    county_annual = _add_acs_rental_availability(county_annual)
     state_quarterly = _merge_structural_columns(
         state_quarterly,
         slow["state_quarterly"],
@@ -1020,6 +1097,44 @@ def build_analytical_outputs(
                     "debt from B25106/B25081/Freddie Mac assumptions, plus the "
                     "CDC WONDER annual natural population change and its clearly "
                     "flagged quarterly allocation."
+                ),
+                "code_module": "src.harmonization.build",
+                "source_vintage": fact["source_vintage"].max() if not fact.empty else None,
+                "executed_at": executed_at,
+            },
+            {
+                "transformation_id": "acs_rental_availability_rate_v1",
+                "source_id": "multiple",
+                "input_file": (
+                    "data/clean/census_acs_5year_b25003.parquet|"
+                    "data/clean/census_acs_5year_b25004.parquet"
+                ),
+                "output_file": "data/final/county_annual_controls.parquet",
+                "input_rows_or_shape": len(
+                    fact.loc[
+                        fact["variable_id"].isin(
+                            {
+                                "acs_renter_occupied_units",
+                                "acs_renter_occupied_units_moe",
+                                "acs_for_rent_vacant_units",
+                                "acs_for_rent_vacant_units_moe",
+                            }
+                        )
+                    ]
+                ),
+                "output_rows": int(
+                    county_annual.get(
+                        "acs_rental_availability_rate",
+                        pd.Series(dtype="float64"),
+                    ).notna().sum()
+                ),
+                "description": (
+                    "Match ACS B25003 renter-occupied units and B25004 for-rent "
+                    "vacant units by county and ACS ending year; calculate "
+                    "F/(R+F), retain both published component MOEs, and suppress "
+                    "the rate when an input is invalid or either 90-percent "
+                    "component MOE is at least its estimate. This annual proxy "
+                    "is not monthly rental-listing inventory."
                 ),
                 "code_module": "src.harmonization.build",
                 "source_vintage": fact["source_vintage"].max() if not fact.empty else None,

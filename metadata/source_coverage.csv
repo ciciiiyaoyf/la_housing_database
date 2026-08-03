@@ -119,6 +119,10 @@ U.S. Census Bureau,acs_b25106_owner_less_20k_cost_lt20pct,county,2024-12-31,2024
 U.S. Census Bureau,acs_b25106_owner_less_20k_cost_lt20pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
 U.S. Census Bureau,acs_b25106_owner_zero_negative_income,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
 U.S. Census Bureau,acs_b25106_owner_zero_negative_income,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
+U.S. Census Bureau,acs_for_rent_vacant_units,county,2024-12-31,2024-12-31,1,1,1,2026-08-03
+U.S. Census Bureau,acs_for_rent_vacant_units,zcta,2024-12-31,2024-12-31,274,274,274,2026-08-03
+U.S. Census Bureau,acs_for_rent_vacant_units_moe,county,2024-12-31,2024-12-31,1,1,1,2026-08-03
+U.S. Census Bureau,acs_for_rent_vacant_units_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-08-03
 U.S. Census Bureau,acs_households,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
 U.S. Census Bureau,acs_households,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
 U.S. Census Bureau,acs_households_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02

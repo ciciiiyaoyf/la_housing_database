@@ -28,8 +28,20 @@ HUD_USPS_VARIABLE_IDS = (
     "usps_residential_vacancy_rate",
     "usps_residential_no_stat_rate",
 )
-HUD_USPS_PROXY_STATUS = (
-    "Partially implemented – active all-residential proxy only"
+ACS_RENTAL_AVAILABILITY_SOURCE_IDS = (
+    "census_acs_5year_b25003",
+    "census_acs_5year_b25004",
+)
+ACS_RENTAL_AVAILABILITY_VARIABLE_IDS = (
+    "acs_renter_occupied_units",
+    "acs_renter_occupied_units_moe",
+    "acs_for_rent_vacant_units",
+    "acs_for_rent_vacant_units_moe",
+    "acs_rental_availability_rate",
+)
+RENTAL_INVENTORY_STATUS = (
+    "Partially implemented – ACS annual availability and HUD/USPS quarterly "
+    "proxies; monthly listings unavailable"
 )
 HUD_USPS_SOURCE_MANIFEST_PATH = "metadata/hud_usps_source_manifest.csv"
 HUD_USPS_HISTORICAL_QUARANTINE_MANIFEST_PATH = (
@@ -264,18 +276,29 @@ IMPLEMENTATION = {
     "Market Rent Index (ZORI)": _impl("Implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "observed", "Active ZORI is smoothed, seasonally adjusted, all homes plus multifamily."),
     "Rent Growth (YoY / MoM)": _impl("Implemented", "", "zori_growth_mom|zori_growth_yoy", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "constructed", "Calculated from seasonally adjusted ZORI with initial missing months preserved."),
     "Rental Inventory": _impl(
-        HUD_USPS_PROXY_STATUS,
-        HUD_USPS_SOURCE_ID,
-        "|".join(HUD_USPS_VARIABLE_IDS),
+        RENTAL_INVENTORY_STATUS,
+        "|".join((*ACS_RENTAL_AVAILABILITY_SOURCE_IDS, HUD_USPS_SOURCE_ID)),
+        "|".join(
+            (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
+        ),
         "|".join(
             (
                 "analytics.fact_housing_observation",
+                "analytics.county_annual_controls",
                 *HUD_USPS_RESTRICTED_TABLES,
             )
         ),
-        "|".join(HUD_USPS_VARIABLE_IDS),
-        "active all-residential proxy",
-        "The eight active HUD-USPS variables are native-quarterly only. The "
+        "|".join(
+            (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
+        ),
+        "separate annual and quarterly proxies",
+        "The annual ACS rental-availability proxy is for-rent vacant units "
+        "divided by renter-occupied plus for-rent vacant units, using matched "
+        "B25003 and B25004 estimates. Component 90% margins of error are "
+        "retained, and unreliable county ratios are suppressed. Direct ACS "
+        "counts and margins of error are retained at county and ZCTA geography; "
+        "ZCTAs are not postal ZIPs. The eight active HUD-USPS variables are "
+        "native-quarterly only and remain a separate all-residential measure. The "
         "vacancy proxy is (short-term vacant + long-term vacant) / total "
         "residential addresses, while no-stat remains a separate diagnostic. "
         "Direct provider components are observed at standardized 2020-tract "
@@ -285,6 +308,8 @@ IMPLEMENTATION = {
         "remain access-controlled under the HUD-USPS sublicense. This is not "
         "true rental-listing inventory; ZORI is not inventory (it is a rent "
         "index), and Redfin for-sale active listings are not a valid substitute. "
+        "The monthly rental-listing series remains missing at documented source "
+        "and license acquisition. "
         "The former derived package file was deleted; its historical "
         "quarantine manifest is superseded and is not an active input.",
     ),
@@ -1197,6 +1222,13 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
             "assumption": "Authoritative aggregate home-equity method",
             "value": "Subtract Version A California-calibrated first-mortgage debt from published ACS B25082 mortgaged-owner aggregate value, then add published mortgage-free owner value in full for the all-owner measure.",
             "rationale": "The value and debt universes remain matched. No Zillow level, median-times-count construction, or B25106 payment-bin balance substitutes for the Version A benchmark.",
+        },
+        {
+            "methodology_id": "acs_rental_availability_proxy_v1",
+            "variable_id": "acs_rental_availability_rate",
+            "assumption": "Matched annual ACS rental-availability proxy",
+            "value": "For the 2024 ACS five-year vintage, B25004 for-rent vacant units / (B25003 renter-occupied units + B25004 for-rent vacant units). Both component 90% margins of error are retained; the rate is suppressed when either component MOE is greater than or equal to its estimate. The annual value is not interpolated or expanded to monthly frequency.",
+            "rationale": "This preserves a transparent annual rental-availability proxy with matched ACS universes and explicit reliability screening. It is not an active rental-listing stock, and it remains separate from the quarterly HUD-USPS all-residential proxy.",
         },
         {
             "methodology_id": "hud_usps_residential_vacancy_proxy_v2",
@@ -2356,27 +2388,36 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
             "rental inventory",
             "Renter",
             "Supply",
-            "True rental-listing inventory; HUD/USPS all-residential proxy",
-            "Active official HUD/USPS proxy; no verified source for true "
-            "rental-listing inventory",
-            HUD_USPS_PROXY_STATUS,
-            "analytics.fact_housing_observation|"
+            "Census ACS B25003/B25004; HUD/USPS; true rental-listing inventory",
+            "ACS annual and HUD/USPS quarterly proxies active; no documented, "
+            "licensed source for true monthly rental-listing inventory",
+            RENTAL_INVENTORY_STATUS,
+            "analytics.fact_housing_observation|analytics.county_annual_controls|"
             + "|".join(HUD_USPS_RESTRICTED_TABLES),
-            "|".join(HUD_USPS_VARIABLE_IDS),
-            "quarterly only",
-            "58 California counties; Los Angeles County standardized 2020 "
-            "tracts; modeled Los Angeles County postal-ZIP county-parts",
+            "|".join(
+                (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
+            ),
+            "annual ACS; quarterly HUD/USPS; no monthly listing series",
+            "ACS Los Angeles County and ZCTAs; HUD/USPS 58 California counties, "
+            "Los Angeles County standardized 2020 tracts, and modeled Los "
+            "Angeles County postal-ZIP county-parts",
             "2008-03-31",
             "2026-03-31",
-            "HUD/USPS is an active all-residential address-vacancy proxy, not "
-            "rental-listing inventory. No-stat remains a separate diagnostic. "
+            "The current ACS rental-availability proxy is a 2024 five-year "
+            "estimate: F/(R+F), where F is B25004 for-rent vacant units and R is "
+            "B25003 renter-occupied units. Component margins of error are "
+            "retained and unreliable county rates are suppressed; values are not "
+            "interpolated. HUD/USPS is a separate all-residential "
+            "address-vacancy proxy, not rental-listing inventory. No-stat remains "
+            "a separate diagnostic. "
             "Postal-ZIP county-parts are modeled, not whole ZIPs or ZCTAs. "
             "Licensed tract and modeled ZIP-part detail remains restricted and "
             "outside public exports. The earlier derived package is historical "
             "and superseded, not an active source.",
-            "Keep the quarterly proxy active under its restricted license and "
-            "keep true rental-listing inventory unavailable until a verified "
-            "listing-universe source is implemented.",
+            "Keep the annual ACS and quarterly HUD/USPS proxies separate. Add "
+            "ACS history only from matched official B25003/B25004 vintages. Keep "
+            "rental_listing_inventory_monthly unavailable until a stable, "
+            "documented active-listing universe and usable license are acquired.",
         ),
         _gap_row("rental vacancy", "Renter", "Supply", "Census HVS", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "quarterly", "California and published metro geographies", "2005-03-31", "2026-03-31", "Los Angeles County is not an HVS published geography; sampling uncertainty is retained.", "Retain native geography/frequency."),
         _gap_row("multifamily permits", "Renter", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_5_plus_units", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not completed or occupied rental units.", "Retain as multifamily supply proxy."),
@@ -2405,7 +2446,7 @@ def _format_workbook(path: Path, build_version: str) -> None:
         "Implemented": "C6E0B4",
         "Constructed variable": "D9EAF7",
         "Partially implemented": "FFF2CC",
-        HUD_USPS_PROXY_STATUS: "FFF2CC",
+        RENTAL_INVENTORY_STATUS: "FFF2CC",
         "Missing — no verified public source": "F4CCCC",
         "Deferred": "E2F0D9",
         "Proxy only": "E4DFEC",

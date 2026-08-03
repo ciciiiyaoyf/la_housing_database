@@ -650,18 +650,16 @@ sources:
     retrievals.
 - source_id: census_acs_5year_b25003
   provider: U.S. Census Bureau
-  dataset_name: ACS 5-Year Detailed Table B25003 Tenure, 2010-2024 vintages
-  source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
-  download_url: https://api.census.gov/data/
+  dataset_name: 2024 ACS 5-Year Detailed Table B25003 Tenure
+  source_page_url: https://api.census.gov/data/2024/acs/acs5/groups/B25003.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25003.dat
   native_frequency: annual_5_year_estimate
   geography_levels:
   - county
   - zcta
-  file_format: json
+  file_format: dat
   raw_subdir: census_acs
-  access_method: official_census_api
-  selected_start_date: '2010-01-01'
-  selected_end_date: '2024-12-31'
+  access_method: official_download
   key_variables:
   - acs_owner_occupied_units
   - acs_owner_occupied_units_moe
@@ -671,9 +669,43 @@ sources:
   auto_download: true
   license_or_use_notes: Official public source; cite provider and review provider
     terms.
-  revision_notes: Loaded through the official ACS 5-year API, one immutable JSON
-    raw vintage per retrieval. Each observation is a five-year pooled estimate ending
-    in the named vintage year; overlapping ACS 5-year vintages are not interpolated.
+  revision_notes: The active archived input is the official 2024 table-based summary
+    file. It is a five-year pooled estimate for 2020-2024 and is never interpolated.
+    Historical vintages require matched B25003 and B25004 archives and remain a
+    documented enhancement rather than an implied 2010-2024 series.
+- source_id: census_acs_5year_b25004
+  provider: U.S. Census Bureau
+  dataset_name: 2024 ACS 5-Year Detailed Table B25004 Vacancy Status
+  source_page_url: https://api.census.gov/data/2024/acs/acs5/groups/B25004.html
+  download_url: https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25004.dat
+  native_frequency: annual_5_year_estimate
+  geography_levels:
+  - county
+  - zcta
+  file_format: dat
+  raw_subdir: census_acs
+  access_method: official_download
+  key_variables:
+  - acs_for_rent_vacant_units
+  - acs_for_rent_vacant_units_moe
+  - acs_rental_availability_rate
+  enabled: true
+  auto_download: true
+  destination_clean_table: clean.census_acs_5year_b25004
+  destination_analytical_table: analytics.county_annual_controls
+  methodology_notes: ACS B25004 For rent vacant units are observed annual five-year
+    survey estimates. The county annual rental availability rate is constructed as
+    for-rent vacant units divided by renter-occupied units plus for-rent vacant units,
+    using the same ACS vintage from B25003 and B25004. Component margins of error are
+    retained and rates with a component 90-percent margin of error at least as large
+    as its estimate are suppressed. This is rental availability, not historical
+    monthly active rental listings.
+  license_or_use_notes: Official public source; cite the U.S. Census Bureau ACS and
+    preserve table, vintage, geography, estimate, and margin-of-error provenance.
+  revision_notes: The keyless Census Data API currently rejects requests, so the
+    active source uses the official immutable 2024 table-based summary file. Historical
+    B25004 vintages remain a documented enhancement rather than being fabricated or
+    inferred from other vacancy measures.
 - source_id: census_acs_5year_b25064
   provider: U.S. Census Bureau
   dataset_name: 2024 ACS 5-Year Detailed Table B25064 Median Gross Rent

@@ -6,10 +6,12 @@ import pandas as pd
 
 from src.common.config import load_config
 from src.reporting.catalog import (
+    ACS_RENTAL_AVAILABILITY_SOURCE_IDS,
+    ACS_RENTAL_AVAILABILITY_VARIABLE_IDS,
     DOCX_VARIABLES,
-    HUD_USPS_PROXY_STATUS,
     HUD_USPS_RESTRICTED_TABLES,
     HUD_USPS_VARIABLE_IDS,
+    RENTAL_INVENTORY_STATUS,
 )
 
 
@@ -39,12 +41,18 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     assert rental_inventory["expected_source_from_docx"] == (
         "Zillow Observed Rent Index / Listings"
     )
-    assert rental_inventory["current_status"] == HUD_USPS_PROXY_STATUS
-    assert rental_inventory["implemented_source_id"] == "hud_usps_ncwm_quarterly"
+    assert rental_inventory["current_status"] == RENTAL_INVENTORY_STATUS
+    assert set(rental_inventory["implemented_source_id"].split("|")) == {
+        *ACS_RENTAL_AVAILABILITY_SOURCE_IDS,
+        "hud_usps_ncwm_quarterly",
+    }
     assert set(rental_inventory["implemented_variable_id"].split("|")) == set(
-        HUD_USPS_VARIABLE_IDS
+        (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
     )
     assert "analytics.fact_housing_observation" in rental_inventory[
+        "implemented_table"
+    ]
+    assert "analytics.county_annual_controls" in rental_inventory[
         "implemented_table"
     ]
     assert all(
@@ -65,6 +73,9 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     assert "Redfin for-sale active listings are not a valid substitute" in (
         rental_inventory["limitation"]
     )
+    assert "monthly rental-listing series remains missing" in rental_inventory[
+        "limitation"
+    ].lower()
 
     permits = audit.loc[
         audit["variable_name"].eq("Single-Family Housing Starts (permits)")
@@ -140,6 +151,16 @@ def test_hud_usps_v2_methodology_and_gap_workbook() -> None:
     assert "data/restricted/hud_usps/" in " ".join(
         hud["rationale"].astype(str)
     )
+
+    acs = assumptions.loc[
+        assumptions["methodology_id"].eq(
+            "acs_rental_availability_proxy_v1"
+        )
+    ]
+    assert len(acs) == 1
+    assert acs.iloc[0]["variable_id"] == "acs_rental_availability_rate"
+    assert "B25004" in acs.iloc[0]["value"]
+    assert "not an active rental-listing stock" in acs.iloc[0]["rationale"]
 
     workbook = load_workbook(
         ROOT / "metadata" / "data_gap_analysis.xlsx", read_only=True

@@ -96,6 +96,68 @@ def test_acs_api_json_cleaner_preserves_history_fips_and_zcta_filter(tmp_path):
     assert not frame.duplicated(["geo_id", "observation_date", "variable_id"]).any()
 
 
+def test_acs_b25004_static_cleaner_preserves_geography_and_missing_sentinel(
+    tmp_path,
+):
+    geography_path = tmp_path / "geography.parquet"
+    pd.DataFrame(
+        {
+            "postal_zip": ["90001", "99999"],
+            "geo_type": ["postal_zip", "postal_zip_county_part"],
+        }
+    ).to_parquet(geography_path)
+    raw_path = tmp_path / "acs_b25004_2024.dat"
+    raw_path.write_text(
+        "\n".join(
+            [
+                "GEO_ID|B25004_E002|B25004_M002",
+                "0500000US06037|12345|321",
+                "860Z200US90001|47|-666666666",
+                "860Z200US99999|999|12",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    frame = clean_acs_table(
+        raw_path,
+        _record(),
+        "census_acs_5year_b25004",
+        geography_path,
+        tmp_path / "clean.parquet",
+    )
+
+    assert set(frame["geo_id"]) == {"COUNTY_06037", "ZCTA_90001"}
+    assert "ZCTA_99999" not in set(frame["geo_id"])
+    assert set(frame["variable_id"]) == {
+        "acs_for_rent_vacant_units",
+        "acs_for_rent_vacant_units_moe",
+    }
+    assert set(frame["observation_date"]) == {pd.Timestamp("2024-12-31")}
+    assert set(frame["unit"]) == {"housing_units"}
+    assert len(frame) == 4
+
+    county = frame.loc[frame["geo_id"].eq("COUNTY_06037")]
+    assert set(county["state_fips"]) == {"06"}
+    assert set(county["county_fips"]) == {"06037"}
+    assert county.set_index("variable_id").loc[
+        "acs_for_rent_vacant_units", "value"
+    ] == 12345
+    assert county.set_index("variable_id").loc[
+        "acs_for_rent_vacant_units_moe", "value"
+    ] == 321
+
+    zcta = frame.loc[frame["geo_id"].eq("ZCTA_90001")]
+    assert zcta["state_fips"].isna().all()
+    assert zcta["county_fips"].isna().all()
+    zcta_moe = zcta.loc[
+        zcta["variable_id"].eq("acs_for_rent_vacant_units_moe")
+    ].iloc[0]
+    assert pd.isna(zcta_moe["value"])
+    assert pd.isna(zcta_moe["reported_value"])
+    assert frame["transformation_id"].eq("acs_5year_table_summary_v1").all()
+
+
 def test_acs_api_download_surfaces_missing_key_without_archiving(tmp_path, monkeypatch):
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)
     (tmp_path / "data" / "clean").mkdir(parents=True)
