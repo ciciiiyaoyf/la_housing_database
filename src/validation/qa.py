@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import duckdb
 import pandas as pd
@@ -45,27 +46,34 @@ def _failure_rows(
     return result
 
 
+def _classify_geo_type(geo_id: object) -> str:
+    value = str(geo_id)
+    if value == "US":
+        return "national"
+    prefix_types = (
+        ("STATE_", "state"),
+        ("COUNTY_", "county"),
+        ("ZIP_", "postal_zip"),
+        ("ZCTA_", "zcta"),
+        ("METRODIV_", "metro_division"),
+        ("METRO_", "metro"),
+    )
+    for prefix, geo_type in prefix_types:
+        if value.startswith(prefix):
+            return geo_type
+    return "unknown"
+
+
 def _coverage_reports(
-    config: ProjectConfig, fact: pd.DataFrame, zip_panel: pd.DataFrame
+    config: ProjectConfig,
+    fact: pd.DataFrame,
+    county: pd.DataFrame,
+    zip_panel: pd.DataFrame,
 ) -> None:
     coverage_dir = config.root / "output" / "coverage"
     coverage_dir.mkdir(parents=True, exist_ok=True)
     work = fact.copy()
-    work["geo_type"] = work["geo_id"].map(
-        lambda item: "postal_zip"
-        if str(item).startswith("ZIP_")
-        else "county"
-        if str(item).startswith("COUNTY_")
-        else "state"
-        if str(item).startswith("STATE_")
-        else "zcta"
-        if str(item).startswith("ZCTA_")
-        else "metropolitan_division"
-        if str(item).startswith("METRODIV_")
-        else "metro"
-        if str(item).startswith("METRO_")
-        else "national"
-    )
+    work["geo_type"] = work["geo_id"].map(_classify_geo_type)
     source_coverage = (
         work.groupby(["provider", "variable_id", "geo_type"], dropna=False)
         .agg(
@@ -127,6 +135,262 @@ def _coverage_reports(
     )
     time_coverage["missing_months_within_span"] = span - time_coverage["unique_months"]
     time_coverage.to_csv(coverage_dir / "time_coverage.csv", index=False)
+    _write_missingness_report(coverage_dir, county, zip_panel)
+    _write_redfin_active_vintage_report(coverage_dir, fact)
+    _write_redfin_vintage_comparison(config, coverage_dir)
+
+
+def _panel_missingness(table_name: str, frame: pd.DataFrame) -> list[dict]:
+    if frame.empty:
+        return []
+    result: list[dict] = []
+    dates = pd.to_datetime(frame["date"], errors="coerce") if "date" in frame else None
+    for column in frame.columns:
+        series = frame[column]
+        nonmissing = series.notna()
+        first_date = None
+        latest_date = None
+        if dates is not None and nonmissing.any():
+            observed_dates = dates.loc[nonmissing & dates.notna()]
+            if not observed_dates.empty:
+                first_date = observed_dates.min().date().isoformat()
+                latest_date = observed_dates.max().date().isoformat()
+        result.append(
+            {
+                "table_name": table_name,
+                "column_name": column,
+                "row_count": len(frame),
+                "nonmissing_count": int(nonmissing.sum()),
+                "missing_count": int((~nonmissing).sum()),
+                "missing_share": float((~nonmissing).mean()),
+                "first_nonmissing_date": first_date,
+                "last_nonmissing_date": latest_date,
+                "note": (
+                    "Missing values intentionally preserved; no complete-case "
+                    "filtering, interpolation, backfill, forward fill, or zero "
+                    "fill is applied by default."
+                ),
+            }
+        )
+    return result
+
+
+def _write_missingness_report(
+    coverage_dir: Path, county: pd.DataFrame, zip_panel: pd.DataFrame
+) -> None:
+    rows = [
+        *_panel_missingness("analytics.county_monthly_panel", county),
+        *_panel_missingness("analytics.zip_monthly_panel", zip_panel),
+    ]
+    pd.DataFrame(rows).to_csv(
+        coverage_dir / "missingness_summary.csv", index=False
+    )
+
+
+def _write_redfin_active_vintage_report(
+    coverage_dir: Path, fact: pd.DataFrame
+) -> None:
+    redfin = fact.loc[fact["provider"].eq("Redfin Data Center")].copy()
+    columns = [
+        "source_id",
+        "source_filename",
+        "source_vintage",
+        "retrieved_at",
+        "checksum_sha256",
+        "provider_last_updated",
+        "first_observation",
+        "latest_observation",
+        "observation_count",
+        "nonnull_count",
+        "geography_count",
+        "variable_count",
+    ]
+    if redfin.empty:
+        pd.DataFrame(columns=columns).to_csv(
+            coverage_dir / "redfin_active_vintage.csv", index=False
+        )
+        return
+    redfin["source_id"] = redfin["variable_id"].map(
+        lambda item: "redfin_zip_monthly"
+        if str(item).startswith("redfin_zip_")
+        else "redfin_county_monthly"
+    )
+    for column in ("checksum_sha256", "provider_last_updated"):
+        if column not in redfin:
+            redfin[column] = None
+    active = (
+        redfin.groupby(
+            [
+                "source_id",
+                "source_filename",
+                "source_vintage",
+                "retrieved_at",
+                "checksum_sha256",
+                "provider_last_updated",
+            ],
+            dropna=False,
+        )
+        .agg(
+            first_observation=("observation_date", "min"),
+            latest_observation=("observation_date", "max"),
+            observation_count=("value", "size"),
+            nonnull_count=("value", "count"),
+            geography_count=("geo_id", "nunique"),
+            variable_count=("variable_id", "nunique"),
+        )
+        .reset_index()
+        .reindex(columns=columns)
+    )
+    active.to_csv(coverage_dir / "redfin_active_vintage.csv", index=False)
+
+
+def _redfin_archive_summary(config: ProjectConfig, record: pd.Series) -> dict:
+    path = config.root / str(record.get("relative_path", ""))
+    if not path.exists():
+        return {"note": f"Archived file not found: {path}"}
+    read_options: dict[str, object] = {"dtype": str}
+    if str(record.get("source_id")) == "redfin_county_monthly":
+        read_options.update({"sep": "\t", "compression": "gzip"})
+    try:
+        header = pd.read_csv(path, nrows=0, **read_options)
+        normalized = {
+            re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", column.lower())).strip("_"): column
+            for column in header.columns
+        }
+        begin_column = normalized.get("period_begin")
+        end_column = normalized.get("period_end")
+        last_updated_column = normalized.get("last_updated")
+        use_columns = [
+            column for column in (begin_column, end_column, last_updated_column) if column
+        ]
+        frame = pd.read_csv(
+            path,
+            usecols=use_columns if use_columns else None,
+            **read_options,
+        )
+    except Exception as exc:
+        return {"note": f"{type(exc).__name__}: {exc}"}
+    result: dict[str, object] = {
+        "row_count": len(frame),
+        "note": None,
+    }
+    for label, column in (
+        ("first_period_begin", begin_column),
+        ("latest_period_begin", begin_column),
+        ("first_period_end", end_column),
+        ("latest_period_end", end_column),
+        ("provider_last_updated", last_updated_column),
+    ):
+        if column is None:
+            result[label] = None
+            continue
+        dates = pd.to_datetime(frame[column], errors="coerce")
+        if label.startswith("first"):
+            value = dates.min()
+        else:
+            value = dates.max()
+        result[label] = value.date().isoformat() if pd.notna(value) else None
+    return result
+
+
+def _write_redfin_vintage_comparison(
+    config: ProjectConfig, coverage_dir: Path
+) -> None:
+    manifest_path = config.root / "metadata" / "raw_file_manifest.csv"
+    columns = [
+        "source_id",
+        "old_source_vintage",
+        "new_source_vintage",
+        "old_retrieved_at",
+        "new_retrieved_at",
+        "old_source_filename",
+        "new_source_filename",
+        "old_checksum_sha256",
+        "new_checksum_sha256",
+        "old_row_count",
+        "new_row_count",
+        "row_count_difference",
+        "old_first_period_begin",
+        "new_first_period_begin",
+        "old_latest_period_end",
+        "new_latest_period_end",
+        "old_provider_last_updated",
+        "new_provider_last_updated",
+        "note",
+    ]
+    if not manifest_path.exists():
+        pd.DataFrame(columns=columns).to_csv(
+            coverage_dir / "redfin_vintage_comparison.csv", index=False
+        )
+        return
+    manifest = pd.read_csv(manifest_path, dtype=str)
+    redfin = manifest.loc[
+        manifest["source_id"].isin({"redfin_county_monthly", "redfin_zip_monthly"})
+    ].copy()
+    rows: list[dict] = []
+    for source_id, group in redfin.groupby("source_id", dropna=False):
+        group = group.sort_values(["retrieved_at", "source_filename"])
+        if len(group) < 2:
+            record = group.iloc[-1].to_dict() if not group.empty else {}
+            rows.append(
+                {
+                    "source_id": source_id,
+                    "new_source_vintage": record.get("data_vintage"),
+                    "new_retrieved_at": record.get("retrieved_at"),
+                    "new_source_filename": record.get("source_filename"),
+                    "new_checksum_sha256": record.get("checksum_sha256"),
+                    "note": (
+                        "Fewer than two raw vintages archived; no Redfin "
+                        "revision comparison is possible yet."
+                    ),
+                }
+            )
+            continue
+        old = group.iloc[-2]
+        new = group.iloc[-1]
+        old_summary = _redfin_archive_summary(config, old)
+        new_summary = _redfin_archive_summary(config, new)
+        old_rows = old_summary.get("row_count")
+        new_rows = new_summary.get("row_count")
+        note_parts = [
+            str(value)
+            for value in (old_summary.get("note"), new_summary.get("note"))
+            if value
+        ]
+        rows.append(
+            {
+                "source_id": source_id,
+                "old_source_vintage": old.get("data_vintage"),
+                "new_source_vintage": new.get("data_vintage"),
+                "old_retrieved_at": old.get("retrieved_at"),
+                "new_retrieved_at": new.get("retrieved_at"),
+                "old_source_filename": old.get("source_filename"),
+                "new_source_filename": new.get("source_filename"),
+                "old_checksum_sha256": old.get("checksum_sha256"),
+                "new_checksum_sha256": new.get("checksum_sha256"),
+                "old_row_count": old_rows,
+                "new_row_count": new_rows,
+                "row_count_difference": (
+                    int(new_rows) - int(old_rows)
+                    if old_rows is not None and new_rows is not None
+                    else None
+                ),
+                "old_first_period_begin": old_summary.get("first_period_begin"),
+                "new_first_period_begin": new_summary.get("first_period_begin"),
+                "old_latest_period_end": old_summary.get("latest_period_end"),
+                "new_latest_period_end": new_summary.get("latest_period_end"),
+                "old_provider_last_updated": old_summary.get(
+                    "provider_last_updated"
+                ),
+                "new_provider_last_updated": new_summary.get(
+                    "provider_last_updated"
+                ),
+                "note": "; ".join(note_parts) if note_parts else None,
+            }
+        )
+    pd.DataFrame(rows).reindex(columns=columns).to_csv(
+        coverage_dir / "redfin_vintage_comparison.csv", index=False
+    )
 
 
 def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
@@ -222,9 +486,10 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
     missing_key = fact.loc[fact[primary_key[:3]].isna().any(axis=1), primary_key]
     check("missing_fact_key", "error", missing_key, "Dates and geography/variable IDs are required.")
     invalid_geo = fact.loc[
-        ~fact["geo_id"].astype(str).str.match(
-            r"^(US|STATE_\d{2}|COUNTY_\d{5}|ZIP_\d{5}|"
-            r"ZCTA_\d{5}|METRO_\d{5}|METRODIV_\d{5})$"
+        ~fact["geo_id"]
+        .astype(str)
+        .str.match(
+            r"^(US|STATE_\d{2}|COUNTY_\d{5}|ZIP_\d{5}|ZCTA_\d{5}|METRO_\d{5}|METRODIV_\d{5})$"
         ),
         primary_key,
     ]
@@ -250,8 +515,12 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
                 "labor_force",
                 "mortgage_rate_30y_weekly",
                 "mortgage_rate_30y_monthly_average",
+                "mortgage_rate_30y_monthly_median",
                 "mortgage_rate_30y_month_end",
+                "mortgage_rate_30y_observation_count",
+                "permits_total",
                 "permits_1_unit",
+                "permits_2_to_4_units",
                 "permits_5_plus_units",
             }
         )
@@ -766,33 +1035,77 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
         "County ZHVI is checked against a broad ZIP range; levels are not aggregated as equivalent.",
     )
     weekly = fact.loc[fact["variable_id"].eq("mortgage_rate_30y_weekly")].copy()
-    reported_monthly = fact.loc[
-        fact["variable_id"].eq("mortgage_rate_30y_monthly_average"),
-        ["observation_date", "value"],
-    ].rename(columns={"value": "reported"})
-    if not weekly.empty and not reported_monthly.empty:
-        calculated = (
-            weekly.assign(month=weekly["observation_date"].dt.to_period("M"))
-            .groupby("month")["value"]
+    if not weekly.empty:
+        weekly = weekly.sort_values("observation_date")
+        weekly_monthly = weekly.assign(
+            month=weekly["observation_date"].dt.to_period("M")
+        )
+        calculated_mean = (
+            weekly_monthly.groupby("month")["value"]
             .mean()
             .rename("calculated")
             .reset_index()
         )
-        calculated["observation_date"] = calculated["month"].dt.to_timestamp("M")
-        comparison = reported_monthly.merge(calculated, on="observation_date")
-        aggregation_error = comparison.loc[
-            (comparison["reported"] - comparison["calculated"]).abs() > 1e-10
-        ]
+        calculated_median = (
+            weekly_monthly.groupby("month")["value"]
+            .median()
+            .rename("calculated")
+            .reset_index()
+        )
+        calculated_count = (
+            weekly_monthly.groupby("month")["value"]
+            .count()
+            .rename("calculated")
+            .reset_index()
+        )
+        calculated_month_end = (
+            weekly_monthly.groupby("month", as_index=False)
+            .tail(1)[["month", "value"]]
+            .rename(columns={"value": "calculated"})
+        )
+        expected_monthly = {
+            "mortgage_rate_30y_monthly_average": calculated_mean,
+            "mortgage_rate_30y_monthly_median": calculated_median,
+            "mortgage_rate_30y_month_end": calculated_month_end,
+            "mortgage_rate_30y_observation_count": calculated_count,
+        }
     else:
-        aggregation_error = pd.DataFrame()
-    check(
-        "mortgage_monthly_aggregation",
-        "error",
-        aggregation_error,
-        "Monthly PMMS average must equal the arithmetic mean of weekly observations.",
-    )
+        expected_monthly = {}
+    for variable_id, calculated in expected_monthly.items():
+        calculated = calculated.copy()
+        calculated["observation_date"] = calculated["month"].dt.to_timestamp("M")
+        reported = fact.loc[
+            fact["variable_id"].eq(variable_id),
+            ["observation_date", "value"],
+        ].rename(columns={"value": "reported"})
+        if reported.empty:
+            aggregation_error = pd.DataFrame(
+                [{"variable_id": variable_id, "detail": "missing monthly series"}]
+            )
+        else:
+            comparison = reported.merge(
+                calculated[["observation_date", "calculated"]],
+                on="observation_date",
+                how="outer",
+            )
+            aggregation_error = comparison.loc[
+                ~(
+                    comparison["reported"].notna()
+                    & comparison["calculated"].notna()
+                    & (
+                        comparison["reported"] - comparison["calculated"]
+                    ).abs().le(1e-10)
+                )
+            ].copy()
+            aggregation_error["variable_id"] = variable_id
+        check(
+            f"{variable_id}_aggregation",
+            "error",
+            aggregation_error,
+            f"{variable_id} must match the documented weekly-to-monthly PMMS aggregation.",
+        )
 
-    _coverage_reports(config, fact, zip_panel)
+    _coverage_reports(config, fact, county, zip_panel)
     summary = pd.DataFrame([result.__dict__ for result in results])
     failure_output = (
         pd.concat(failures, ignore_index=True, sort=False)

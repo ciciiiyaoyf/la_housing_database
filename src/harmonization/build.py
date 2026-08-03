@@ -32,7 +32,9 @@ COUNTY_VARIABLES = [
 
 MORTGAGE_VARIABLES = [
     "mortgage_rate_30y_monthly_average",
+    "mortgage_rate_30y_monthly_median",
     "mortgage_rate_30y_month_end",
+    "mortgage_rate_30y_observation_count",
 ]
 
 ZIP_ZILLOW_VARIABLES = [
@@ -75,42 +77,56 @@ COUNTY_ANNUAL_VARIABLES = [
     "bea_la_county_per_capita_personal_income_annual",
 ]
 
+B25106_MORTGAGE_DEBT_BINS = {
+    "acs_b25106_owner_less_20k_cost_lt20pct": (10_000.0, 0.10),
+    "acs_b25106_owner_less_20k_cost_20_29pct": (10_000.0, 0.25),
+    "acs_b25106_owner_less_20k_cost_30pluspct": (10_000.0, 0.40),
+    "acs_b25106_owner_20k_34999_cost_lt20pct": (27_500.0, 0.10),
+    "acs_b25106_owner_20k_34999_cost_20_29pct": (27_500.0, 0.25),
+    "acs_b25106_owner_20k_34999_cost_30pluspct": (27_500.0, 0.40),
+    "acs_b25106_owner_35k_49999_cost_lt20pct": (42_500.0, 0.10),
+    "acs_b25106_owner_35k_49999_cost_20_29pct": (42_500.0, 0.25),
+    "acs_b25106_owner_35k_49999_cost_30pluspct": (42_500.0, 0.40),
+    "acs_b25106_owner_50k_74999_cost_lt20pct": (62_500.0, 0.10),
+    "acs_b25106_owner_50k_74999_cost_20_29pct": (62_500.0, 0.25),
+    "acs_b25106_owner_50k_74999_cost_30pluspct": (62_500.0, 0.40),
+    "acs_b25106_owner_75kplus_cost_lt20pct": (112_500.0, 0.10),
+    "acs_b25106_owner_75kplus_cost_20_29pct": (112_500.0, 0.25),
+    "acs_b25106_owner_75kplus_cost_30pluspct": (112_500.0, 0.40),
+}
 
-def _configured_clean_observation_files(config: ProjectConfig) -> list[Path]:
-    """Return only clean observation files produced by enabled active sources."""
+MORTGAGE_DEBT_PROXY_DEBT_SERVICE_SHARE = 0.80
+MORTGAGE_DEBT_PROXY_REMAINING_TERM_YEARS = 25.0
+
+
+def _read_clean_files(config: ProjectConfig) -> pd.DataFrame:
+    root = config.root
     files: list[Path] = []
-    clean_dir = config.root / "data" / "clean"
-    for source in config.selected_sources():
+    for source in config.sources:
+        if not source.enabled:
+            continue
+        path = root / "data" / "clean" / f"{source.source_id}.parquet"
         if source.source_id == "redfin_zip_monthly":
-            files.append(
-                config.root
+            path = (
+                root
                 / "data"
                 / "interim"
                 / "redfin_zip_monthly_observations.parquet"
             )
-        elif source.source_id.startswith("census_acs_5year_"):
-            # ACS table-level files are intentionally not part of the active
-            # stage scope unless those source IDs are re-enabled later.
-            table_id = source.source_id.rsplit("_", 1)[-1]
-            files.extend(
-                [
-                    clean_dir / f"acs_county_annual_{table_id}.parquet",
-                    clean_dir / f"acs_zcta_annual_{table_id}.parquet",
-                ]
-            )
-        else:
-            files.append(clean_dir / f"{source.source_id}.parquet")
-    return sorted(path for path in files if path.exists())
-
-
-def _read_clean_files(config: ProjectConfig) -> pd.DataFrame:
-    files = _configured_clean_observation_files(config)
+        if path.exists():
+            files.append(path)
     frames = []
     for path in files:
         frame = pd.read_parquet(path)
         for column in OBSERVATION_COLUMNS:
             if column not in frame:
                 frame[column] = None
+        frame["value"] = pd.to_numeric(frame["value"], errors="coerce")
+        frame["reported_value"] = pd.to_numeric(
+            frame["reported_value"], errors="coerce"
+        )
+        frame["checksum_sha256"] = frame["checksum_sha256"].astype("string")
+        frame["provider_last_updated"] = frame["provider_last_updated"].astype("string")
         frames.append(frame[OBSERVATION_COLUMNS])
     if not frames:
         return empty_observations()
@@ -507,6 +523,147 @@ def _zip_panel(fact: pd.DataFrame, config: ProjectConfig) -> pd.DataFrame:
     return panel.sort_values(["postal_zip", "date"])
 
 
+def _wide_control_panel(
+    fact: pd.DataFrame,
+    *,
+    geo_prefixes: tuple[str, ...],
+    frequency: str,
+    id_columns: dict[str, str],
+) -> pd.DataFrame:
+    selected = _latest_values(
+        fact.loc[
+            fact["geo_id"].astype(str).str.startswith(geo_prefixes)
+            & fact["final_frequency"].eq(frequency)
+        ]
+    )
+    if selected.empty:
+        return pd.DataFrame(
+            columns=[
+                "date",
+                "geo_id",
+                *id_columns,
+                "latest_source_vintage",
+                "source_coverage_count",
+            ]
+        )
+    panel = (
+        selected.pivot_table(
+            index=["observation_date", "geo_id"],
+            columns="variable_id",
+            values="value",
+            aggfunc="last",
+        )
+        .reset_index()
+        .rename(columns={"observation_date": "date"})
+    )
+    for column, value in id_columns.items():
+        panel[column] = value
+    vintages = (
+        selected.groupby(["observation_date", "geo_id"])["source_vintage"]
+        .max()
+        .rename("latest_source_vintage")
+        .reset_index()
+        .rename(columns={"observation_date": "date"})
+    )
+    panel = panel.merge(vintages, on=["date", "geo_id"], how="left")
+    variable_columns = [
+        column
+        for column in panel.columns
+        if column not in {"date", "geo_id", *id_columns, "latest_source_vintage"}
+    ]
+    panel["source_coverage_count"] = panel[variable_columns].notna().sum(axis=1)
+    return panel.sort_values(["geo_id", "date"])
+
+
+def _merge_structural_columns(
+    panel: pd.DataFrame,
+    structural: pd.DataFrame,
+    *,
+    structural_date: str,
+    geo_id: str,
+) -> pd.DataFrame:
+    """Add source-specific derived columns without narrowing the general panel."""
+
+    if structural.empty:
+        return panel
+    supplement = structural.copy()
+    supplement["date"] = pd.to_datetime(supplement[structural_date])
+    supplement["geo_id"] = geo_id
+    join_keys = ["date", "geo_id"]
+    added_columns = [
+        column
+        for column in supplement.columns
+        if column not in panel.columns and column not in join_keys
+    ]
+    if not added_columns:
+        return panel
+    return panel.merge(
+        supplement[[*join_keys, *added_columns]],
+        on=join_keys,
+        how="left",
+        validate="many_to_one",
+    )
+
+
+def _county_quarterly_from_annual_controls(county_annual: pd.DataFrame) -> pd.DataFrame:
+    """Allocate selected annual county controls to quarters with explicit flags."""
+
+    required = {
+        "date",
+        "geo_id",
+        "county_fips",
+        "county_name",
+        "state_fips",
+        "natural_population_change_annual",
+    }
+    if county_annual.empty or not required.issubset(county_annual.columns):
+        return pd.DataFrame(
+            columns=[
+                "date",
+                "geo_id",
+                "county_fips",
+                "county_name",
+                "state_fips",
+                "natural_population_change_quarterly_allocated",
+                "source_annual_date",
+                "latest_source_vintage",
+                "source_coverage_count",
+                "is_imputed",
+                "is_interpolated",
+                "allocation_method",
+            ]
+        )
+    rows: list[dict[str, object]] = []
+    for _, row in county_annual.iterrows():
+        annual_value = pd.to_numeric(
+            row.get("natural_population_change_annual"), errors="coerce"
+        )
+        if pd.isna(annual_value):
+            continue
+        year = pd.Timestamp(row["date"]).year
+        for quarter in range(1, 5):
+            rows.append(
+                {
+                    "date": pd.Timestamp(year=year, month=quarter * 3, day=1)
+                    + pd.offsets.MonthEnd(0),
+                    "geo_id": row["geo_id"],
+                    "county_fips": row["county_fips"],
+                    "county_name": row["county_name"],
+                    "state_fips": row["state_fips"],
+                    "natural_population_change_quarterly_allocated": (
+                        float(annual_value) / 4.0
+                    ),
+                    "source_annual_date": row["date"],
+                    "latest_source_vintage": row.get("latest_source_vintage"),
+                    "source_coverage_count": 1,
+                    "is_imputed": True,
+                    "is_interpolated": True,
+                    "allocation_method": "annual_total_evenly_allocated_to_four_quarters",
+                }
+            )
+    return pd.DataFrame(rows).sort_values(["geo_id", "date"])
+
+
 def _redfin_yoy_report(config: ProjectConfig, panel: pd.DataFrame) -> None:
     pairs = {
         "homes_sold": (
@@ -560,6 +717,102 @@ def _redfin_yoy_report(config: ProjectConfig, panel: pd.DataFrame) -> None:
     )
 
 
+def _annuity_principal(monthly_payment: float, annual_rate_pct: float) -> float:
+    monthly_rate = annual_rate_pct / 100.0 / 12.0
+    periods = int(MORTGAGE_DEBT_PROXY_REMAINING_TERM_YEARS * 12)
+    if monthly_rate <= 0:
+        return monthly_payment * periods
+    return monthly_payment * (1.0 - (1.0 + monthly_rate) ** (-periods)) / monthly_rate
+
+
+def _pmms_average_rate_for_acs_window(
+    fact: pd.DataFrame, observation_date: pd.Timestamp
+) -> float | None:
+    end = pd.Timestamp(observation_date)
+    start = pd.Timestamp(year=end.year - 4, month=1, day=1)
+    rates = fact.loc[
+        fact["geo_id"].eq("US")
+        & fact["variable_id"].eq("mortgage_rate_30y_monthly_average")
+        & fact["observation_date"].between(start, end),
+        "value",
+    ]
+    rates = pd.to_numeric(rates, errors="coerce").dropna()
+    if rates.empty:
+        return None
+    return float(rates.mean())
+
+
+def _add_acs_mortgage_debt_proxy(
+    county_annual: pd.DataFrame, fact: pd.DataFrame
+) -> pd.DataFrame:
+    required = {
+        "acs_owner_units_with_mortgage",
+        *B25106_MORTGAGE_DEBT_BINS.keys(),
+    }
+    if not required.issubset(county_annual.columns):
+        for column in [
+            "acs_implied_aggregate_mortgage_debt_proxy",
+            "acs_implied_average_mortgage_balance_proxy",
+            "acs_implied_annual_mortgage_debt_service_proxy",
+            "acs_mortgage_debt_proxy_rate_assumption",
+            "acs_mortgage_debt_proxy_term_years_assumption",
+            "acs_mortgage_debt_proxy_debt_service_share_assumption",
+        ]:
+            county_annual[column] = pd.NA
+        return county_annual
+    result = county_annual.copy()
+    for index, row in result.iterrows():
+        owner_units_with_mortgage = pd.to_numeric(
+            row.get("acs_owner_units_with_mortgage"), errors="coerce"
+        )
+        if pd.isna(owner_units_with_mortgage) or owner_units_with_mortgage <= 0:
+            continue
+        bin_counts = {
+            column: pd.to_numeric(row.get(column), errors="coerce")
+            for column in B25106_MORTGAGE_DEBT_BINS
+        }
+        positive_bin_total = sum(
+            float(value) for value in bin_counts.values() if pd.notna(value)
+        )
+        if positive_bin_total <= 0:
+            continue
+        rate = _pmms_average_rate_for_acs_window(fact, row["date"])
+        if rate is None:
+            continue
+        aggregate_debt = 0.0
+        annual_debt_service = 0.0
+        for column, count in bin_counts.items():
+            if pd.isna(count) or count <= 0:
+                continue
+            income_midpoint, burden_midpoint = B25106_MORTGAGE_DEBT_BINS[column]
+            allocated_mortgaged_units = (
+                float(count) / positive_bin_total * float(owner_units_with_mortgage)
+            )
+            monthly_owner_cost = income_midpoint * burden_midpoint / 12.0
+            monthly_debt_service = (
+                monthly_owner_cost * MORTGAGE_DEBT_PROXY_DEBT_SERVICE_SHARE
+            )
+            aggregate_debt += allocated_mortgaged_units * _annuity_principal(
+                monthly_debt_service, rate
+            )
+            annual_debt_service += allocated_mortgaged_units * monthly_debt_service * 12.0
+        result.loc[index, "acs_implied_aggregate_mortgage_debt_proxy"] = aggregate_debt
+        result.loc[index, "acs_implied_average_mortgage_balance_proxy"] = (
+            aggregate_debt / float(owner_units_with_mortgage)
+        )
+        result.loc[index, "acs_implied_annual_mortgage_debt_service_proxy"] = (
+            annual_debt_service
+        )
+        result.loc[index, "acs_mortgage_debt_proxy_rate_assumption"] = rate
+        result.loc[index, "acs_mortgage_debt_proxy_term_years_assumption"] = (
+            MORTGAGE_DEBT_PROXY_REMAINING_TERM_YEARS
+        )
+        result.loc[index, "acs_mortgage_debt_proxy_debt_service_share_assumption"] = (
+            MORTGAGE_DEBT_PROXY_DEBT_SERVICE_SHARE
+        )
+    return result
+
+
 def build_analytical_outputs(
     config: ProjectConfig,
     start_date: str | None = None,
@@ -576,7 +829,86 @@ def build_analytical_outputs(
     zip_panel = _zip_panel(fact, config)
     _redfin_yoy_report(config, zip_panel)
     slow = _slow_frequency_panels(fact, county)
-    state_quarterly = slow["state_quarterly"]
+    state_quarterly = _wide_control_panel(
+        fact,
+        geo_prefixes=("STATE_",),
+        frequency="quarterly",
+        id_columns={"state_fips": "06", "state_name": "California"},
+    )
+    metro_monthly = _wide_control_panel(
+        fact,
+        geo_prefixes=("METRO_",),
+        frequency="monthly",
+        id_columns={"metro_name": "Los Angeles-Long Beach-Anaheim, CA"},
+    )
+    metro_quarterly = _wide_control_panel(
+        fact,
+        geo_prefixes=("METRO_", "METRODIV_"),
+        frequency="quarterly",
+        id_columns={"metro_name": "Los Angeles official metro/division geography"},
+    )
+    county_annual = _wide_control_panel(
+        fact,
+        geo_prefixes=("COUNTY_",),
+        frequency="annual",
+        id_columns={
+            "county_fips": "06037",
+            "county_name": "Los Angeles County",
+            "state_fips": "06",
+        },
+    )
+    state_quarterly = _merge_structural_columns(
+        state_quarterly,
+        slow["state_quarterly"],
+        structural_date="quarter_end",
+        geo_id="STATE_06",
+    )
+    metro_monthly = _merge_structural_columns(
+        metro_monthly,
+        slow["metro_monthly"],
+        structural_date="date",
+        geo_id="METRO_31080",
+    )
+    if {
+        "acs_median_home_value",
+        "acs_median_household_income",
+    }.issubset(county_annual.columns):
+        county_annual["county_annual_price_to_income_acs"] = (
+            county_annual["acs_median_home_value"]
+            / county_annual["acs_median_household_income"].replace(0, pd.NA)
+        )
+    if {
+        "acs_owner_occupied_units",
+        "acs_median_home_value",
+    }.issubset(county_annual.columns):
+        county_annual["acs_owner_occupied_home_value_proxy"] = (
+            county_annual["acs_owner_occupied_units"]
+            * county_annual["acs_median_home_value"]
+        )
+    county_annual = _add_acs_mortgage_debt_proxy(county_annual, fact)
+    if {
+        "acs_owner_occupied_home_value_proxy",
+        "acs_implied_aggregate_mortgage_debt_proxy",
+    }.issubset(county_annual.columns):
+        county_annual["acs_implied_aggregate_home_equity_proxy"] = (
+            county_annual["acs_owner_occupied_home_value_proxy"]
+            - county_annual["acs_implied_aggregate_mortgage_debt_proxy"]
+        )
+    if {
+        "cdc_wonder_live_births_annual",
+        "cdc_wonder_deaths_annual",
+    }.issubset(county_annual.columns):
+        county_annual["natural_population_change_annual"] = (
+            county_annual["cdc_wonder_live_births_annual"]
+            - county_annual["cdc_wonder_deaths_annual"]
+        )
+    county_annual = _merge_structural_columns(
+        county_annual,
+        slow["county_annual"],
+        structural_date="year_end",
+        geo_id="COUNTY_06037",
+    )
+    county_quarterly = _county_quarterly_from_annual_controls(county_annual)
     final_dir = config.root / "data" / "final"
     final_dir.mkdir(parents=True, exist_ok=True)
     fact.to_parquet(final_dir / "fact_housing_observation.parquet", index=False)
@@ -585,14 +917,20 @@ def build_analytical_outputs(
     state_quarterly.to_parquet(
         final_dir / "state_quarterly_panel.parquet", index=False
     )
-    slow["metro_monthly"].to_parquet(
+    metro_monthly.to_parquet(
         final_dir / "metro_monthly_controls.parquet", index=False
     )
     slow["metro_quarterly"].to_parquet(
         final_dir / "metro_quarterly_panel.parquet", index=False
     )
-    slow["county_annual"].to_parquet(
+    metro_quarterly.to_parquet(
+        final_dir / "metro_quarterly_controls.parquet", index=False
+    )
+    county_annual.to_parquet(
         final_dir / "county_annual_controls.parquet", index=False
+    )
+    county_quarterly.to_parquet(
+        final_dir / "county_quarterly_controls.parquet", index=False
     )
     geography, crosswalk = build_geography(config, fact)
     pd.DataFrame(config.variables).to_csv(
@@ -651,6 +989,38 @@ def build_analytical_outputs(
                 "source_vintage": fact["source_vintage"].max() if not fact.empty else None,
                 "executed_at": executed_at,
             },
+            {
+                "transformation_id": "native_frequency_control_panels_v1",
+                "source_id": "multiple",
+                "input_file": "data/final/fact_housing_observation.parquet",
+                "output_file": (
+                    "data/final/state_quarterly_panel.parquet|"
+                    "data/final/metro_monthly_controls.parquet|"
+                    "data/final/metro_quarterly_controls.parquet|"
+                    "data/final/county_annual_controls.parquet|"
+                    "data/final/county_quarterly_controls.parquet"
+                ),
+                "input_rows_or_shape": len(fact),
+                "output_rows": (
+                    len(state_quarterly)
+                    + len(metro_monthly)
+                    + len(metro_quarterly)
+                    + len(county_annual)
+                    + len(county_quarterly)
+                ),
+                "description": (
+                    "Pivot state, metro, and annual county controls at native "
+                    "frequency without expanding them into monthly panels. "
+                    "Also compute documented annual ACS proxies such as "
+                    "owner-occupied housing value and implied aggregate mortgage "
+                    "debt from B25106/B25081/Freddie Mac assumptions, plus the "
+                    "CDC WONDER annual natural population change and its clearly "
+                    "flagged quarterly allocation."
+                ),
+                "code_module": "src.harmonization.build",
+                "source_vintage": fact["source_vintage"].max() if not fact.empty else None,
+                "executed_at": executed_at,
+            },
         ]
     )
     transformations = pd.concat([prior, panel_transformations], ignore_index=True)
@@ -669,9 +1039,11 @@ def build_analytical_outputs(
         "county": county,
         "zip": zip_panel,
         "state_quarterly": state_quarterly,
-        "metro_monthly": slow["metro_monthly"],
-        "metro_quarterly": slow["metro_quarterly"],
-        "county_annual": slow["county_annual"],
+        "metro_monthly": metro_monthly,
+        "metro_quarterly": metro_quarterly,
+        "metro_quarterly_panel": slow["metro_quarterly"],
+        "county_annual": county_annual,
+        "county_quarterly": county_quarterly,
         "geography": geography,
         "crosswalk": crosswalk,
     }

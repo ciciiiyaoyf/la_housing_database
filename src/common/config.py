@@ -22,6 +22,7 @@ class SourceConfig:
     geography_levels: tuple[str, ...]
     file_format: str
     key_variables: tuple[str, ...] = ()
+    raw_subdir: str = ""
     access_method: str = "official_download"
     destination_clean_table: str = ""
     destination_analytical_table: str = ""
@@ -97,7 +98,7 @@ def _yaml(path: Path) -> dict[str, Any]:
 
 
 def _classified_variable(raw: dict[str, Any]) -> dict[str, Any]:
-    """Add a stable modeling classification without duplicating YAML boilerplate."""
+    """Add stable catalog/modeling classification fields."""
     variable = dict(raw)
     variable_id = str(variable["variable_id"])
     constructed = (
@@ -106,7 +107,9 @@ def _classified_variable(raw: dict[str, Any]) -> dict[str, Any]:
         or variable_id
         in {
             "mortgage_rate_30y_monthly_average",
+            "mortgage_rate_30y_monthly_median",
             "mortgage_rate_30y_month_end",
+            "mortgage_rate_30y_observation_count",
         }
     )
     if variable_id.endswith("_moe"):
@@ -139,9 +142,7 @@ def _classified_variable(raw: dict[str, Any]) -> dict[str, Any]:
     variable.setdefault("variable_role", role)
     variable.setdefault("data_domain", domain)
     variable.setdefault("source_geography", variable.get("geography"))
-    variable.setdefault(
-        "source_frequency", variable.get("native_frequency")
-    )
+    variable.setdefault("source_frequency", variable.get("native_frequency"))
     variable.setdefault("model_frequency", variable.get("final_frequency"))
     variable.setdefault("is_observed", not constructed)
     variable.setdefault("is_constructed", constructed)

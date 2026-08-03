@@ -91,7 +91,7 @@ variables:
   methodological_notes: Do not sum adjacent rolling observations.
 - variable_id: redfin_zip_active_listings_rolling_3m
   display_name: Redfin ZIP active listings - rolling 3 months
-  definition: Provider active-listings metric for an overlapping three-calendar-month ZIP window; not rental inventory.
+  definition: Provider active-listings metric for an overlapping three-calendar-month window
   provider: Redfin Data Center
   original_field: ACTIVE LISTINGS
   unit: count
@@ -104,6 +104,111 @@ variables:
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
   methodological_notes: Kept as active_listings and never relabeled as active_inventory.
+- variable_id: redfin_zip_pending_sales_rolling_3m
+  display_name: Redfin ZIP pending sales - rolling 3 months
+  definition: Pending sales observed over an overlapping three-calendar-month window
+  provider: Redfin Data Center
+  original_field: PENDING SALES
+  unit: count
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: source value dated by period end
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Do not sum adjacent rolling observations.
+- variable_id: redfin_zip_homes_sold_yoy_pct_provider_rolling_3m
+  display_name: Redfin ZIP homes sold provider YoY - rolling 3 months
+  definition: Provider-reported year-over-year change in rolling-three-month homes sold
+  provider: Redfin Data Center
+  original_field: HOMES SOLD YOY (%)
+  unit: percentage_points
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain provider percentage-point value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept separate from pipeline-calculated YoY.
+- variable_id: redfin_zip_median_sale_price_nsa_yoy_pct_provider_rolling_3m
+  display_name: Redfin ZIP median sale price NSA provider YoY - rolling 3 months
+  definition: Provider-reported year-over-year change in rolling-three-month NSA median sale price
+  provider: Redfin Data Center
+  original_field: MEDIAN SALE PRICE NSA YOY (%)
+  unit: percentage_points
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain provider percentage-point value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept separate from pipeline-calculated YoY.
+- variable_id: redfin_zip_median_days_on_market_yoy_pct_provider_rolling_3m
+  display_name: Redfin ZIP median days on market provider YoY - rolling 3 months
+  definition: Provider-reported year-over-year change in rolling-three-month median days on market
+  provider: Redfin Data Center
+  original_field: MEDIAN DAYS ON MARKET YOY (%)
+  unit: percentage_points
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain provider percentage-point value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept separate from pipeline-calculated YoY.
+- variable_id: redfin_zip_new_listings_yoy_pct_provider_rolling_3m
+  display_name: Redfin ZIP new listings provider YoY - rolling 3 months
+  definition: Provider-reported year-over-year change in rolling-three-month new listings
+  provider: Redfin Data Center
+  original_field: NEW LISTINGS YOY (%)
+  unit: percentage_points
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain provider percentage-point value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept separate from pipeline-calculated YoY.
+- variable_id: redfin_zip_active_listings_yoy_pct_provider_rolling_3m
+  display_name: Redfin ZIP active listings provider YoY - rolling 3 months
+  definition: Provider-reported year-over-year change in rolling-three-month active listings
+  provider: Redfin Data Center
+  original_field: ACTIVE LISTINGS YOY (%)
+  unit: percentage_points
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain provider percentage-point value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept separate from pipeline-calculated YoY and never relabeled as inventory.
+- variable_id: redfin_zip_pending_sales_yoy_pct_provider_rolling_3m
+  display_name: Redfin ZIP pending sales provider YoY - rolling 3 months
+  definition: Provider-reported year-over-year change in rolling-three-month pending sales
+  provider: Redfin Data Center
+  original_field: PENDING SALES YOY (%)
+  unit: percentage_points
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain provider percentage-point value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Kept separate from pipeline-calculated YoY.
 - variable_id: median_sale_price
   display_name: Median sale price
   definition: Median closed-sale price
@@ -135,8 +240,8 @@ variables:
   revision_policy: archive every retrieval
   methodological_notes: Provider monthly series; weekly rolling windows are not aggregated.
 - variable_id: active_inventory
-  display_name: For-sale active inventory
-  definition: Redfin county active for-sale inventory metric.
+  display_name: Active inventory
+  definition: Provider inventory metric
   provider: Redfin Data Center
   original_field: inventory
   unit: count
@@ -148,7 +253,8 @@ variables:
   transformation: provider monthly stock value
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: County stock measure; ZIP Key Metrics active listings use a separate variable and are never mapped here.
+  methodological_notes: County stock measure; ZIP Key Metrics active listings use a separate variable and are never mapped
+    here.
 - variable_id: new_listings
   display_name: New listings
   definition: Newly listed homes
@@ -164,6 +270,21 @@ variables:
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
   methodological_notes: Flow measure.
+- variable_id: pending_sales
+  display_name: Pending sales
+  definition: Homes going pending
+  provider: Redfin Data Center
+  original_field: pending_sales
+  unit: count
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly value
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Loaded only when supplied consistently.
 - variable_id: months_of_supply
   display_name: Months of supply
   definition: Inventory relative to sales pace
@@ -206,6 +327,21 @@ variables:
   seasonal_adjustment: product field retained
   smoothing: none
   transformation: provider monthly share
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Ratio; not summed.
+- variable_id: sale_to_list_ratio
+  display_name: Average sale-to-list ratio
+  definition: Sale price divided by list price
+  provider: Redfin Data Center
+  original_field: avg_sale_to_list
+  unit: ratio
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: product field retained
+  smoothing: none
+  transformation: provider monthly ratio
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
   methodological_notes: Ratio; not summed.
@@ -299,6 +435,22 @@ variables:
   missing_value_policy: preserve null
   revision_policy: archive file
   methodological_notes: National rate.
+- variable_id: mortgage_rate_30y_monthly_median
+  display_name: 30-year fixed mortgage rate monthly median
+  definition: Median of weekly Freddie Mac PMMS 30-year fixed-rate observations dated inside a calendar month.
+  provider: Freddie Mac
+  original_field: pmms30
+  unit: percent
+  native_frequency: weekly
+  final_frequency: monthly
+  geography: national
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: monthly mean
+  transformation: median by calendar month
+  missing_value_policy: preserve null
+  revision_policy: archive file
+  methodological_notes: National annual interest rate reported by PMMS; not annualized again. Current-month aggregates may
+    be partial until all weekly observations are available.
 - variable_id: mortgage_rate_30y_month_end
   display_name: 30-year fixed mortgage rate month end
   definition: Last weekly PMMS observation in a calendar month
@@ -314,9 +466,42 @@ variables:
   missing_value_policy: preserve null
   revision_policy: archive file
   methodological_notes: National rate.
+- variable_id: mortgage_rate_30y_observation_count
+  display_name: 30-year fixed mortgage rate monthly observation count
+  definition: Count of weekly Freddie Mac PMMS 30-year fixed-rate observations contributing to the monthly aggregates.
+  provider: Freddie Mac
+  original_field: pmms30
+  unit: weekly_observations
+  native_frequency: weekly
+  final_frequency: monthly
+  geography: national
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: monthly mean
+  transformation: count weekly observations by calendar month
+  missing_value_policy: preserve null
+  revision_policy: archive file
+  methodological_notes: Useful for identifying partial current-month aggregates.
+  is_observed: false
+  is_constructed: true
+- variable_id: permits_total
+  display_name: Total housing units permitted
+  definition: Units authorized by building permits across structure sizes
+  provider: U.S. Census Bureau
+  original_field: sum of units fields
+  unit: units
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|state
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: sum structure-type units
+  missing_value_policy: preserve null
+  revision_policy: archive every monthly file
+  methodological_notes: Authorizations not starts or completions; pre-2022 county values are sampled-jurisdiction tallies
+    and 2022 onward uses the full current universe with imputation.
 - variable_id: permits_1_unit
-  display_name: Single-family permit authorizations
-  definition: Housing units authorized in one-unit structures; a permit authorization, not a start or completion.
+  display_name: One-unit housing permits
+  definition: Units authorized in one-unit structures
   provider: U.S. Census Bureau
   original_field: 1-unit Units
   unit: units
@@ -328,10 +513,26 @@ variables:
   transformation: none
   missing_value_policy: preserve null
   revision_policy: archive every monthly file
-  methodological_notes: Reported units and total estimates are retained separately; methodology regime is flagged at January 2022.
+  methodological_notes: Reported units and total estimates are retained separately; methodology regime is flagged at January
+    2022.
+- variable_id: permits_2_to_4_units
+  display_name: Two-to-four-unit housing permits
+  definition: Units authorized in two-unit and three-to-four-unit structures
+  provider: U.S. Census Bureau
+  original_field: 2-units Units + 3-4 units Units
+  unit: units
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: county|state
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: none
+  transformation: sum two structure categories
+  missing_value_policy: preserve null
+  revision_policy: archive every monthly file
+  methodological_notes: Authorizations not starts or completions; reported units and total estimates are retained separately.
 - variable_id: permits_5_plus_units
-  display_name: Multifamily permit authorizations, 5+ units
-  definition: Housing units authorized in structures with five or more units; a permit authorization, not a start or completion.
+  display_name: Five-or-more-unit housing permits
+  definition: Units authorized in structures with five or more units
   provider: U.S. Census Bureau
   original_field: 5+ units Units
   unit: units
@@ -345,245 +546,1624 @@ variables:
   revision_policy: archive every monthly file
   methodological_notes: Authorizations not starts or completions; reported units and total estimates are retained separately.
 - variable_id: fhfa_hpi_ca_purchase_only_nsa
-  display_name: FHFA California Purchase-Only HPI NSA
-  definition: Repeat-sales house-price index for eligible single-family mortgage purchases in California
+  display_name: FHFA CA purchase-only HPI NSA
+  definition: FHFA purchase-only repeat-sales house price index for California, not seasonally adjusted
   provider: Federal Housing Finance Agency
-  original_field: index_nsa
+  original_field: provider field documented by source cleaner
   unit: index
   native_frequency: quarterly
   final_frequency: quarterly
   geography: state
-  seasonal_adjustment: not seasonally adjusted
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: quarter-end normalization
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Benchmark series; does not replace monthly Zillow ZHVI.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: fhfa_hpi_ca_purchase_only_sa
-  display_name: FHFA California Purchase-Only HPI SA
-  definition: Seasonally adjusted repeat-sales house-price index for eligible single-family mortgage purchases in California
+  display_name: FHFA CA purchase-only HPI SA
+  definition: FHFA purchase-only repeat-sales house price index for California, seasonally adjusted
   provider: Federal Housing Finance Agency
-  original_field: index_sa
+  original_field: provider field documented by source cleaner
   unit: index
   native_frequency: quarterly
   final_frequency: quarterly
   geography: state
-  seasonal_adjustment: seasonally adjusted
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: quarter-end normalization
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: State benchmark; not Los Angeles data.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: fhfa_hpi_la_metropolitan_division_purchase_only_nsa
-  display_name: FHFA LA Metropolitan Division Purchase-Only HPI NSA
-  definition: Repeat-sales purchase-only HPI for Los Angeles-Long Beach-Glendale metropolitan division 31084
+  display_name: FHFA LA metro division purchase-only HPI NSA
+  definition: FHFA purchase-only repeat-sales house price index for Los Angeles-Long Beach-Glendale metropolitan division,
+    not seasonally adjusted
   provider: Federal Housing Finance Agency
-  original_field: index_nsa
+  original_field: provider field documented by source cleaner
   unit: index
   native_frequency: quarterly
   final_frequency: quarterly
-  geography: metropolitan_division
-  seasonal_adjustment: not seasonally adjusted
+  geography: metro_division
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: quarter-end normalization
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Metropolitan-division benchmark; never labeled as Los Angeles County.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: fhfa_hpi_la_metropolitan_division_purchase_only_sa
-  display_name: FHFA LA Metropolitan Division Purchase-Only HPI SA
-  definition: Seasonally adjusted repeat-sales purchase-only HPI for Los Angeles-Long Beach-Glendale metropolitan division 31084
+  display_name: FHFA LA metro division purchase-only HPI SA
+  definition: FHFA purchase-only repeat-sales house price index for Los Angeles-Long Beach-Glendale metropolitan division,
+    seasonally adjusted
   provider: Federal Housing Finance Agency
-  original_field: index_sa
+  original_field: provider field documented by source cleaner
   unit: index
   native_frequency: quarterly
   final_frequency: quarterly
-  geography: metropolitan_division
-  seasonal_adjustment: seasonally adjusted
+  geography: metro_division
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: quarter-end normalization
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Metropolitan-division benchmark; never labeled as Los Angeles County.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: fhfa_hpi_la_county_all_transactions_nsa_annual
-  display_name: FHFA Los Angeles County Developmental All-Transactions HPI
-  definition: Developmental annual all-transactions repeat-sales HPI for Los Angeles County with 2000 base
+  display_name: FHFA LA County annual all-transactions HPI NSA
+  definition: Developmental annual FHFA all-transactions HPI for Los Angeles County, not seasonally adjusted
   provider: Federal Housing Finance Agency
-  original_field: HPI with 2000 base
+  original_field: provider field documented by source cleaner
   unit: index_2000_100
   native_frequency: annual
   final_frequency: annual
   geography: county
-  seasonal_adjustment: not seasonally adjusted
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: year-end normalization
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Annual developmental series; not expanded to monthly and does not replace ZHVI.
-- variable_id: ces_total_nonfarm_employment_sa
-  display_name: LA Metro Total Nonfarm Payroll Employment SA
-  definition: Seasonally adjusted establishment payroll employment in the Los Angeles-Long Beach-Anaheim MSA
-  provider: U.S. Bureau of Labor Statistics
-  original_field: SMS06310800000000001
-  unit: thousands_of_jobs
-  native_frequency: monthly
-  final_frequency: monthly
-  geography: metro
-  seasonal_adjustment: seasonally adjusted
-  smoothing: none
-  transformation: official bulk file filter and month-end normalization
-  missing_value_policy: preserve null
-  revision_policy: archive every retrieval
-  methodological_notes: Establishment-based MSA series; not Los Angeles County and not interchangeable with LAUS employment.
-- variable_id: cpi_u_all_items_la_nsa
-  display_name: Los Angeles Area CPI-U All Items NSA
-  definition: CPI for All Urban Consumers all items for the Los Angeles-Long Beach-Anaheim published area
-  provider: U.S. Bureau of Labor Statistics
-  original_field: CUURS49ASA0
-  unit: index_1982_84_100
-  native_frequency: monthly
-  final_frequency: monthly
-  geography: metro_area
-  seasonal_adjustment: not seasonally adjusted
-  smoothing: none
-  transformation: official bulk file filter and month-end normalization
-  missing_value_policy: preserve publication gaps
-  revision_policy: archive every retrieval
-  methodological_notes: Current S49A published geography; the 2018 geographic revision is documented and the discontinued A421 series is not substituted.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: bea_ca_personal_income_q_sa
-  display_name: California Quarterly Personal Income SAAR
-  definition: California current-dollar personal income seasonally adjusted at annual rates
+  display_name: BEA California quarterly personal income SAAR
+  definition: California personal income, seasonally adjusted annual rate
   provider: U.S. Bureau of Economic Analysis
-  original_field: SQINC1 line 1
+  original_field: provider field documented by source cleaner
   unit: millions_of_current_dollars_saar
   native_frequency: quarterly
   final_frequency: quarterly
   geography: state
-  seasonal_adjustment: seasonally adjusted annual rate
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: official bulk table reshape
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: State quarterly series; not Los Angeles County income.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: bea_ca_per_capita_personal_income_q_sa
-  display_name: California Quarterly Per-Capita Personal Income SAAR
-  definition: California current-dollar per-capita personal income at seasonally adjusted annual rates
+  display_name: BEA California quarterly per-capita personal income SAAR
+  definition: California per-capita personal income, seasonally adjusted annual rate
   provider: U.S. Bureau of Economic Analysis
-  original_field: SQINC1 line 3
+  original_field: provider field documented by source cleaner
   unit: current_dollars_per_person_saar
   native_frequency: quarterly
   final_frequency: quarterly
   geography: state
-  seasonal_adjustment: seasonally adjusted annual rate
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: official bulk table reshape
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: State quarterly series; not Los Angeles County income.
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: bea_la_county_personal_income_annual
-  display_name: Los Angeles County Annual Personal Income
-  definition: Los Angeles County current-dollar personal income
+  display_name: BEA LA County annual personal income
+  definition: Los Angeles County annual personal income
   provider: U.S. Bureau of Economic Analysis
-  original_field: CAINC1 line 1
+  original_field: provider field documented by source cleaner
+  unit: thousands_of_current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: bea_la_county_per_capita_personal_income_annual
+  display_name: BEA LA County annual per-capita personal income
+  definition: Los Angeles County annual per-capita personal income
+  provider: U.S. Bureau of Economic Analysis
+  original_field: provider field documented by source cleaner
+  unit: current_dollars_per_person
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_in_migration_returns
+  display_name: IRS SOI LA County in-migration returns
+  definition: Annual IRS SOI county migration tax returns moving into Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: countyinflow n1 / Return_Num total migration row
+  unit: tax_returns
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Extract LA County total migration inflow from official IRS county inflow CSV.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Returns approximate tax filing units; this is migration based on tax return address changes, not complete
+    immigration.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_out_migration_returns
+  display_name: IRS SOI LA County out-migration returns
+  definition: Annual IRS SOI county migration tax returns moving out of Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: countyoutflow n1 / Return_Num total migration row
+  unit: tax_returns
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Extract LA County total migration outflow from official IRS county outflow CSV.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Returns approximate tax filing units; this is migration based on tax return address changes, not complete
+    immigration.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_net_migration_returns
+  display_name: IRS SOI LA County net migration returns
+  definition: Annual IRS SOI in-migration returns minus out-migration returns for Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: constructed from county inflow/outflow CSVs
+  unit: tax_returns
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Calculate inflow returns minus outflow returns by filing-year pair.
+  missing_value_policy: preserve null when inflow or outflow missing
+  revision_policy: recompute when IRS inputs update
+  methodological_notes: Slow-moving county migration proxy; returns approximate households/tax filing units.
+  observed_constructed_proxy_or_scenario: constructed
+- variable_id: irs_soi_in_migration_exemptions
+  display_name: IRS SOI LA County in-migration exemptions
+  definition: Annual IRS SOI county migration exemptions moving into Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: countyinflow n2 / Exmpt_Num total migration row
+  unit: exemptions
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Extract LA County total migration inflow exemptions from official IRS county inflow CSV.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Exemptions approximate people represented on tax returns; nonfilers are not fully covered.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_out_migration_exemptions
+  display_name: IRS SOI LA County out-migration exemptions
+  definition: Annual IRS SOI county migration exemptions moving out of Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: countyoutflow n2 / Exmpt_Num total migration row
+  unit: exemptions
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Extract LA County total migration outflow exemptions from official IRS county outflow CSV.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Exemptions approximate people represented on tax returns; nonfilers are not fully covered.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_net_migration_exemptions
+  display_name: IRS SOI LA County net migration exemptions
+  definition: Annual IRS SOI in-migration exemptions minus out-migration exemptions for Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: constructed from county inflow/outflow CSVs
+  unit: exemptions
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Calculate inflow exemptions minus outflow exemptions by filing-year pair.
+  missing_value_policy: preserve null when inflow or outflow missing
+  revision_policy: recompute when IRS inputs update
+  methodological_notes: Preferred public proxy for the Housing Variables net migration row because exemptions approximate
+    people better than tax returns.
+  observed_constructed_proxy_or_scenario: constructed
+- variable_id: irs_soi_in_migration_agi
+  display_name: IRS SOI LA County in-migration AGI
+  definition: Annual aggregate adjusted gross income associated with IRS SOI in-migration returns for Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: countyinflow agi / Aggr_AGI total migration row
   unit: thousands_of_current_dollars
   native_frequency: annual
   final_frequency: annual
   geography: county
   seasonal_adjustment: not applicable
   smoothing: none
-  transformation: official bulk table reshape
+  transformation: Extract LA County total migration inflow AGI from official IRS county inflow CSV.
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Annual county series; never interpolated to monthly or quarterly.
-- variable_id: bea_la_county_per_capita_personal_income_annual
-  display_name: Los Angeles County Annual Per-Capita Personal Income
-  definition: Los Angeles County current-dollar per-capita personal income
-  provider: U.S. Bureau of Economic Analysis
-  original_field: CAINC1 line 3
-  unit: current_dollars_per_person
+  methodological_notes: AGI is reported by IRS in thousands of current dollars.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_out_migration_agi
+  display_name: IRS SOI LA County out-migration AGI
+  definition: Annual aggregate adjusted gross income associated with IRS SOI out-migration returns for Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: countyoutflow agi / Aggr_AGI total migration row
+  unit: thousands_of_current_dollars
   native_frequency: annual
   final_frequency: annual
   geography: county
   seasonal_adjustment: not applicable
   smoothing: none
-  transformation: official bulk table reshape
+  transformation: Extract LA County total migration outflow AGI from official IRS county outflow CSV.
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Annual county series; never interpolated to monthly or quarterly.
+  methodological_notes: AGI is reported by IRS in thousands of current dollars.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: irs_soi_net_migration_agi
+  display_name: IRS SOI LA County net migration AGI
+  definition: Annual IRS SOI in-migration AGI minus out-migration AGI for Los Angeles County.
+  provider: Internal Revenue Service
+  original_field: constructed from county inflow/outflow CSVs
+  unit: thousands_of_current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Calculate inflow AGI minus outflow AGI by filing-year pair.
+  missing_value_policy: preserve null when inflow or outflow missing
+  revision_policy: recompute when IRS inputs update
+  methodological_notes: Net AGI migration is useful for migration composition; it is not a population count.
+  observed_constructed_proxy_or_scenario: constructed
 - variable_id: hvs_rental_vacancy_rate_ca
-  display_name: California HVS Rental Vacancy Rate
-  definition: Published Housing Vacancy Survey rental vacancy rate for California
+  display_name: HVS California rental vacancy rate
+  definition: Census HVS rental vacancy rate for California
   provider: U.S. Census Bureau
-  original_field: quarterly state estimate
+  original_field: provider field documented by source cleaner
   unit: percent
   native_frequency: quarterly
   final_frequency: quarterly
   geography: state
-  seasonal_adjustment: not seasonally adjusted
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: workbook block parsing and quarter-end normalization
-  missing_value_policy: preserve unpublished quarters
-  revision_policy: archive every workbook
-  methodological_notes: Survey estimate with sampling uncertainty; not Los Angeles data.
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: hvs_rental_vacancy_rate_ca_moe
-  display_name: California HVS Rental Vacancy Rate Margin of Error
-  definition: Published margin of error for the California rental vacancy rate
+  display_name: HVS California rental vacancy rate MOE
+  definition: Published margin of error for California HVS rental vacancy rate
   provider: U.S. Census Bureau
-  original_field: Margin of Error
+  original_field: provider field documented by source cleaner
   unit: percentage_points
   native_frequency: quarterly
   final_frequency: quarterly
   geography: state
-  seasonal_adjustment: not applicable
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: retained separately from estimate
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
-  revision_policy: archive every workbook
-  methodological_notes: Uncertainty measure; never treated as the vacancy-rate estimate.
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: hvs_rental_vacancy_rate_la_metro
-  display_name: LA MSA HVS Rental Vacancy Rate
-  definition: Published Housing Vacancy Survey rental vacancy rate for the Los Angeles MSA label used by each vintage
+  display_name: HVS LA metro rental vacancy rate
+  definition: Census HVS rental vacancy rate for Los Angeles metro area
   provider: U.S. Census Bureau
-  original_field: quarterly MSA estimate
+  original_field: provider field documented by source cleaner
   unit: percent
   native_frequency: quarterly
   final_frequency: quarterly
   geography: metro
-  seasonal_adjustment: not seasonally adjusted
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: workbook block parsing and quarter-end normalization
-  missing_value_policy: preserve unpublished quarters
-  revision_policy: archive every workbook
-  methodological_notes: Survey estimate for a published MSA; never labeled Los Angeles County and vintage geography labels may change.
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
 - variable_id: hvs_rental_vacancy_rate_la_metro_moe
-  display_name: LA MSA HVS Rental Vacancy Rate Margin of Error
-  definition: Published margin of error for the Los Angeles MSA rental vacancy rate
+  display_name: HVS LA metro rental vacancy rate MOE
+  definition: Published margin of error for LA metro HVS rental vacancy rate
   provider: U.S. Census Bureau
-  original_field: Margin of Error
+  original_field: provider field documented by source cleaner
   unit: percentage_points
   native_frequency: quarterly
   final_frequency: quarterly
   geography: metro
-  seasonal_adjustment: not applicable
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: retained separately from estimate
+  transformation: source-specific normalization; no frequency expansion
   missing_value_policy: preserve null
-  revision_policy: archive every workbook
-  methodological_notes: Uncertainty measure; never treated as the vacancy-rate estimate.
-- variable_id: sales_to_inventory_ratio
-  display_name: Sales-to-Inventory Ratio
-  definition: Monthly homes sold divided by active for-sale inventory
-  provider: Constructed
-  original_field: homes_sold / active_inventory
-  unit: ratio
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: ces_total_nonfarm_employment_sa
+  display_name: BLS CES LA metro total nonfarm employment SA
+  definition: Seasonally adjusted total nonfarm payroll employment for Los Angeles-Long Beach-Anaheim MSA
+  provider: U.S. Bureau of Labor Statistics
+  original_field: provider field documented by source cleaner
+  unit: thousands_of_jobs
   native_frequency: monthly
   final_frequency: monthly
-  geography: county
-  seasonal_adjustment: source fields retained
+  geography: metro
+  seasonal_adjustment: see variable name/source notes
   smoothing: none
-  transformation: monthly ratio
-  missing_value_policy: require nonzero inventory
-  revision_policy: rebuild with source vintages
-  methodological_notes: Distinct from housing-stock turnover.
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: cpi_u_all_items_la_nsa
+  display_name: BLS CPI-U LA metro all items NSA
+  definition: Consumer Price Index for All Urban Consumers, all items, Los Angeles metro, not seasonally adjusted
+  provider: U.S. Bureau of Labor Statistics
+  original_field: provider field documented by source cleaner
+  unit: index_1982_84_100
+  native_frequency: monthly
+  final_frequency: monthly
+  geography: metro
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_households
+  display_name: ACS households
+  definition: ACS 5-year household count
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_households_moe
+  display_name: ACS households MOE
+  definition: ACS 5-year margin of error for household count
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_median_household_income
+  display_name: ACS median household income
+  definition: ACS 5-year median household income
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_median_household_income_moe
+  display_name: ACS median household income MOE
+  definition: ACS 5-year margin of error for median household income
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_total_housing_units
+  display_name: ACS total housing units
+  definition: ACS 5-year total housing units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_total_housing_units_moe
+  display_name: ACS total housing units MOE
+  definition: ACS 5-year margin of error for total housing units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_vacant_housing_units
+  display_name: ACS vacant housing units
+  definition: ACS 5-year vacant housing units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_vacant_housing_units_moe
+  display_name: ACS vacant housing units MOE
+  definition: ACS 5-year margin of error for vacant housing units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_owner_occupied_units
+  display_name: ACS owner-occupied units
+  definition: ACS 5-year owner-occupied housing units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_owner_occupied_units_moe
+  display_name: ACS owner-occupied units MOE
+  definition: ACS 5-year margin of error for owner-occupied units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_renter_occupied_units
+  display_name: ACS renter-occupied units
+  definition: ACS 5-year renter-occupied housing units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_renter_occupied_units_moe
+  display_name: ACS renter-occupied units MOE
+  definition: ACS 5-year margin of error for renter-occupied units
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_median_gross_rent
+  display_name: ACS median gross rent
+  definition: ACS 5-year median gross rent
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: current_dollars_per_month
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_median_gross_rent_moe
+  display_name: ACS median gross rent MOE
+  definition: ACS 5-year margin of error for median gross rent
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: current_dollars_per_month
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_median_home_value
+  display_name: ACS median home value
+  definition: ACS 5-year median owner-occupied home value
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_median_home_value_moe
+  display_name: ACS median home value MOE
+  definition: ACS 5-year margin of error for median home value
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: current_dollars
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_owner_units_with_mortgage
+  display_name: ACS owner units with mortgage
+  definition: ACS 5-year owner-occupied units with a mortgage
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: acs_owner_units_with_mortgage_moe
+  display_name: ACS owner units with mortgage MOE
+  definition: ACS 5-year margin of error for owner units with mortgage
+  provider: U.S. Census Bureau
+  original_field: provider field documented by source cleaner
+  unit: housing_units
+  native_frequency: annual
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: see variable name/source notes
+  smoothing: none
+  transformation: source-specific normalization; no frequency expansion
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Added for broad data-collection audit; preserve native geography and frequency.
+  observed_constructed_proxy_or_scenario: observed
+- variable_id: down_payment_3_5pct
+  display_name: Down payment scenario, 3.5% FHA-style
+  definition: Scenario down payment equal to 3.5 percent of Redfin county median sale price.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Scenario down payment equal to 3.5 percent of Redfin county median sale price.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: down_payment_10pct
+  display_name: Down payment scenario, 10%
+  definition: Scenario down payment equal to 10 percent of Redfin county median sale price.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Scenario down payment equal to 10 percent of Redfin county median sale price.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: down_payment_20pct
+  display_name: Down payment scenario, 20%
+  definition: Scenario down payment equal to 20 percent of Redfin county median sale price.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Scenario down payment equal to 20 percent of Redfin county median sale price.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: closing_cost_2pct
+  display_name: Closing cost scenario, 2%
+  definition: Scenario closing costs equal to 2 percent of Redfin county median sale price.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Scenario closing costs equal to 2 percent of Redfin county median sale price.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: closing_cost_3pct
+  display_name: Closing cost scenario, 3%
+  definition: Scenario closing costs equal to 3 percent of Redfin county median sale price.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Scenario closing costs equal to 3 percent of Redfin county median sale price.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: closing_cost_5pct
+  display_name: Closing cost scenario, 5%
+  definition: Scenario closing costs equal to 5 percent of Redfin county median sale price.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Scenario closing costs equal to 5 percent of Redfin county median sale price.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: mortgage_payment_3_5pct_down
+  display_name: Monthly mortgage payment, 3.5% down
+  definition: Constructed principal-and-interest payment using Redfin median sale price, Freddie Mac monthly average 30-year
+    rate, 30-year term, and 3.5 percent down.
+  provider: Constructed
+  original_field: constructed
+  unit: USD/month
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Constructed principal-and-interest payment using Redfin median sale price, Freddie Mac monthly average 30-year
+    rate, 30-year term, and 3.5 percent down.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: scenario assumption
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+- variable_id: mortgage_payment_to_rent_3_5pct_down
+  display_name: Mortgage payment-to-rent ratio, 3.5% down
+  definition: Constructed ratio of 3.5 percent down mortgage payment to ZORI rent.
+  provider: Constructed
+  original_field: constructed
+  unit: ratio
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Constructed ratio of 3.5 percent down mortgage payment to ZORI rent.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: false
+- variable_id: sales_to_inventory_ratio
+  display_name: Sales-to-inventory ratio
+  definition: Redfin county homes sold divided by active inventory; liquidity measure, not housing-stock turnover.
+  provider: Constructed
+  original_field: constructed
+  unit: ratio
+  native_frequency: derived
+  final_frequency: monthly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Redfin county homes sold divided by active inventory; liquidity measure, not housing-stock turnover.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: false
+- variable_id: county_annual_price_to_income_acs
+  display_name: ACS county annual price-to-income ratio
+  definition: ACS median home value divided by ACS median household income at annual 5-year-estimate frequency.
+  provider: Constructed
+  original_field: constructed
+  unit: ratio
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS median home value divided by ACS median household income at annual 5-year-estimate frequency.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Labeled as constructed/scenario; not observed source data.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: false
+- variable_id: acs_owner_occupied_home_value_proxy
+  display_name: ACS owner-occupied housing value proxy
+  definition: ACS owner-occupied housing units multiplied by ACS median home value; partial input for the aggregate home-equity
+    workaround, not net equity.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS owner-occupied housing units multiplied by ACS median home value.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: This is only the housing-value side of the DOCX aggregate home-equity workaround; mortgage debt is
+    not subtracted because the ACS B25106 payment-distribution workaround is not yet implemented.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_b25106_owner_less_20k_cost_lt20pct
+  display_name: ACS B25106 owner units, income under $20k, housing costs under 20%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E004
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_less_20k_cost_20_29pct
+  display_name: ACS B25106 owner units, income under $20k, housing costs 20-29%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E005
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_less_20k_cost_30pluspct
+  display_name: ACS B25106 owner units, income under $20k, housing costs 30%+
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E006
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_20k_34999_cost_lt20pct
+  display_name: ACS B25106 owner units, income $20k-$34,999, housing costs under 20%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E008
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_20k_34999_cost_20_29pct
+  display_name: ACS B25106 owner units, income $20k-$34,999, housing costs 20-29%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E009
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_20k_34999_cost_30pluspct
+  display_name: ACS B25106 owner units, income $20k-$34,999, housing costs 30%+
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E010
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_35k_49999_cost_lt20pct
+  display_name: ACS B25106 owner units, income $35k-$49,999, housing costs under 20%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E012
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_35k_49999_cost_20_29pct
+  display_name: ACS B25106 owner units, income $35k-$49,999, housing costs 20-29%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E013
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_35k_49999_cost_30pluspct
+  display_name: ACS B25106 owner units, income $35k-$49,999, housing costs 30%+
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E014
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_50k_74999_cost_lt20pct
+  display_name: ACS B25106 owner units, income $50k-$74,999, housing costs under 20%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E016
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_50k_74999_cost_20_29pct
+  display_name: ACS B25106 owner units, income $50k-$74,999, housing costs 20-29%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E017
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_50k_74999_cost_30pluspct
+  display_name: ACS B25106 owner units, income $50k-$74,999, housing costs 30%+
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E018
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_75kplus_cost_lt20pct
+  display_name: ACS B25106 owner units, income $75k+, housing costs under 20%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E020
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_75kplus_cost_20_29pct
+  display_name: ACS B25106 owner units, income $75k+, housing costs 20-29%
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E021
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_75kplus_cost_30pluspct
+  display_name: ACS B25106 owner units, income $75k+, housing costs 30%+
+  definition: Owner-occupied housing units in ACS B25106 income and housing-cost-burden bin.
+  provider: U.S. Census Bureau
+  original_field: B25106_E022
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Input bin for the implied mortgage-debt proxy; ACS B25106 does not directly report mortgage balances.
+- variable_id: acs_b25106_owner_zero_negative_income
+  display_name: ACS B25106 owner units, zero or negative income
+  definition: Owner-occupied housing units in ACS B25106 with zero or negative income.
+  provider: U.S. Census Bureau
+  original_field: B25106_E023
+  unit: housing_units
+  native_frequency: annual_5_year_estimate
+  final_frequency: annual
+  geography: county|zcta
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: ACS table-based summary normalization.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Preserved as an ACS input but excluded from the implied mortgage-debt proxy because payment burden
+    cannot be inferred from a positive income midpoint.
+- variable_id: acs_implied_aggregate_mortgage_debt_proxy
+  display_name: ACS implied aggregate mortgage debt proxy
+  definition: Constructed proxy for aggregate outstanding mortgage debt inferred from ACS B25106 owner income/cost-burden
+    bins, ACS B25081 owner-with-mortgage counts, and Freddie Mac rate assumptions.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Allocate B25081 owner-with-mortgage counts across B25106 positive-income owner cost-burden bins, infer monthly
+    debt service from bin income and burden midpoints, then convert payment to balance with a fixed-rate amortization formula.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when ACS or Freddie Mac inputs update
+  methodological_notes: Proxy, not observed balance. Assumes income midpoints 10000, 27500, 42500, 62500, and 112500; cost-burden
+    midpoints 0.10, 0.25, and 0.40; debt-service share of owner housing cost 0.80; remaining term 25 years; and Freddie Mac
+    PMMS average rate over the ACS 5-year window.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_implied_average_mortgage_balance_proxy
+  display_name: ACS implied average mortgage balance proxy
+  definition: Aggregate implied mortgage debt proxy divided by ACS B25081 owner units with mortgage.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Aggregate implied mortgage debt proxy divided by ACS owner-with-mortgage count.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Proxy average balance, not observed credit-bureau or servicing balance.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_implied_annual_mortgage_debt_service_proxy
+  display_name: ACS implied annual mortgage debt service proxy
+  definition: Annualized mortgage debt-service proxy inferred from ACS B25106 owner cost-burden bins.
+  provider: Constructed
+  original_field: constructed
+  unit: USD/year
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Sum allocated mortgaged units times inferred monthly debt-service payment times 12.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Proxy excludes non-mortgage owner costs by applying the documented debt-service share assumption.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_mortgage_debt_proxy_rate_assumption
+  display_name: Mortgage debt proxy rate assumption
+  definition: Freddie Mac PMMS annual average rate used in the ACS implied mortgage-debt proxy.
+  provider: Constructed
+  original_field: constructed
+  unit: percent
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Mean Freddie Mac monthly-average 30-year fixed rate over the ACS 5-year estimate window.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Stored as an assumption column to make the proxy reproducible.
+  observed_constructed_proxy_or_scenario: assumption
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_mortgage_debt_proxy_term_years_assumption
+  display_name: Mortgage debt proxy remaining-term assumption
+  definition: Remaining amortization term assumption used in the ACS implied mortgage-debt proxy.
+  provider: Constructed
+  original_field: constructed
+  unit: years
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Fixed 25-year remaining-term assumption.
+  missing_value_policy: not applicable
+  revision_policy: fixed scenario assumption
+  methodological_notes: Stored as an assumption column to make the proxy reproducible.
+  observed_constructed_proxy_or_scenario: assumption
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_mortgage_debt_proxy_debt_service_share_assumption
+  display_name: Mortgage debt proxy debt-service-share assumption
+  definition: Share of ACS owner housing cost assigned to mortgage debt service in the implied mortgage-debt proxy.
+  provider: Constructed
+  original_field: constructed
+  unit: share
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Fixed 0.80 share applied to inferred owner housing cost.
+  missing_value_policy: not applicable
+  revision_policy: fixed scenario assumption
+  methodological_notes: ACS owner housing costs include non-debt costs; this assumption excludes taxes, insurance, utilities,
+    and fees approximately.
+  observed_constructed_proxy_or_scenario: assumption
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: acs_implied_aggregate_home_equity_proxy
+  display_name: ACS implied aggregate home equity proxy
+  definition: ACS owner-occupied housing value proxy minus ACS implied aggregate mortgage debt proxy.
+  provider: Constructed
+  original_field: constructed
+  unit: USD
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Subtract the B25106/B25081/Freddie implied aggregate mortgage debt proxy from owner-occupied units times
+    ACS median home value.
+  missing_value_policy: preserve null when inputs missing
+  revision_policy: recompute when inputs update
+  methodological_notes: Proxy for the DOCX aggregate home-equity workaround; not an observed balance-sheet series.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: cdc_wonder_live_births_annual
+  display_name: CDC WONDER LA County annual live births
+  definition: Annual live births for Los Angeles County from CDC WONDER Natality.
+  provider: CDC WONDER / National Center for Health Statistics
+  original_field: Births
+  unit: live_births
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Normalize official CDC WONDER CSV export and retain Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual observed vital-statistics count; not interpolated in the clean fact table.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: cdc_wonder_deaths_annual
+  display_name: CDC WONDER LA County annual deaths
+  definition: Annual deaths for Los Angeles County from CDC WONDER Underlying Cause of Death.
+  provider: CDC WONDER / National Center for Health Statistics
+  original_field: Deaths
+  unit: deaths
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Normalize official CDC WONDER mortality CSV exports and retain Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Uses the 1999-2020 database for 2007-2017 and the 2018-2024 single-race database for 2018-2024.
+  observed_constructed_proxy_or_scenario: observed
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+- variable_id: natural_population_change_annual
+  display_name: Annual natural population change
+  definition: Los Angeles County annual live births minus annual deaths.
+  provider: Constructed from CDC WONDER
+  original_field: constructed
+  unit: persons
+  native_frequency: derived
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: CDC WONDER live births annual minus CDC WONDER deaths annual.
+  missing_value_policy: preserve null when either input is missing
+  revision_policy: recompute when CDC WONDER inputs update
+  methodological_notes: Constructed annual vital-statistics balance; not migration and not total population change.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: false
+- variable_id: natural_population_change_quarterly_allocated
+  display_name: Quarterly allocated natural population change
+  definition: Annual natural population change evenly allocated to four quarters for quarterly modeling.
+  provider: Constructed from CDC WONDER
+  original_field: constructed
+  unit: persons
+  native_frequency: annual
+  final_frequency: quarterly
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Divide annual births-minus-deaths by four and assign the same value to Q1-Q4 of the source year.
+  missing_value_policy: preserve null when annual inputs are missing
+  revision_policy: recompute when CDC WONDER inputs update
+  methodological_notes: Timing allocation, not observed quarterly vital events; flagged imputed/interpolated in quarterly
+    controls.
+  observed_constructed_proxy_or_scenario: proxy
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+- variable_id: eviction_lab_renting_households_annual
+  display_name: Eviction Lab renter households
+  definition: Number of renting households in Los Angeles County used as the denominator in Eviction Lab annual county eviction
+    estimates.
+  provider: Eviction Lab
+  original_field: renting_hh
+  unit: renter_households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Denominator supplied in the Eviction Lab county annual estimates file; not an ETS observation.
+  observed_constructed_proxy_or_scenario: modeled_source_input
+  is_observed: false
+  is_constructed: false
+  is_proxy: false
+  market_segment: Renter
+  variable_role: Control
+  data_domain: eviction
+- variable_id: eviction_lab_filings_estimate_annual
+  display_name: Eviction Lab annual eviction filings estimate
+  definition: Estimated annual number of eviction filings for Los Angeles County.
+  provider: Eviction Lab
+  original_field: filings_estimate
+  unit: filings
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037 and preserve source observation
+    flags.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual modeled estimate; some source years are flagged by Eviction Lab as court-issued observed filings.
+    Do not treat as monthly ETS data or direct LA court filing feed.
+  observed_constructed_proxy_or_scenario: modeled
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_filings_ci_95_lower_annual
+  display_name: Eviction Lab eviction filings lower 95% credible interval
+  definition: Lower bound of the 95% credible interval for annual eviction filings in Los Angeles County.
+  provider: Eviction Lab
+  original_field: filings_ci_95_lower
+  unit: filings
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_filings_ci_95_upper_annual
+  display_name: Eviction Lab eviction filings upper 95% credible interval
+  definition: Upper bound of the 95% credible interval for annual eviction filings in Los Angeles County.
+  provider: Eviction Lab
+  original_field: filings_ci_95_upper
+  unit: filings
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_filings_rate_estimate_annual
+  display_name: Eviction Lab annual eviction filing rate estimate
+  definition: Estimated annual eviction filings per 100 renter households in Los Angeles County.
+  provider: Constructed from Eviction Lab
+  original_field: filings_estimate / renting_hh * 100
+  unit: filings_per_100_renter_households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Divide Eviction Lab filings_estimate by Eviction Lab renting_hh and multiply by 100.
+  missing_value_policy: preserve null when numerator or denominator is missing
+  revision_policy: recompute when Eviction Lab input updates
+  methodological_notes: Annual constructed rate from official Eviction Lab fields; not high-frequency ETS.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_estimate_annual
+  display_name: Eviction Lab annual households threatened estimate
+  definition: Estimated annual number of renter households threatened with eviction in Los Angeles County.
+  provider: Eviction Lab
+  original_field: hh_threat_estimate
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037 and preserve source observation
+    flags.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Annual modeled estimate; some source years are flagged by Eviction Lab as observed households threatened.
+    Do not treat as monthly ETS data.
+  observed_constructed_proxy_or_scenario: modeled
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_ci_95_lower_annual
+  display_name: Eviction Lab households threatened lower 95% credible interval
+  definition: Lower bound of the 95% credible interval for annual renter households threatened with eviction in Los Angeles
+    County.
+  provider: Eviction Lab
+  original_field: hh_threat_95_lower
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_ci_95_upper_annual
+  display_name: Eviction Lab households threatened upper 95% credible interval
+  definition: Upper bound of the 95% credible interval for annual renter households threatened with eviction in Los Angeles
+    County.
+  provider: Eviction Lab
+  original_field: hh_threat_95_upper
+  unit: households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Filter official Eviction Lab county estimates to Los Angeles County FIPS 06037.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Credible interval bound from Eviction Lab county annual estimates.
+  observed_constructed_proxy_or_scenario: modeled_uncertainty
+  is_observed: false
+  is_constructed: false
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Uncertainty
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_rate_estimate_annual
+  display_name: Eviction Lab annual households threatened rate estimate
+  definition: Estimated annual renter households threatened with eviction per 100 renter households in Los Angeles County.
+  provider: Constructed from Eviction Lab
+  original_field: hh_threat_estimate / renting_hh * 100
+  unit: households_threatened_per_100_renter_households
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Divide Eviction Lab hh_threat_estimate by Eviction Lab renting_hh and multiply by 100.
+  missing_value_policy: preserve null when numerator or denominator is missing
+  revision_policy: recompute when Eviction Lab input updates
+  methodological_notes: Annual constructed rate from official Eviction Lab fields; not high-frequency ETS.
+  observed_constructed_proxy_or_scenario: constructed
+  is_observed: false
+  is_constructed: true
+  is_proxy: true
+  market_segment: Renter
+  variable_role: Outcome
+  data_domain: eviction
+- variable_id: eviction_lab_filings_court_issued_observed_flag
+  display_name: Eviction Lab filings court-issued observed flag
+  definition: Indicator that the number of filings was observed in court-issued data for the county-year.
+  provider: Eviction Lab
+  original_field: ind_filings_court_issued
+  unit: flag
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Preserve Eviction Lab source indicator.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Indicator from Eviction Lab codebook; 1 means filings observed in court-issued data, 0 means not observed
+    in court-issued data.
+  observed_constructed_proxy_or_scenario: source_metadata
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  market_segment: Data quality
+  variable_role: Metadata
+  data_domain: eviction
+- variable_id: eviction_lab_filings_court_issued_landlord_tenant_flag
+  display_name: Eviction Lab filings landlord-tenant court data flag
+  definition: Indicator that court-issued filings data are landlord-tenant cases for the county-year.
+  provider: Eviction Lab
+  original_field: ind_filings_court_issued_LT
+  unit: flag
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Preserve Eviction Lab source indicator.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Indicator from Eviction Lab codebook.
+  observed_constructed_proxy_or_scenario: source_metadata
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  market_segment: Data quality
+  variable_role: Metadata
+  data_domain: eviction
+- variable_id: eviction_lab_households_threatened_observed_flag
+  display_name: Eviction Lab households threatened observed flag
+  definition: Indicator that households threatened with eviction were observed in source data for the county-year.
+  provider: Eviction Lab
+  original_field: ind_hht_observed
+  unit: flag
+  native_frequency: annual
+  final_frequency: annual
+  geography: county
+  seasonal_adjustment: not applicable
+  smoothing: none
+  transformation: Preserve Eviction Lab source indicator.
+  missing_value_policy: preserve null
+  revision_policy: archive every retrieval
+  methodological_notes: Indicator from Eviction Lab codebook; 1 means households threatened were observed in data.
+  observed_constructed_proxy_or_scenario: source_metadata
+  is_observed: true
+  is_constructed: false
+  is_proxy: false
+  market_segment: Data quality
+  variable_role: Metadata
+  data_domain: eviction
 - variable_id: zhvi_growth_mom
   display_name: ZHVI Month-over-Month Growth
   definition: Fractional change in ZHVI from the prior month

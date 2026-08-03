@@ -45,6 +45,11 @@ def mortgage_payment(
     return payment.mask(zero_rate, principal / periods)
 
 
+def scenario_label(share: float) -> str:
+    text = f"{share * 100:g}".replace(".", "_")
+    return f"{text}pct"
+
+
 def _oriented_zscore(series: pd.Series, direction: float) -> pd.Series:
     standard_deviation = series.std(ddof=0)
     if pd.isna(standard_deviation) or standard_deviation == 0:
@@ -95,15 +100,25 @@ def add_panel_features(
             result["active_inventory"], result["homes_sold"]
         )
         result["sales_to_inventory_ratio"] = (
-            result["homes_sold"]
-            / result["active_inventory"].replace(0, np.nan)
+            result["homes_sold"] / result["active_inventory"].replace(0, np.nan)
         )
+    if "median_sale_price" in result:
+        for down_payment in mortgage_config.get("down_payment_scenarios", []):
+            label = scenario_label(float(down_payment))
+            result[f"down_payment_{label}"] = (
+                result["median_sale_price"] * float(down_payment)
+            )
+        for closing_cost in mortgage_config.get("closing_cost_scenarios", []):
+            label = scenario_label(float(closing_cost))
+            result[f"closing_cost_{label}"] = (
+                result["median_sale_price"] * float(closing_cost)
+            )
     if {
         "median_sale_price",
         "mortgage_rate_30y_monthly_average",
     }.issubset(result):
         for down_payment in mortgage_config["down_payment_scenarios"]:
-            label = f"{int(round(down_payment * 100))}pct"
+            label = scenario_label(float(down_payment))
             payment_column = f"mortgage_payment_{label}_down"
             result[payment_column] = mortgage_payment(
                 result["median_sale_price"],

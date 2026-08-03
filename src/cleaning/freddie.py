@@ -59,18 +59,34 @@ def clean_freddie(
         .mean()
         .assign(variable_id="mortgage_rate_30y_monthly_average")
     )
+    median = (
+        monthly.groupby("month", as_index=False)["value"]
+        .median()
+        .assign(variable_id="mortgage_rate_30y_monthly_median")
+    )
     month_end = (
         monthly.sort_values("source_observation_date")
         .groupby("month", as_index=False)
         .tail(1)[["month", "value"]]
         .assign(variable_id="mortgage_rate_30y_month_end")
     )
-    monthly_rows = pd.concat([average, month_end], ignore_index=True)
+    observation_count = (
+        monthly.groupby("month", as_index=False)["value"]
+        .count()
+        .assign(variable_id="mortgage_rate_30y_observation_count")
+    )
+    monthly_rows = pd.concat(
+        [average, median, month_end, observation_count], ignore_index=True
+    )
     monthly_rows["observation_date"] = monthly_rows["month"].dt.to_timestamp("M")
     monthly_rows["source_observation_date"] = monthly_rows["observation_date"]
     monthly_rows["period_start"] = monthly_rows["month"].dt.start_time
     monthly_rows["period_end"] = monthly_rows["observation_date"]
     monthly_rows["unit"] = "percent"
+    monthly_rows.loc[
+        monthly_rows["variable_id"].eq("mortgage_rate_30y_observation_count"),
+        "unit",
+    ] = "weekly_observations"
     combined = pd.concat([weekly, monthly_rows], ignore_index=True, sort=False)
     combined["geo_id"] = "US"
     combined["provider"] = "Freddie Mac"
@@ -84,7 +100,11 @@ def clean_freddie(
         {
             "mortgage_rate_30y_weekly": "freddie_pmms_weekly_raw_v1",
             "mortgage_rate_30y_monthly_average": "freddie_pmms_monthly_mean_v1",
+            "mortgage_rate_30y_monthly_median": "freddie_pmms_monthly_median_v1",
             "mortgage_rate_30y_month_end": "freddie_pmms_monthly_last_v1",
+            "mortgage_rate_30y_observation_count": (
+                "freddie_pmms_monthly_observation_count_v1"
+            ),
         }
     )
     combined["is_imputed"] = False

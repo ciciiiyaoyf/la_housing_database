@@ -14,7 +14,8 @@ census_bps:
 mortgage:
   annual_rate_scale: 100.0
   loan_term_years: 30
-  down_payment_scenarios: [0.10, 0.20]
+  down_payment_scenarios: [0.035, 0.10, 0.20]
+  closing_cost_scenarios: [0.02, 0.03, 0.05]
   excluded_costs:
     - property tax
     - homeowners insurance
