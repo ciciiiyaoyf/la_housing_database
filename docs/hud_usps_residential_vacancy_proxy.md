@@ -2,9 +2,9 @@
 
 ## Status
 
-The eight HUD-USPS variables are registered in configuration and the variable dictionary, and their source-specific validator is implemented. The supplied 2026-08-02 derived snapshot is preserved byte-for-byte under the Git-ignored restricted project directory, but it is **quarantined and excluded from active clean tables, facts, panels, and exports**.
+The eight HUD-USPS variables are active from an authenticated official rebuild completed on 2026-08-03. All 73 California quarterly NCWM responses from 2008 Q1 through 2026 Q1, the 2026 Q1 tract-to-ZIP crosswalk, and the official Census 2020 county-FIPS reference were archived under the Git-ignored restricted directory with byte sizes and SHA-256 checksums. The reproducible acquisition and construction code is `scripts/rebuild_hud_usps_official.py`.
 
-Activation is blocked because the construction session discarded the official quarterly API responses and the tract-to-ZIP crosswalk response. The surviving package does not contain the exact UTC retrieval timestamp, source release date, official source filenames, or raw-file checksums needed by this repository's provenance standard. Registering the variables and preserving the package does not claim successful official ingestion.
+The former 2026-08-02 derived snapshot remains quarantined as historical evidence and is not an input to the active series. Licensed raw responses and tract/ZIP derivatives remain access-controlled and outside Git history.
 
 ## Variable contract
 
@@ -52,29 +52,15 @@ The native and analytical frequency is quarterly. The repository does not expand
 
 Missing components remain missing. Formula checks run only where all required inputs are present. Plausible high rates, large quarter-to-quarter changes, and low-address denominators are warnings for review rather than automatic deletions or smoothing.
 
-## Quarantined snapshot findings
+## Official rebuild findings
 
-Internal arithmetic checks passed, but the package has activation blockers beyond missing raw provenance:
+The official rebuild contains 4,234 county-quarter rows (58 counties), 182,062 LA tract-quarter rows (2,494 tracts), and 31,828 modeled LA ZIP-county-part rows (436 ZIP parts). The normalized clean table contains 1,744,992 observations for eight variables and 2,988 geography identifiers. Zero-address rates remain null, and address-management discontinuities remain visible as warnings rather than being smoothed away.
 
-- 219 county rates are blank because constituent source tracts are incomplete.
-- 935 `county_name` cells are blank across 13 county FIPS codes; activation requires an official versioned FIPS-name reference.
-- zero-address tract and ZIP rates remain null.
-- statewide series contain large USPS address-management discontinuities that must remain visible as warnings.
-- modeled ZIP outliers and low-address rows must be reviewed, not removed or smoothed.
+Los Angeles County's active 2026 Q1 vacancy-proxy rate is `0.0121697746` (1.21698%). This reproduces the former snapshot value from newly archived official inputs.
 
-The package reported the Los Angeles County 2026 Q1 rate as `0.0121697746` (1.21698%), based on 48,211 short- plus long-term vacant residential addresses and 3,961,536 total residential addresses. This value is a quarantined package assertion, not an active database observation.
+## Refresh checklist
 
-## Activation checklist
-
-Before any HUD-USPS value can enter active repository outputs:
-
-1. Reacquire every required quarterly NCWM response and the exact crosswalk from the official authenticated HUD APIs.
-2. Archive each raw response immutably under `data/raw/` with source URL/query, source filename, UTC retrieval timestamp, provider/source vintage, file size, SHA-256 checksum, and geography.
-3. Preserve the applicable sublicense term and required notice in access-controlled storage.
-4. Rebuild the derived tables from the archived raw responses with Python 3.11-compatible repository code.
-5. Resolve county names through an official versioned FIPS reference without changing identifiers.
-6. Pass the source-specific structural checks, full `pytest`, and `python run_pipeline.py --stage validate`.
-7. Only then change the source and variable statuses from quarantined to active.
+For each refresh, rerun the authenticated rebuild, archive new responses and checksums, retain the sublicense notice, resolve names through the versioned Census reference, and rerun source-specific and full-pipeline validation before replacing active outputs.
 
 The protected package inventory and hashes are recorded in `metadata/hud_usps_quarantine_manifest.csv`.
 

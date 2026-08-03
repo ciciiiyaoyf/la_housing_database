@@ -34,13 +34,18 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     assert rental_inventory["expected_source_from_docx"] == (
         "Zillow Observed Rent Index / Listings"
     )
-    assert rental_inventory["current_status"] == "Quarantined constructed proxy"
-    assert rental_inventory["implemented_source_id"] == "hud_usps_ncwm_quarterly"
-    assert pd.isna(rental_inventory["implemented_table"])
-    assert not bool(rental_inventory["panel_or_view_present"])
-    assert "not true rental-listing inventory" in rental_inventory["limitation"]
-    assert "ZORI is not inventory" in rental_inventory["limitation"]
-    assert "Redfin for-sale active listings are not a valid substitute" in (
+    assert rental_inventory["current_status"] == (
+        "Partially implemented with annual and quarterly alternate proxies"
+    )
+    assert rental_inventory["implemented_source_id"] == (
+        "census_acs_5year_b25004|hud_usps_ncwm_quarterly"
+    )
+    assert "clean.hud_usps_ncwm_quarterly" in rental_inventory["implemented_table"]
+    assert bool(rental_inventory["panel_or_view_present"])
+    assert "Neither is true monthly rental-listing inventory" in (
+        rental_inventory["limitation"]
+    )
+    assert "ZORI and Redfin for-sale listings are not inventory substitutes" in (
         rental_inventory["limitation"]
     )
 
@@ -75,11 +80,10 @@ def test_data_catalog_shape_and_active_sources_are_complete():
     hud_usps = catalog.loc[
         catalog["source_id"].eq("hud_usps_ncwm_quarterly")
     ].iloc[0]
-    assert hud_usps["active_status"] == "Quarantined"
-    assert str(hud_usps["update_command"]).startswith("BLOCKED:")
-    assert "run_pipeline.py" not in str(hud_usps["update_command"])
-    assert pd.isna(hud_usps["destination_clean_table"])
-    assert pd.isna(hud_usps["destination_analytical_table"])
+    assert hud_usps["active_status"] == "Active"
+    assert hud_usps["update_command"] == "python scripts/rebuild_hud_usps_official.py"
+    assert hud_usps["destination_clean_table"] == "hud_usps_ncwm_quarterly"
+    assert hud_usps["destination_analytical_table"] == "analytics.fact_housing_observation"
 
 
 def test_source_coverage_preserves_geography_types():

@@ -49,30 +49,30 @@ def test_consolidated_variable_and_source_counts_are_exact() -> None:
         str(variable["variable_id"]) for variable in version_a_variables
     }
 
-    assert len(general_variables) == len(general_variable_ids) == 160
+    assert len(general_variables) == len(general_variable_ids) == 166
     assert len(version_a_variables) == len(version_a_variable_ids) == 58
     assert general_variable_ids.isdisjoint(version_a_variable_ids)
-    assert len(general_variable_ids | version_a_variable_ids) == 218
+    assert len(general_variable_ids | version_a_variable_ids) == 224
     assert all(variable_id.endswith("_benchmark") for variable_id in version_a_variable_ids)
 
     loaded_variable_ids = [
         str(variable["variable_id"]) for variable in load_config(ROOT).variables
     ]
-    assert len(loaded_variable_ids) == len(set(loaded_variable_ids)) == 218
+    assert len(loaded_variable_ids) == len(set(loaded_variable_ids)) == 224
     assert set(loaded_variable_ids) == general_variable_ids | version_a_variable_ids
 
     dictionary = pd.read_csv(ROOT / "metadata/data_dictionary.csv", dtype=str)
-    assert len(dictionary) == dictionary["variable_id"].nunique() == 218
+    assert len(dictionary) == dictionary["variable_id"].nunique() == 224
     assert set(dictionary["variable_id"]) == set(loaded_variable_ids)
 
     general_sources = _yaml("config/sources.yaml")["sources"]
     general_source_ids = {str(source["source_id"]) for source in general_sources}
     version_a_source_ids = set(_yaml("config/version_a_benchmark.yaml")["sources"])
 
-    assert len(general_sources) == len(general_source_ids) == 36
+    assert len(general_sources) == len(general_source_ids) == 38
     assert len(version_a_source_ids) == 9
     assert general_source_ids & version_a_source_ids == {"freddie_mac_pmms"}
-    assert len(general_source_ids | version_a_source_ids) == 44
+    assert len(general_source_ids | version_a_source_ids) == 46
 
 
 def test_version_a_finance_is_authoritative_and_b25106_is_legacy() -> None:
@@ -109,12 +109,12 @@ def test_version_a_finance_is_authoritative_and_b25106_is_legacy() -> None:
         assert "Version A" in notes
 
 
-def test_hud_usps_remains_quarantined_and_is_not_rental_inventory() -> None:
+def test_hud_usps_is_active_restricted_and_is_not_rental_inventory() -> None:
     sources = _by_id(_yaml("config/sources.yaml")["sources"], "source_id")
     source = sources["hud_usps_ncwm_quarterly"]
-    assert source["enabled"] is False
+    assert source["enabled"] is True
     assert source["auto_download"] is False
-    assert source["provenance_status"] == "quarantined_derived_snapshot"
+    assert source["provenance_status"] == "official_authorized_api"
     assert set(source["key_variables"]) == HUD_USPS_VARIABLE_IDS
     source_notes = str(source["methodology_notes"])
     assert "Do not" in source_notes
@@ -126,7 +126,7 @@ def test_hud_usps_remains_quarantined_and_is_not_rental_inventory() -> None:
     }
     assert usps_variables == HUD_USPS_VARIABLE_IDS
     assert all(
-        variables[variable_id]["active_status"] == "Quarantined"
+        variables[variable_id]["active_status"] == "Active"
         for variable_id in usps_variables
     )
     assert all(
@@ -141,20 +141,21 @@ def test_hud_usps_remains_quarantined_and_is_not_rental_inventory() -> None:
     assert "NO_STAT" not in rate["original_field"]
 
     configured = load_config(ROOT)
-    assert "hud_usps_ncwm_quarterly" not in {
+    assert "hud_usps_ncwm_quarterly" in {
         source_config.source_id for source_config in configured.selected_sources()
     }
     assert (ROOT / "docs/hud_usps_residential_vacancy_proxy.md").is_file()
     assert (ROOT / "metadata/hud_usps_quarantine_manifest.csv").is_file()
+    assert (ROOT / "metadata/hud_usps_official_rebuild_summary.csv").is_file()
 
 
 def test_readme_records_the_consolidated_contract_and_refresh_examples() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for phrase in (
-        "218 unique variables",
-        "160 general variables",
+        "224 unique variables",
+        "166 general variables",
         "58 Version A variables",
-        "44 unique source IDs",
+        "46 unique source IDs",
         "legacy modeled scenario",
         "all-residential administrative vacancy proxy",
         "not true rental-listing inventory",

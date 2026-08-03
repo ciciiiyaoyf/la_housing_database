@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
 from pathlib import Path
 import re
 
@@ -232,13 +233,13 @@ IMPLEMENTATION = {
     "Market Rent Index (ZORI)": _impl("Implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "observed", "Active ZORI is smoothed, seasonally adjusted, all homes plus multifamily."),
     "Rent Growth (YoY / MoM)": _impl("Implemented", "", "zori_growth_mom|zori_growth_yoy", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "constructed", "Calculated from seasonally adjusted ZORI with initial missing months preserved."),
     "Rental Inventory": _impl(
-        "Partially implemented with annual alternate source",
+        "Partially implemented with annual and quarterly alternate proxies",
         "census_acs_5year_b25004|hud_usps_ncwm_quarterly",
         "acs_for_rent_vacant_units|acs_for_rent_vacant_units_moe|acs_rental_availability_rate|usps_residential_vacancy_rate",
-        "analytics.fact_housing_observation|analytics.county_annual_controls",
-        "acs_rental_availability_rate",
-        "constructed survey estimate",
-        "ACS annual LA County rental availability is implemented for 2010-2024 from same-vintage B25004 and B25003 inputs. It is not true monthly rental-listing inventory. The separate quarterly HUD/USPS all-residential address-vacancy proxy remains quarantined; ZORI and Redfin for-sale listings are not inventory substitutes.",
+        "analytics.fact_housing_observation|analytics.county_annual_controls|clean.hud_usps_ncwm_quarterly",
+        "acs_rental_availability_rate|usps_residential_vacancy_rate",
+        "constructed survey estimate and administrative proxy",
+        "ACS annual LA County rental availability is implemented for 2010-2024 from same-vintage B25004 and B25003 inputs. The authenticated HUD/USPS quarterly all-residential address-vacancy proxy is active for 2008 Q1-2026 Q1. Neither is true monthly rental-listing inventory; ZORI and Redfin for-sale listings are not inventory substitutes.",
     ),
     "Rental Vacancy (HVS / CPS)": _impl("Implemented", "census_hvs_state_rental_vacancy|census_hvs_metro_rental_vacancy_2005_2014|census_hvs_metro_rental_vacancy_2015_2025|census_hvs_metro_rental_vacancy_2026", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "analytics.state_quarterly_panel|analytics.metro_quarterly_controls", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "observed", "State/metro quarterly only; not LA County."),
     "Multifamily Permits (5+ units)": _impl("Implemented", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "observed", "Supply-pipeline authorization measure; not starts or completions."),
@@ -663,6 +664,33 @@ def _raw_manifest(config: ProjectConfig) -> pd.DataFrame:
 
 def _latest_manifest_rows(config: ProjectConfig) -> pd.DataFrame:
     manifest = _raw_manifest(config)
+    restricted_path = (
+        config.root
+        / "data"
+        / "restricted"
+        / "hud_usps"
+        / "official"
+        / "provenance_manifest.csv"
+    )
+    if restricted_path.exists():
+        restricted = pd.read_csv(restricted_path, dtype=str)
+        manifest_row = {
+            "source_id": "hud_usps_ncwm_quarterly",
+            "provider": "HUD-USPS",
+            "dataset_name": "HUD aggregated USPS administrative data on residential address vacancies",
+            "relative_path": restricted_path.relative_to(config.root).as_posix(),
+            "source_filename": restricted_path.name,
+            "retrieved_at": restricted["retrieved_at_utc"].max(),
+            "checksum_sha256": hashlib.sha256(restricted_path.read_bytes()).hexdigest(),
+            "byte_size": str(restricted_path.stat().st_size),
+            "ingestion_status": "downloaded_restricted_official",
+            "retrieval_method": "authorized_official_api",
+        }
+        manifest = pd.concat(
+            [manifest, pd.DataFrame([manifest_row])],
+            ignore_index=True,
+            sort=False,
+        )
     if manifest.empty:
         return pd.DataFrame()
     return (
@@ -826,6 +854,9 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
             else {}
         )
         update_command = (
+            "python scripts/rebuild_hud_usps_official.py"
+            if source.source_id == "hud_usps_ncwm_quarterly"
+            else
             "BLOCKED: reacquire and archive the official HUD/USPS API responses "
             "and crosswalk, complete provenance, and enable the source before "
             "running a download workflow."
@@ -1044,9 +1075,9 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
         {
             "methodology_id": "hud_usps_residential_vacancy_proxy_v1",
             "variable_id": "usps_residential_vacancy_rate",
-            "assumption": "Quarantined provenance status",
-            "value": "provenance_status=quarantined_derived_snapshot; excluded from active facts and panels until official raw quarterly responses and the raw crosswalk are reacquired with complete immutable provenance.",
-            "rationale": "The derived snapshot alone cannot establish official ingestion, release dates, retrieval timestamps, source filenames, or raw checksums. Modeled ZIP rows are Los Angeles County postal-ZIP portions, not whole ZIPs or ZCTAs.",
+            "assumption": "Official restricted provenance status",
+            "value": "provenance_status=official_authorized_api; 73 quarterly NCWM responses, the 2026 Q1 tract-to-ZIP crosswalk, and Census county reference are archived with immutable checksums outside Git.",
+            "rationale": "The authenticated rebuild establishes official ingestion and reproducibility while keeping licensed tract and modeled ZIP derivatives access-controlled. ZIP rows are Los Angeles County postal-ZIP portions, not whole ZIPs or ZCTAs.",
         },
         {
             "methodology_id": "acs_implied_mortgage_debt_proxy_v1",
@@ -1138,7 +1169,7 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
     frame.loc[
         frame["variable_id"].eq("usps_residential_vacancy_rate"),
         "methodology_status",
-    ] = "quarantined"
+    ] = "active restricted proxy"
     return frame
 
 
@@ -1603,7 +1634,7 @@ UNAVAILABLE_ROWS = [
         "provenance_status": "unavailable_verified_source",
         "known_limitations": (
             "True rental-listing inventory remains unavailable. ZORI is a rent "
-            "index, not inventory. The quarantined HUD/USPS measure is an "
+            "index, not inventory. The active restricted HUD/USPS measure is an "
             "all-residential address-vacancy proxy, not a rental-listing stock. "
             "A documented listing universe, stable geography, history, and "
             "revision policy are still required."
@@ -1902,6 +1933,9 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
             )
         lifecycle_status = _source_lifecycle_status(source)
         command = (
+            "python scripts/rebuild_hud_usps_official.py"
+            if source.source_id == "hud_usps_ncwm_quarterly"
+            else
             "BLOCKED: reacquire and archive the official HUD/USPS API responses "
             "and crosswalk, complete provenance, and enable the source before "
             "running a download workflow."
@@ -2145,7 +2179,7 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
         _gap_row("monthly mortgage payment", "Homeowner", "Constructed indicator", "Redfin and Freddie Mac", "Yes", "Constructed variable", "analytics.county_monthly_panel", "mortgage_payment_10pct_down|mortgage_payment_20pct_down", "monthly", "Los Angeles County with U.S. rate", "2012-01-31", "2026-05-31", "Principal-and-interest scenarios exclude taxes, insurance, HOA, maintenance, and mortgage insurance.", "Keep scenario assumptions visible."),
         _gap_row("ZORI", "Renter", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zori", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Smoothed seasonally adjusted rent index; not inventory.", "Use as primary rent index."),
         _gap_row("rent growth", "Renter", "Constructed indicator", "Zillow ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "monthly", "Los Angeles County", "2015-02-28", "2026-05-31", "Depends on the active SA ZORI vintage.", "Rebuild when ZORI refreshes."),
-        _gap_row("rental inventory", "Renter", "Supply", "True rental-listing inventory; HUD/USPS all-residential proxy", "No verified source for true rental-listing inventory", "Quarantined constructed proxy only", "quarantined derived snapshot; excluded from active facts", "usps_total_residential_addresses|usps_short_term_vacant_residential_addresses|usps_long_term_vacant_residential_addresses|usps_vacant_residential_addresses|usps_no_stat_residential_addresses|usps_active_residential_addresses|usps_residential_vacancy_rate|usps_residential_no_stat_rate", "quarterly", "California counties; Los Angeles County 2020 tracts; modeled Los Angeles County postal-ZIP portions", "2008-03-31", "2026-03-31", "HUD/USPS is an all-residential address-vacancy proxy, not rental-listing inventory. The surviving derived snapshot lacks complete raw provenance and is intentionally quarantined.", "Keep true rental-listing inventory unavailable; reacquire and archive official HUD/USPS raw responses and crosswalk before activating the separate proxy."),
+        _gap_row("rental inventory", "Renter", "Supply", "True rental-listing inventory; ACS annual availability; HUD/USPS all-residential proxy", "No verified source for true monthly rental-listing inventory", "Annual availability and quarterly administrative proxy implemented", "analytics.county_annual_controls|clean.hud_usps_ncwm_quarterly", "acs_rental_availability_rate|usps_total_residential_addresses|usps_short_term_vacant_residential_addresses|usps_long_term_vacant_residential_addresses|usps_vacant_residential_addresses|usps_no_stat_residential_addresses|usps_active_residential_addresses|usps_residential_vacancy_rate|usps_residential_no_stat_rate", "annual|quarterly", "Los Angeles County; California counties; Los Angeles County 2020 tracts; modeled Los Angeles County postal-ZIP portions", "2008-03-31", "2026-03-31", "HUD/USPS is an active restricted all-residential address-vacancy proxy, not rental-listing inventory. ACS is annual pooled rental availability, not monthly listings.", "Keep true monthly rental-listing inventory unavailable; refresh the separate authenticated HUD/USPS proxy with immutable archives."),
         _gap_row("rental vacancy", "Renter", "Supply", "Census HVS", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "quarterly", "California and published metro geographies", "2005-03-31", "2026-03-31", "Los Angeles County is not an HVS published geography; sampling uncertainty is retained.", "Retain native geography/frequency."),
         _gap_row("multifamily permits", "Renter", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_5_plus_units", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not completed or occupied rental units.", "Retain as multifamily supply proxy."),
         _gap_row("price-to-rent", "Overall housing market", "Constructed indicator", "Zillow ZHVI and ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "price_to_rent_ratio", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Index-based valuation ratio.", "Keep explicit formula."),

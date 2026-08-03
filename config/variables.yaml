@@ -2601,7 +2601,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_short_term_vacant_residential_addresses
   display_name: USPS short-term vacant residential addresses
@@ -2627,7 +2627,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_long_term_vacant_residential_addresses
   display_name: USPS long-term vacant residential addresses
@@ -2653,7 +2653,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_vacant_residential_addresses
   display_name: USPS vacant residential addresses proxy numerator
@@ -2679,7 +2679,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: proxy
 - variable_id: usps_no_stat_residential_addresses
   display_name: USPS no-stat residential addresses
@@ -2705,7 +2705,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_active_residential_addresses
   display_name: USPS active residential addresses
@@ -2731,7 +2731,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_residential_vacancy_rate
   display_name: USPS residential vacancy rate proxy
@@ -2757,7 +2757,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: proxy
 - variable_id: usps_residential_no_stat_rate
   display_name: USPS residential no-stat rate
@@ -2783,7 +2783,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: proxy
 - variable_id: acs_for_rent_vacant_units
   display_name: ACS vacant units for rent

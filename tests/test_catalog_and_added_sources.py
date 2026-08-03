@@ -71,12 +71,12 @@ def test_raw_repository_completeness_and_checksums():
             "key_variables_present",
         ]
     ].eq("True").all().all()
-    quarantined = report.loc[
+    hud_usps = report.loc[
         report["source_id"].eq("hud_usps_ncwm_quarterly")
     ].iloc[0]
-    assert quarantined["active_status"] == "Quarantined"
-    assert quarantined["completeness_status"] == "QUARANTINED"
-    assert quarantined["provenance_status"] == "quarantined_derived_snapshot"
+    assert hud_usps["active_status"] == "Active"
+    assert hud_usps["completeness_status"] == "PASS"
+    assert hud_usps["provenance_status"] == "official_authorized_api"
 
 
 def test_added_tables_views_fact_dictionary_and_keys():
