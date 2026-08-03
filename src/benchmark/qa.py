@@ -13,6 +13,7 @@ from src.benchmark.acs import CALIFORNIA_COUNTY_FIPS
 from src.benchmark.schema import benchmark_contract_errors, normalize_benchmark
 
 CALIFORNIA_COUNTY_COUNT = 58
+ACS_AGGREGATE_PARTITION_ROUNDING_TOLERANCE = 100.0
 
 REQUIRED_DIRECT_ACS_VARIABLES = (
     "acs_total_population_benchmark",
@@ -69,14 +70,23 @@ def _result(
     return BenchmarkCheck(check_id, severity, status, count, detail)
 
 
-def _close(left: pd.Series, right: pd.Series) -> pd.Series:
+def _close(
+    left: pd.Series,
+    right: pd.Series,
+    *,
+    absolute_tolerance: float = 0.0,
+) -> pd.Series:
     left_numeric = pd.to_numeric(left, errors="coerce")
     right_numeric = pd.to_numeric(right, errors="coerce")
     scale = np.maximum(
         np.maximum(left_numeric.abs(), right_numeric.abs()),
         1.0,
     )
-    return (left_numeric - right_numeric).abs().le(1e-8 * scale)
+    tolerance = np.maximum(
+        1e-8 * scale,
+        float(absolute_tolerance),
+    )
+    return (left_numeric - right_numeric).abs().le(tolerance)
 
 
 def _identity_failures(
@@ -86,6 +96,7 @@ def _identity_failures(
     result_variable: str,
     input_variables: tuple[str, ...],
     expected: Any,
+    absolute_tolerance: float = 0.0,
 ) -> pd.DataFrame:
     keys = ["county_fips", "benchmark_vintage", "reference_date"]
     selected = frame.loc[
@@ -109,7 +120,11 @@ def _identity_failures(
         return pd.DataFrame(columns=[*keys, "actual", "expected"])
     work = wide.loc[complete].copy()
     calculated = expected(work)
-    failed = ~_close(work[result_variable], calculated)
+    failed = ~_close(
+        work[result_variable],
+        calculated,
+        absolute_tolerance=absolute_tolerance,
+    )
     if not failed.any():
         return pd.DataFrame(columns=[*keys, "actual", "expected"])
     output = work.loc[failed].reset_index()[keys]
@@ -382,7 +397,9 @@ def benchmark_qa_results(
             + wide["acs_aggregate_owner_value_no_mortgage_benchmark"],
             (
                 "Published all-owner aggregate value must equal the "
-                "mortgaged-owner plus mortgage-free-owner components."
+                "mortgaged-owner plus mortgage-free-owner components within "
+                "$100, the maximum discrepancy from Census independently "
+                "rounding each aggregate matrix cell to the nearest $100."
             ),
         ),
         (
@@ -400,7 +417,9 @@ def benchmark_qa_results(
             ],
             (
                 "Published all-owner aggregate income must equal the "
-                "mortgaged-owner plus mortgage-free-owner components."
+                "mortgaged-owner plus mortgage-free-owner components within "
+                "$100, the maximum discrepancy from Census independently "
+                "rounding each aggregate matrix cell to the nearest $100."
             ),
         ),
         (
@@ -562,6 +581,15 @@ def benchmark_qa_results(
                 result_variable=result_variable,
                 input_variables=inputs,
                 expected=calculation,
+                absolute_tolerance=(
+                    ACS_AGGREGATE_PARTITION_ROUNDING_TOLERANCE
+                    if check_id
+                    in {
+                        "aggregate_owner_value_partition_identity",
+                        "aggregate_owner_income_partition_identity",
+                    }
+                    else 0.0
+                ),
             ),
             detail,
         )

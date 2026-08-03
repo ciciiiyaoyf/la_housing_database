@@ -47,9 +47,15 @@ sources:
   census_acs5_finance:
     provider: U.S. Census Bureau
     implementation_status: implemented
-    acquisition: official_api
+    acquisition: official_api_or_table_based_summary_file
+    acquisition_selection: api_when_census_api_key_set_else_summary_file
     source_page_url: https://www.census.gov/data/developers/data-sets/acs-5year.html
     api_url_template: https://api.census.gov/data/{year}/acs/acs5
+    summary_file_source_page_url: https://www.census.gov/programs-surveys/acs/data/summary-file.html
+    summary_file_first_verified_vintage: 2022
+    summary_file_table_url_template: https://www2.census.gov/programs-surveys/acs/summary_file/{year}/table-based-SF/data/5YRData/acsdt5y{year}-{table_id_lower}.dat
+    summary_file_geography_url_template: https://www2.census.gov/programs-surveys/acs/summary_file/{year}/table-based-SF/documentation/Geos{year}5YR.txt
+    summary_file_archive_format: acs_finance_benchmark_summary_file_zip_v1
     native_frequency: acs_5_year
     geography: california_counties
     first_supported_vintage: 2009
@@ -66,7 +72,7 @@ sources:
       B25120_002: acs_aggregate_household_income_owner_benchmark
       B25120_003: acs_aggregate_household_income_mortgaged_owner_benchmark
       B25120_004: acs_aggregate_household_income_no_mortgage_owner_benchmark
-    notes: B25081_002 is the directly published owner-units-with-mortgage count. B25106 is optional validation, not the primary balance method.
+    notes: With CENSUS_API_KEY, use the official API; otherwise verified 2022+ vintages use the five exact table-based Summary File data files plus the matching geography-label file in one immutable ZIP archive. Older vintages require an API key. B25081_002 is the directly published owner-units-with-mortgage count. B25106 is optional validation, not the primary balance method. Census rounds each aggregate-dollar matrix cell independently to the nearest $100, so B25082/B25120 partition QA permits only a $100 rounding discrepancy while retaining every published value unchanged.
 
   census_acs5_pums_housing_ca:
     provider: U.S. Census Bureau

@@ -75,7 +75,7 @@ primary export subset.
 
 | Source | Version A role | Native period | Acquisition |
 |---|---|---|---|
-| Census ACS 5-year Detailed Tables | B01003 population, B25089 owner costs, direct B25081 all-owner/mortgaged units, B25082 owner value, and B25120 owner income, including published 90% MOEs | 60-month ACS period | Automatic official API |
+| Census ACS 5-year Detailed Tables | B01003 population, B25089 owner costs, direct B25081 all-owner/mortgaged units, B25082 owner value, and B25120 owner income, including published 90% MOEs | 60-month ACS period | Automatic official API when `CENSUS_API_KEY` is set; otherwise verified 2022+ official table-based Summary Files |
 | Census ACS 5-year PUMS housing file | First-mortgage P&I share and separate junior-lien payment diagnostic | 60-month ACS period | Automatic official ZIP |
 | Census 2010/2020 tract-to-PUMA relationship | Defines complete county pools and connected shared-PUMA regions | Decennial relationship | Automatic official TXT |
 | CFPB/FFIEC Modified LAR | Down-payment metrics for all, conventional, FHA, and VA originations | Annual | Official combined file; manual import |
@@ -126,6 +126,10 @@ official source page.
   zero denominators remain null.
 - Mortgaged-owner equity is B25082 mortgaged-owner value less calibrated debt.
   All-owner equity then adds the published mortgage-free owner value.
+- Census independently rounds each aggregate-dollar matrix cell to the nearest
+  $100. Direct B25082/B25120 values are never altered; their partition QA
+  accepts only the resulting maximum $100 discrepancy and still fails larger
+  differences.
 - The two nominal equity identities remain unchanged. Separate real-equity
   rows multiply nominal equity by
   `CPI-U annual average (2024) / CPI-U annual average (ACS ending year)`.
@@ -153,6 +157,15 @@ source and vintage (or CPI `snapshot`) so one provider's date can never be
 assigned to another source. Replace the example dates with the exact official
 release dates for the files being archived:
 
+Direct ACS acquisition selects the official API whenever `CENSUS_API_KEY` is
+set. Without a key, vintages from 2022 forward use the verified official
+table-based Summary File route: the five exact `.dat` tables and matching
+`Geos{year}5YR.txt` geography-label file are downloaded, structurally checked,
+and retained together in one immutable, checksummed ZIP archive. The
+geography file supplies county names; the table files contain only `GEO_ID`.
+Vintages before 2022 require a Census API key because the repository does not
+guess across older prototype or sequence-based Summary File layouts.
+
 ```powershell
 python run_version_a.py --stage all-auto --start-year 2024 --release-dates-json '{"census_acs5_finance":{"2024":"2026-01-29"},"census_acs5_pums_housing_ca":{"2024":"2026-03-05"},"bls_cpi_u_us_city_average":{"snapshot":"OFFICIAL_CPI_SNAPSHOT_RELEASE_DATE"}}'
 ```
@@ -160,8 +173,9 @@ python run_version_a.py --stage all-auto --start-year 2024 --release-dates-json 
 To acquire the full supported ACS/PUMS history, request an explicit range.
 PUMS county parameters are supported for verified 2016-2024 single-vintage
 geographies; earlier direct ACS rows are still collected and their
-PUMS-dependent constructs remain flagged null. Supply the official
-source-specific release date for each requested vintage:
+PUMS-dependent constructs remain flagged null. Direct ACS vintages before
+2022 require `CENSUS_API_KEY`; 2022 and later can use either automatic route.
+Supply the official source-specific release date for each requested vintage:
 
 ```powershell
 python run_version_a.py --stage download --source census_acs5_finance --start-year 2009 --end-year 2009 --release-date "OFFICIAL_ACS_RELEASE_DATE"

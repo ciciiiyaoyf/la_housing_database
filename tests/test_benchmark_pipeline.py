@@ -91,6 +91,160 @@ def test_acquisition_requires_explicit_release_date(source_id: str) -> None:
         )
 
 
+def test_download_acs_without_key_uses_summary_file_zip(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "benchmark_asset_for_data_vintage",
+        lambda *_, **__: None,
+    )
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "fetch_acs_finance_payload",
+        lambda *_, **__: pytest.fail("API path must not run without a key"),
+    )
+    summary_calls: list[tuple[int, str]] = []
+
+    def fake_summary_archive(vintage, output_path, *, release_date):
+        summary_calls.append((vintage, release_date))
+        output_path.write_bytes(b"summary-file-zip")
+        return {"release_date": release_date}
+
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "archive_acs_finance_summary_files",
+        fake_summary_archive,
+    )
+    archived: dict[str, object] = {}
+
+    def fake_archive(root, source_id, source_file, **metadata):
+        archived.update(metadata)
+        archived["source_id"] = source_id
+        archived["suffix"] = source_file.suffix
+        archived["bytes"] = source_file.read_bytes()
+        return {key: str(value) for key, value in archived.items()}
+
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "archive_benchmark_file",
+        fake_archive,
+    )
+
+    record = benchmark_pipeline._download_acs(
+        tmp_path,
+        2024,
+        force=False,
+        release_date="2026-01-29",
+    )
+
+    assert summary_calls == [(2024, "2026-01-29")]
+    assert archived["source_id"] == ACS_SOURCE
+    assert archived["suffix"] == ".zip"
+    assert archived["bytes"] == b"summary-file-zip"
+    assert archived["retrieval_method"] == (
+        "official_table_based_summary_file_zip"
+    )
+    assert record["retrieval_method"] == (
+        "official_table_based_summary_file_zip"
+    )
+
+
+def test_download_acs_with_key_uses_existing_api_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CENSUS_API_KEY", "unit-test-placeholder")
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "benchmark_asset_for_data_vintage",
+        lambda *_, **__: None,
+    )
+    api_calls: list[tuple[int, str]] = []
+
+    def fake_api_payload(vintage, *, release_date):
+        api_calls.append((vintage, release_date))
+        return {"release_date": release_date, "responses": {}}
+
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "fetch_acs_finance_payload",
+        fake_api_payload,
+    )
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "archive_acs_finance_summary_files",
+        lambda *_, **__: pytest.fail(
+            "Summary File path must not run when a key is set"
+        ),
+    )
+    archived: dict[str, object] = {}
+
+    def fake_archive(root, source_id, source_file, **metadata):
+        archived.update(metadata)
+        archived["source_id"] = source_id
+        archived["suffix"] = source_file.suffix
+        archived["payload"] = source_file.read_text(encoding="utf-8")
+        return {key: str(value) for key, value in archived.items()}
+
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "archive_benchmark_file",
+        fake_archive,
+    )
+
+    record = benchmark_pipeline._download_acs(
+        tmp_path,
+        2024,
+        force=False,
+        release_date="2026-01-29",
+    )
+
+    assert api_calls == [(2024, "2026-01-29")]
+    assert archived["source_id"] == ACS_SOURCE
+    assert archived["suffix"] == ".json"
+    assert "unit-test-placeholder" not in str(archived["payload"])
+    assert archived["retrieval_method"] == "official_api_composite_json"
+    assert record["retrieval_method"] == "official_api_composite_json"
+
+
+def test_download_acs_before_2022_without_key_fails_before_network(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "benchmark_asset_for_data_vintage",
+        lambda *_, **__: None,
+    )
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "fetch_acs_finance_payload",
+        lambda *_, **__: pytest.fail("API path must not run without a key"),
+    )
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "archive_acs_finance_summary_files",
+        lambda *_, **__: pytest.fail(
+            "Unverified Summary File fallback must not run before 2022"
+        ),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"CENSUS_API_KEY is required.*before 2022",
+    ):
+        benchmark_pipeline._download_acs(
+            tmp_path,
+            2021,
+            force=False,
+            release_date="2022-03-17",
+        )
+
+
 def test_scalar_release_date_rejects_multi_vintage_operations() -> None:
     for source_id in (ACS_SOURCE, PUMS_SOURCE):
         with pytest.raises(ValueError, match="exactly one vintage"):
@@ -175,6 +329,7 @@ def test_clean_asset_selection_rejects_manifest_release_mismatch(
 
 def test_acs_clean_checks_embedded_release_against_manifest(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source = tmp_path / "acs_2024.json"
     source.write_text(
@@ -192,6 +347,18 @@ def test_acs_clean_checks_embedded_release_against_manifest(
         source_geography="California counties",
         data_vintage="2024",
         release_date="2026-01-29",
+    )
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "acs_finance_archive_metadata",
+        lambda _: {"release_date": "2026-01-30"},
+    )
+    monkeypatch.setattr(
+        benchmark_pipeline,
+        "clean_acs_finance_vintage",
+        lambda *_, **__: pytest.fail(
+            "Cleaning must not run after a release-date mismatch"
+        ),
     )
 
     with pytest.raises(ValueError, match="embedded release_date"):

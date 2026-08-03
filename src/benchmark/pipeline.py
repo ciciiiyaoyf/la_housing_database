@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -21,7 +22,9 @@ from src.benchmark.acquisition import (
     normalize_release_date,
 )
 from src.benchmark.acs import (
+    acs_finance_archive_metadata,
     acs_five_year_period,
+    archive_acs_finance_summary_files,
     clean_acs_finance_vintage,
     fetch_acs_finance_payload,
 )
@@ -287,20 +290,63 @@ def _download_acs(
     )
     if existing and not force:
         return existing[1]
-    payload = fetch_acs_finance_payload(
-        vintage,
-        release_date=release,
-    )
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".json",
-        encoding="utf-8",
-        delete=False,
-    ) as handle:
-        temporary = Path(handle.name)
-        json.dump(payload, handle, indent=2)
-        handle.write("\n")
-    try:
+    has_api_key = bool((os.getenv("CENSUS_API_KEY") or "").strip())
+    if has_api_key:
+        payload = fetch_acs_finance_payload(
+            vintage,
+            release_date=release,
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".json",
+            encoding="utf-8",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+        try:
+            return archive_benchmark_file(
+                root,
+                ACS_SOURCE,
+                temporary,
+                provider="U.S. Census Bureau",
+                dataset_name="ACS 5-Year Detailed Tables: Housing Finance",
+                source_page_url=(
+                    "https://www.census.gov/data/developers/"
+                    "data-sets/acs-5year.html"
+                ),
+                download_url=f"https://api.census.gov/data/{vintage}/acs/acs5",
+                native_frequency="ACS 5-year",
+                source_geography="California counties",
+                data_vintage=str(vintage),
+                release_date=release,
+                retrieval_method="official_api_composite_json",
+                force_duplicate=force,
+                notes=(
+                    "Five exact table calls; composite archive retains all "
+                    "responses. The API key is never archived."
+                ),
+            )
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    if vintage < 2022:
+        raise RuntimeError(
+            "CENSUS_API_KEY is required for ACS vintages before 2022; "
+            "the official table-based Summary File fallback is verified "
+            "only for 2022 and later"
+        )
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary = (
+            Path(temporary_directory)
+            / f"acs_finance_summary_files_{vintage}.zip"
+        )
+        archive_acs_finance_summary_files(
+            vintage,
+            temporary,
+            release_date=release,
+        )
         return archive_benchmark_file(
             root,
             ACS_SOURCE,
@@ -308,20 +354,25 @@ def _download_acs(
             provider="U.S. Census Bureau",
             dataset_name="ACS 5-Year Detailed Tables: Housing Finance",
             source_page_url=(
-                "https://www.census.gov/data/developers/"
-                "data-sets/acs-5year.html"
+                "https://www.census.gov/programs-surveys/acs/data/"
+                "summary-file.html"
             ),
-            download_url=f"https://api.census.gov/data/{vintage}/acs/acs5",
+            download_url=(
+                "https://www2.census.gov/programs-surveys/acs/"
+                f"summary_file/{vintage}/table-based-SF/"
+            ),
             native_frequency="ACS 5-year",
             source_geography="California counties",
             data_vintage=str(vintage),
             release_date=release,
-            retrieval_method="official_api_composite_json",
+            retrieval_method="official_table_based_summary_file_zip",
             force_duplicate=force,
-            notes="Five exact table calls; composite archive retains all responses.",
+            notes=(
+                "Five official Detailed Table files and the matching 5-year "
+                "geography-label file are retained byte-for-byte in one "
+                "checksummed ZIP package."
+            ),
         )
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def download_version_a(
@@ -556,9 +607,10 @@ def _clean_acs(
         str(vintage),
         release,
     )
-    with archived[0].open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    embedded_release = normalize_release_date(payload.get("release_date"))
+    archive_metadata = acs_finance_archive_metadata(archived[0])
+    embedded_release = normalize_release_date(
+        archive_metadata.get("release_date")
+    )
     if embedded_release != release:
         raise ValueError(
             f"{ACS_SOURCE} vintage {vintage} embedded release_date "

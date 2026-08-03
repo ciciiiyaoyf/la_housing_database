@@ -1,4 +1,6 @@
+import hashlib
 import json
+import zipfile
 from copy import deepcopy
 from datetime import datetime, timezone
 
@@ -7,12 +9,17 @@ import pytest
 
 from src.benchmark.acs import (
     ACSFormatError,
+    ACS_SUMMARY_ARCHIVE_SCHEMA_VERSION,
     ACS_TABLE_VARIABLES,
     ACS_VARIABLE_MAP,
     CALIFORNIA_COUNTY_FIPS,
+    acs_finance_archive_metadata,
     acs_five_year_period,
+    archive_acs_finance_summary_files,
     archive_acs_finance_vintage,
     build_acs_request_url,
+    build_acs_summary_geography_url,
+    build_acs_summary_table_url,
     clean_acs_finance_vintage,
     expected_acs_header,
     fetch_acs_finance_payload,
@@ -86,6 +93,81 @@ def _fetched_payload(responses=None):
         retrieved_at=datetime(2026, 7, 25, 15, 30, tzinfo=timezone.utc),
         release_date="2026-01-29",
     )
+
+
+def _summary_file_variables(variable_id):
+    table_id, line = variable_id.rsplit("_", 1)
+    return f"{table_id}_E{line}", f"{table_id}_M{line}"
+
+
+def _summary_file_assets():
+    geography_lines = [
+        (
+            "FILEID|STUSAB|SUMLEVEL|COMPONENT|STATE|COUNTY|"
+            "GEO_ID|NAME"
+        )
+    ]
+    for county_fips in CALIFORNIA_COUNTY_FIPS:
+        geography_lines.append(
+            "ACSSF|CA|050|00|06|"
+            f"{county_fips[-3:]}|0500000US{county_fips}|"
+            f"County {county_fips}, California"
+        )
+    assets = {
+        build_acs_summary_geography_url(2024): (
+            "\n".join(geography_lines) + "\n"
+        ).encode("utf-8")
+    }
+
+    for table_id, variable_ids in ACS_TABLE_VARIABLES.items():
+        header = ["GEO_ID"]
+        for variable_id in variable_ids:
+            header.extend(_summary_file_variables(variable_id))
+        lines = ["|".join(header)]
+        for offset, county_fips in enumerate(CALIFORNIA_COUNTY_FIPS):
+            row = [f"0500000US{county_fips}"]
+            for variable_id in variable_ids:
+                estimate, moe = BASE_VALUES[variable_id]
+                row.extend([str(estimate + offset), str(moe)])
+            lines.append("|".join(row))
+        assets[build_acs_summary_table_url(2024, table_id)] = (
+            "\n".join(lines) + "\n"
+        ).encode("utf-8")
+    return assets
+
+
+class _BulkResponse:
+    def __init__(self, body):
+        self.body = body
+        self.closed = False
+
+    def raise_for_status(self):
+        return None
+
+    def iter_content(self, chunk_size):
+        del chunk_size
+        for start in range(0, len(self.body), 17):
+            yield self.body[start : start + 17]
+
+    def close(self):
+        self.closed = True
+
+
+class _BulkSession:
+    def __init__(self, assets):
+        self.assets = assets
+        self.calls = []
+
+    def get(self, url, *, stream, timeout, headers):
+        self.calls.append(
+            {
+                "url": url,
+                "stream": stream,
+                "timeout": timeout,
+                "headers": dict(headers),
+            }
+        )
+        return _BulkResponse(self.assets[url])
 
 
 def test_acs_period_is_explicit_60_month_interval_with_midpoint():
@@ -232,3 +314,147 @@ def test_clean_rejects_incomplete_county_responses():
     payload["responses"]["B25120"].pop()
     with pytest.raises(ACSFormatError, match="county coverage changed"):
         clean_acs_finance_vintage(payload)
+
+
+def test_summary_file_archive_preserves_exact_provider_bytes_and_provenance(
+    tmp_path,
+):
+    assets = _summary_file_assets()
+    session = _BulkSession(assets)
+    output = tmp_path / "acs_summary_2024.zip"
+
+    archived = archive_acs_finance_summary_files(
+        2024,
+        output,
+        session=session,
+        retrieved_at=datetime(2026, 7, 26, 8, 15, tzinfo=timezone.utc),
+        release_date="2026-01-29",
+    )
+
+    assert archived["schema_version"] == ACS_SUMMARY_ARCHIVE_SCHEMA_VERSION
+    assert archived["acquisition_method"] == (
+        "official_table_based_summary_file"
+    )
+    assert len(session.calls) == 6
+    assert all(call["stream"] is True for call in session.calls)
+    assert len(archived["checksum_sha256"]) == 64
+
+    with zipfile.ZipFile(output) as package:
+        manifest = json.loads(package.read("manifest.json"))
+        assert manifest["schema_version"] == ACS_SUMMARY_ARCHIVE_SCHEMA_VERSION
+        geography_asset = manifest["source_assets"]["geography_labels"]
+        geography_url = build_acs_summary_geography_url(2024)
+        assert package.read(geography_asset["archive_member"]) == assets[
+            geography_url
+        ]
+        assert geography_asset["checksum_sha256"] == hashlib.sha256(
+            assets[geography_url]
+        ).hexdigest()
+
+        for table_id in ACS_TABLE_VARIABLES:
+            asset = manifest["source_assets"]["tables"][table_id]
+            url = build_acs_summary_table_url(2024, table_id)
+            assert asset["source_url"] == url
+            assert package.read(asset["archive_member"]) == assets[url]
+            assert asset["checksum_sha256"] == hashlib.sha256(
+                assets[url]
+            ).hexdigest()
+
+    metadata = acs_finance_archive_metadata(output)
+    assert metadata["release_date"] == "2026-01-29"
+    assert metadata["acquisition_method"] == (
+        "official_table_based_summary_file"
+    )
+    assert metadata["source_filename"] == output.name
+
+
+def test_summary_file_clean_maps_bulk_fields_without_claiming_api_provenance(
+    tmp_path,
+):
+    assets = _summary_file_assets()
+    output = tmp_path / "acs_summary_2024.zip"
+    archive_acs_finance_summary_files(
+        2024,
+        output,
+        session=_BulkSession(assets),
+        retrieved_at=datetime(2026, 7, 26, 8, 15, tzinfo=timezone.utc),
+        release_date="2026-01-29",
+    )
+
+    clean = clean_acs_finance_vintage(output)
+
+    assert len(clean) == len(CALIFORNIA_COUNTY_FIPS) * len(ACS_VARIABLE_MAP)
+    assert set(clean["county_fips"]) == set(CALIFORNIA_COUNTY_FIPS)
+    assert clean["acquisition_method"].eq(
+        "official_table_based_summary_file"
+    ).all()
+    assert clean["archive_filename"].eq(output.name).all()
+    assert clean["request_url"].str.contains(
+        "/summary_file/2024/table-based-SF/data/5YRData/"
+    ).all()
+    assert not clean["request_url"].str.contains("api.census.gov").any()
+    assert clean["notes"].str.contains("Table-Based Summary File").all()
+
+    row = clean.loc[
+        clean["county_fips"].eq("06001")
+        & clean["source_variable"].eq("B25089_002")
+    ].iloc[0]
+    table_url = build_acs_summary_table_url(2024, "B25089")
+    assert row["value"] == 1_000_000
+    assert row["moe"] == 10_000
+    assert row["source_filename"] == "acsdt5y2024-b25089.dat"
+    assert row["checksum_sha256"] == hashlib.sha256(
+        assets[table_url]
+    ).hexdigest()
+    assert row["geography_source_filename"] == "Geos20245YR.txt"
+    assert row["estimate_variable"] == "B25089_E002"
+    assert row["moe_variable"] == "B25089_M002"
+    assert row["canonical_api_estimate_variable"] == "B25089_002E"
+    assert row["canonical_api_moe_variable"] == "B25089_002M"
+    assert row["estimate_raw"] == "1000000"
+    assert row["moe_raw"] == "10000"
+
+
+def test_summary_file_clean_rejects_embedded_member_checksum_drift(tmp_path):
+    assets = _summary_file_assets()
+    original = tmp_path / "acs_summary_2024.zip"
+    archive_acs_finance_summary_files(
+        2024,
+        original,
+        session=_BulkSession(assets),
+        retrieved_at=datetime(2026, 7, 26, 8, 15, tzinfo=timezone.utc),
+        release_date="2026-01-29",
+    )
+    tampered = tmp_path / "acs_summary_2024_tampered.zip"
+    changed_member = "acsdt5y2024-b01003.dat"
+    with zipfile.ZipFile(original) as source, zipfile.ZipFile(
+        tampered, "x"
+    ) as target:
+        for member in source.namelist():
+            body = source.read(member)
+            if member == changed_member:
+                body = bytes([body[0] ^ 1]) + body[1:]
+            target.writestr(member, body)
+
+    with pytest.raises(ACSFormatError, match="checksum differs"):
+        clean_acs_finance_vintage(tampered)
+
+
+def test_summary_file_archive_rejects_incomplete_counties_and_is_not_retained(
+    tmp_path,
+):
+    assets = _summary_file_assets()
+    table_url = build_acs_summary_table_url(2024, "B25120")
+    lines = assets[table_url].decode("utf-8").splitlines()
+    assets[table_url] = ("\n".join(lines[:-1]) + "\n").encode("utf-8")
+    output = tmp_path / "acs_summary_incomplete.zip"
+
+    with pytest.raises(ACSFormatError, match="county coverage changed"):
+        archive_acs_finance_summary_files(
+            2024,
+            output,
+            session=_BulkSession(assets),
+            retrieved_at=datetime(2026, 7, 26, 8, 15, tzinfo=timezone.utc),
+            release_date="2026-01-29",
+        )
+    assert not output.exists()

@@ -124,7 +124,7 @@ def test_qa_rejects_direct_acs_only_as_incomplete_build() -> None:
 def test_qa_checks_published_acs_owner_partitions() -> None:
     frame = pd.DataFrame(
         [
-            _row("acs_aggregate_owner_value_all_benchmark", 140.0),
+            _row("acs_aggregate_owner_value_all_benchmark", 240.0),
             _row("acs_aggregate_owner_value_mortgaged_benchmark", 100.0),
             _row("acs_aggregate_owner_value_no_mortgage_benchmark", 30.0),
             _row("acs_aggregate_household_income_owner_benchmark", 90.0),
@@ -153,6 +153,53 @@ def test_qa_checks_published_acs_owner_partitions() -> None:
     assert summary.set_index("check_id").loc[
         "aggregate_owner_income_partition_identity", "status"
     ] == "pass"
+
+
+def test_qa_allows_published_acs_hundred_dollar_partition_rounding() -> None:
+    frame = pd.DataFrame(
+        [
+            _row("acs_aggregate_owner_value_all_benchmark", 1_000_000.0),
+            _row(
+                "acs_aggregate_owner_value_mortgaged_benchmark",
+                600_000.0,
+            ),
+            _row(
+                "acs_aggregate_owner_value_no_mortgage_benchmark",
+                400_100.0,
+            ),
+            _row(
+                "acs_aggregate_household_income_owner_benchmark",
+                900_000.0,
+            ),
+            _row(
+                "acs_aggregate_household_income_mortgaged_owner_benchmark",
+                500_000.0,
+            ),
+            _row(
+                "acs_aggregate_household_income_no_mortgage_owner_benchmark",
+                399_900.0,
+            ),
+        ]
+    )
+
+    summary, failures = benchmark_qa_results(
+        frame,
+        require_complete_acs_counties=False,
+    )
+    indexed = summary.set_index("check_id")
+
+    assert indexed.loc[
+        "aggregate_owner_value_partition_identity", "status"
+    ] == "pass"
+    assert indexed.loc[
+        "aggregate_owner_income_partition_identity", "status"
+    ] == "pass"
+    assert not failures["check_id"].isin(
+        {
+            "aggregate_owner_value_partition_identity",
+            "aggregate_owner_income_partition_identity",
+        }
+    ).any()
 
 
 def test_qa_stops_on_broken_annual_payment_identity(tmp_path) -> None:
