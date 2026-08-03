@@ -9,6 +9,24 @@ import pandas as pd
 from src.common.config import ProjectConfig
 
 
+RESTRICTED_PUBLIC_COLUMN_PREFIXES = ("usps_",)
+
+
+def _assert_public_export_safe(frame: pd.DataFrame, export_name: str) -> None:
+    """Stop licensed HUD-USPS fields from entering ordinary CSV exports."""
+
+    restricted = sorted(
+        str(column)
+        for column in frame.columns
+        if str(column).startswith(RESTRICTED_PUBLIC_COLUMN_PREFIXES)
+    )
+    if restricted:
+        raise ValueError(
+            f"Refusing public export {export_name!r}: restricted HUD-USPS "
+            f"columns are present: {restricted}"
+        )
+
+
 def export_outputs(config: ProjectConfig) -> dict[str, int]:
     logger = logging.getLogger("la_housing.export")
     final = config.root / "data" / "final"
@@ -53,6 +71,7 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
         if not parquet_path.exists():
             continue
         frame = pd.read_parquet(parquet_path)
+        _assert_public_export_safe(frame, name)
         frame.to_csv(csv_path, index=False)
         counts[f"{name}_rows"] = len(frame)
     benchmark_path = final / "housing_finance_benchmark.parquet"

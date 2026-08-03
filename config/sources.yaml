@@ -1,4 +1,4 @@
-verified_at: '2026-08-02'
+verified_at: '2026-08-03'
 sources:
 - source_id: zillow_county_zhvi
   provider: Zillow Research
@@ -792,9 +792,11 @@ sources:
   - county
   - tract_2020
   - postal_zip_county_part
-  file_format: json
-  raw_subdir: hud_usps_ncwm
+  file_format: json|txt
+  raw_subdir: hud_usps
   access_method: authorized_official_api
+  destination_clean_table: clean.hud_usps_ncwm_quarterly
+  destination_analytical_table: analytics.fact_housing_observation
   selected_start_date: '2008-01-01'
   selected_end_date: '2026-03-31'
   key_variables:
@@ -806,10 +808,37 @@ sources:
   - usps_active_residential_addresses
   - usps_residential_vacancy_rate
   - usps_residential_no_stat_rate
-  enabled: false
-  auto_download: false
-  provenance_status: quarantined_derived_snapshot
-  manual_reason: The surviving 2026-08-02 derived package lacks archived official quarterly API responses, the raw crosswalk response, exact UTC retrieval timestamps, source release dates, and raw checksums. Reacquire and archive official inputs before activation.
-  methodology_notes: The vacancy proxy is (short-term vacant residential addresses + long-term vacant residential addresses) / total residential addresses. No-stat remains separate. Modeled ZIP values represent Los Angeles County portions of postal ZIPs using a fixed crosswalk and are neither whole postal ZIPs nor Census ZCTAs. Do not expand quarterly values to observed months or label the proxy true rental-listing inventory.
-  license_or_use_notes: Census-tract information and derivatives are confidential and proprietary under the HUD-USPS sublicense. Keep licensed files access-controlled and outside Git history; preserve the required notice with every copy.
-  revision_notes: Archive every authorized raw response and crosswalk vintage with source URL/query, source filename, UTC retrieval timestamp, provider vintage, geography, file size, and SHA-256 checksum. USPS address-management changes can create longitudinal discontinuities that must remain visible.
+  enabled: true
+  auto_download: true
+  provenance_status: official_raw_archive_rebuilt
+  manual_reason: >-
+    A signed-in HUD User personal access token in HUDUSER_API_TOKEN is required only
+    when an authenticated official response is not already present in the verified
+    local archive.
+  methodology_notes: >-
+    The source-specific downloader bypasses generic data/raw/<raw_subdir> routing and
+    stores the licensed official archive under data/restricted/hud_usps/raw/. The
+    vacancy proxy is (short-term vacant residential addresses + long-term vacant
+    residential addresses) / total residential addresses. No-stat remains separate.
+    Source component values are direct at standardized 2020-tract geography;
+    California county values are constructed by summing complete tract components,
+    and Los Angeles County postal-ZIP-part values are modeled with the fixed 2026 Q1
+    tract-to-ZIP crosswalk. Postal ZIP county-parts are neither whole postal ZIPs nor
+    Census ZCTAs. Keep the native quarterly frequency, do not expand values to
+    observed months, and never label the proxy true rental-listing inventory.
+  license_or_use_notes: >-
+    Census-tract information and derivatives are confidential and proprietary under
+    the HUD-USPS sublicense. Keep the raw archive and detailed derived outputs
+    access-controlled, under data/restricted/hud_usps/, and outside Git history;
+    preserve the required notice with every copy. Do not publish the licensed tract
+    or modeled ZIP-part observations through public exports.
+  revision_notes: >-
+    Official raw archive verified 2026-08-03: 73 contiguous standardized-2020-tract
+    NCWM JSON responses for 2008 Q1 through 2026 Q1, the official 2026 Q1
+    tract-to-postal-ZIP crosswalk JSON response, and the official 58-row 2020 Census
+    California county-code TXT reference. All 75 artifacts retain source URL/query,
+    source filename, UTC retrieval timestamp, provider vintage or release date when
+    supplied, geography, file size, and SHA-256 checksum. The former 2026-08-02
+    derived package file was deleted; only its superseded quarantine manifest remains. USPS
+    address-management changes can create longitudinal discontinuities that must
+    remain visible.

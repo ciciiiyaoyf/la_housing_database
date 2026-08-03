@@ -5,7 +5,12 @@ from openpyxl import load_workbook
 import pandas as pd
 
 from src.common.config import load_config
-from src.reporting.catalog import DOCX_VARIABLES
+from src.reporting.catalog import (
+    DOCX_VARIABLES,
+    HUD_USPS_PROXY_STATUS,
+    HUD_USPS_RESTRICTED_TABLES,
+    HUD_USPS_VARIABLE_IDS,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,11 +39,28 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     assert rental_inventory["expected_source_from_docx"] == (
         "Zillow Observed Rent Index / Listings"
     )
-    assert rental_inventory["current_status"] == "Quarantined constructed proxy"
+    assert rental_inventory["current_status"] == HUD_USPS_PROXY_STATUS
     assert rental_inventory["implemented_source_id"] == "hud_usps_ncwm_quarterly"
-    assert pd.isna(rental_inventory["implemented_table"])
-    assert not bool(rental_inventory["panel_or_view_present"])
+    assert set(rental_inventory["implemented_variable_id"].split("|")) == set(
+        HUD_USPS_VARIABLE_IDS
+    )
+    assert "analytics.fact_housing_observation" in rental_inventory[
+        "implemented_table"
+    ]
+    assert all(
+        path in rental_inventory["implemented_table"]
+        for path in HUD_USPS_RESTRICTED_TABLES
+    )
+    assert bool(rental_inventory["panel_or_view_present"])
     assert "not true rental-listing inventory" in rental_inventory["limitation"]
+    assert "native-quarterly only" in rental_inventory["limitation"]
+    assert "no-stat remains a separate diagnostic" in rental_inventory[
+        "limitation"
+    ].lower()
+    assert "postal-ZIP county-parts are modeled" in rental_inventory[
+        "limitation"
+    ]
+    assert "access-controlled" in rental_inventory["limitation"]
     assert "ZORI is not inventory" in rental_inventory["limitation"]
     assert "Redfin for-sale active listings are not a valid substitute" in (
         rental_inventory["limitation"]
@@ -75,11 +97,54 @@ def test_data_catalog_shape_and_active_sources_are_complete():
     hud_usps = catalog.loc[
         catalog["source_id"].eq("hud_usps_ncwm_quarterly")
     ].iloc[0]
-    assert hud_usps["active_status"] == "Quarantined"
-    assert str(hud_usps["update_command"]).startswith("BLOCKED:")
-    assert "run_pipeline.py" not in str(hud_usps["update_command"])
-    assert pd.isna(hud_usps["destination_clean_table"])
-    assert pd.isna(hud_usps["destination_analytical_table"])
+    assert hud_usps["active_status"] == "Active"
+    assert hud_usps["provenance_status"] == "official_raw_archive_rebuilt"
+    assert str(hud_usps["update_command"]).startswith(
+        "python run_pipeline.py --stage download --source "
+        "hud_usps_ncwm_quarterly"
+    )
+    assert hud_usps["source_manifest_path"] == (
+        "metadata/hud_usps_source_manifest.csv"
+    )
+    assert "data/restricted/hud_usps/raw/" in hud_usps["raw_file_path"]
+    assert "quarantine" not in hud_usps["raw_file_path"]
+    assert "historical, superseded record" in hud_usps["notes"]
+    assert "clean.hud_usps_ncwm_quarterly" in hud_usps[
+        "destination_clean_table"
+    ]
+    assert "analytics.fact_housing_observation" in hud_usps[
+        "destination_analytical_table"
+    ]
+    assert all(
+        path in hud_usps["destination_analytical_table"]
+        for path in HUD_USPS_RESTRICTED_TABLES[:3]
+    )
+
+
+def test_hud_usps_v2_methodology_and_gap_workbook() -> None:
+    assumptions = pd.read_csv(
+        ROOT / "metadata" / "proxy_methodology_assumptions.csv"
+    )
+    hud = assumptions.loc[
+        assumptions["methodology_id"].eq(
+            "hud_usps_residential_vacancy_proxy_v2"
+        )
+    ]
+    assert len(hud) == 4
+    assert hud["methodology_status"].eq("active").all()
+    combined = " ".join(hud["value"].astype(str))
+    assert "metadata/hud_usps_source_manifest.csv" in combined
+    assert "No-stat / total remains a separate" in combined
+    assert "postal-ZIP county-part values are modeled" in combined
+    assert "native-quarterly" in combined
+    assert "data/restricted/hud_usps/" in " ".join(
+        hud["rationale"].astype(str)
+    )
+
+    workbook = load_workbook(
+        ROOT / "metadata" / "data_gap_analysis.xlsx", read_only=True
+    )
+    assert workbook.sheetnames == ["Gap Analysis"]
 
 
 def test_source_coverage_preserves_geography_types():

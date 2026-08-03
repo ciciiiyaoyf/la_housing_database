@@ -19,6 +19,7 @@ from src.common.io import append_csv, sha256_file
 from src.cleaning.acs import ACS_TABLE_MAP
 from src.ingestion.bps_archive import download_bps_archive
 from src.ingestion.irs_migration import download_irs_soi_county_migration
+from src.ingestion.hud_usps import download_hud_usps_archive
 
 RAW_SUBDIR = {
     "Zillow Research": "zillow",
@@ -657,6 +658,14 @@ def download_source(
         )
     if source.source_id == "irs_soi_county_migration":
         return download_irs_soi_county_migration(
+            config,
+            source,
+            force=force,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    if source.source_id == "hud_usps_ncwm_quarterly":
+        return download_hud_usps_archive(
             config,
             source,
             force=force,

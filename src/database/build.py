@@ -18,6 +18,17 @@ UNION_CLEAN_TABLES = {
     "clean.census_hvs_rental_vacancy",
 }
 
+HUD_USPS_SOURCE_ID = "hud_usps_ncwm_quarterly"
+HUD_USPS_RESTRICTED_CLEAN_TABLES = {
+    "hud_usps_ca_county_quarterly": "ca_county_quarterly.parquet",
+    "hud_usps_la_tract_2020_quarterly": (
+        "la_tract_2020_quarterly.parquet"
+    ),
+    "hud_usps_la_postal_zip_county_part_quarterly": (
+        "la_postal_zip_county_part_quarterly.parquet"
+    ),
+}
+
 
 def _clean_table_name(source_id: str, configured: str) -> str:
     if configured and configured not in UNION_CLEAN_TABLES:
@@ -81,6 +92,11 @@ def _source_registry(config: ProjectConfig) -> pd.DataFrame:
                     "request_end_year": None,
                     "response_latest_observation": None,
                     "response_observation_count": None,
+                    "request_query": None,
+                    "artifact_role": None,
+                    "provider_vintage": None,
+                    "provider_release_date": None,
+                    "provider_release_date_status": None,
                     "license_or_use_notes": source.license_or_use_notes,
                     "revision_notes": source.revision_notes,
                     "revision_policy": source.revision_notes,
@@ -119,6 +135,11 @@ def _source_registry(config: ProjectConfig) -> pd.DataFrame:
         "request_end_year",
         "response_latest_observation",
         "response_observation_count",
+        "request_query",
+        "artifact_role",
+        "provider_vintage",
+        "provider_release_date",
+        "provider_release_date_status",
         "archive_period",
         "migration_direction",
         "archive_format_version",
@@ -272,6 +293,49 @@ def _active_clean_tables(config: ProjectConfig) -> list[tuple[str, Path]]:
     return tables
 
 
+def _hud_usps_restricted_clean_tables(
+    config: ProjectConfig,
+) -> list[tuple[str, Path]]:
+    """Return native-quarterly restricted HUD products as separate tables."""
+
+    source_is_active = any(
+        source.enabled and source.source_id == HUD_USPS_SOURCE_ID
+        for source in config.sources
+    )
+    if not source_is_active:
+        return []
+    restricted_dir = (
+        config.root / "data" / "restricted" / "hud_usps" / "active"
+    )
+    tables = [
+        (table_name, restricted_dir / filename)
+        for table_name, filename in HUD_USPS_RESTRICTED_CLEAN_TABLES.items()
+    ]
+    existing = [(name, path) for name, path in tables if path.exists()]
+    if not existing:
+        return []
+    if len(existing) != len(tables):
+        missing = [path.name for _, path in tables if not path.exists()]
+        raise FileNotFoundError(
+            "HUD-USPS restricted clean products are incomplete: "
+            + ", ".join(missing)
+        )
+    return tables
+
+
+def _register_clean_parquet_tables(
+    connection: duckdb.DuckDBPyConnection,
+    tables: list[tuple[str, Path]],
+) -> None:
+    for name, path in tables:
+        clean_path = path.as_posix().replace("'", "''")
+        safe_name = name.replace('"', '""')
+        connection.execute(
+            f'CREATE OR REPLACE TABLE clean."{safe_name}" AS '
+            f"SELECT * FROM read_parquet('{clean_path}')"
+        )
+
+
 def _version_a_manifest(config: ProjectConfig) -> pd.DataFrame:
     path = config.root / "metadata" / "version_a_raw_file_manifest.csv"
     if not path.exists():
@@ -404,13 +468,13 @@ def build_database(
     for (table_name,) in stale_clean_tables:
         safe_name = str(table_name).replace('"', '""')
         connection.execute(f'DROP TABLE IF EXISTS clean."{safe_name}"')
-    for name, path in _active_clean_tables(config):
-        clean_path = path.as_posix().replace("'", "''")
-        safe_name = name.replace('"', '""')
-        connection.execute(
-            f'CREATE OR REPLACE TABLE clean."{safe_name}" AS '
-            f"SELECT * FROM read_parquet('{clean_path}')"
-        )
+    _register_clean_parquet_tables(
+        connection,
+        [
+            *_active_clean_tables(config),
+            *_hud_usps_restricted_clean_tables(config),
+        ],
+    )
     union_tables = {
         "clean.fhfa_hpi": [
             "clean.fhfa_hpi_state_purchase_only",

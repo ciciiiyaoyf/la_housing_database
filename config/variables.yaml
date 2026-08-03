@@ -2591,7 +2591,12 @@ variables:
   transformation: Sum standardized 2020-tract counts before calculating any aggregate rate; modeled ZIP-part values use a versioned residential-address crosswalk.
   missing_value_policy: preserve null; never substitute another geography or period
   revision_policy: archive every authorized raw response and crosswalk vintage
-  methodological_notes: Administrative all-residential address count. The supplied 2026-08-02 snapshot is quarantined for missing raw provenance; ZIP-part rows are modeled and identified at row level.
+  methodological_notes: >-
+    Active all-residential administrative address count rebuilt from the verified
+    official archive. Tract component values are direct HUD-USPS fields; California
+    county values are constructed by summing complete tract components; Los Angeles
+    County postal-ZIP-part values are modeled with the fixed 2026 Q1 crosswalk and
+    identified at row level. Licensed detailed outputs remain restricted.
   market_segment: Both
   variable_role: Control
   data_domain: residential_address_availability
@@ -2601,7 +2606,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_short_term_vacant_residential_addresses
   display_name: USPS short-term vacant residential addresses
@@ -2617,7 +2622,11 @@ variables:
   transformation: Preserve the source count; aggregate by summing counts before rate calculation.
   missing_value_policy: preserve null; never infer from total or another component
   revision_policy: archive every authorized raw response and crosswalk vintage
-  methodological_notes: Source administrative component. ZIP-part rows are modeled; the supplied snapshot is quarantined for missing raw provenance.
+  methodological_notes: >-
+    Active source administrative component rebuilt from the verified official
+    archive. Tract values are direct; California county values are constructed from
+    complete tract components; Los Angeles County postal-ZIP-part values are modeled
+    with the fixed 2026 Q1 crosswalk. Licensed detailed outputs remain restricted.
   market_segment: Both
   variable_role: Control
   data_domain: residential_address_availability
@@ -2627,7 +2636,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_long_term_vacant_residential_addresses
   display_name: USPS long-term vacant residential addresses
@@ -2643,7 +2652,11 @@ variables:
   transformation: Preserve the source count; aggregate by summing counts before rate calculation.
   missing_value_policy: preserve null; never infer from total or another component
   revision_policy: archive every authorized raw response and crosswalk vintage
-  methodological_notes: Source administrative component. ZIP-part rows are modeled; the supplied snapshot is quarantined for missing raw provenance.
+  methodological_notes: >-
+    Active source administrative component rebuilt from the verified official
+    archive. Tract values are direct; California county values are constructed from
+    complete tract components; Los Angeles County postal-ZIP-part values are modeled
+    with the fixed 2026 Q1 crosswalk. Licensed detailed outputs remain restricted.
   market_segment: Both
   variable_role: Control
   data_domain: residential_address_availability
@@ -2653,7 +2666,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_vacant_residential_addresses
   display_name: USPS vacant residential addresses proxy numerator
@@ -2669,7 +2682,12 @@ variables:
   transformation: Add short-term and long-term residential vacancy counts only; no-stat is excluded.
   missing_value_policy: null if either vacancy component is missing
   revision_policy: rebuild from each archived source vintage
-  methodological_notes: All-residential administrative vacancy proxy numerator; not rental-listing inventory. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  methodological_notes: >-
+    Active constructed all-residential administrative vacancy proxy numerator; not
+    rental-listing inventory. It is derived from direct tract components, then
+    constructed for California counties and modeled for Los Angeles County
+    postal-ZIP-parts with the fixed 2026 Q1 crosswalk. No-stat is excluded. Licensed
+    detailed outputs remain restricted.
   market_segment: Both
   variable_role: Proxy
   data_domain: residential_address_availability
@@ -2679,7 +2697,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: proxy
 - variable_id: usps_no_stat_residential_addresses
   display_name: USPS no-stat residential addresses
@@ -2695,7 +2713,12 @@ variables:
   transformation: Preserve no-stat separately; never add it to the vacancy numerator.
   missing_value_policy: preserve null
   revision_policy: archive every authorized raw response and crosswalk vintage
-  methodological_notes: No-stat can reflect construction, rural-route status, or addresses unlikely to become active soon. It is a diagnostic, not vacancy. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  methodological_notes: >-
+    No-stat can reflect construction, rural-route status, or addresses unlikely to
+    become active soon. It is an active separate diagnostic, not vacancy. Tract
+    values are direct; California county values are constructed from complete tract
+    components; Los Angeles County postal-ZIP-part values are modeled with the fixed
+    2026 Q1 crosswalk. Licensed detailed outputs remain restricted.
   market_segment: Both
   variable_role: Diagnostic
   data_domain: residential_address_availability
@@ -2705,7 +2728,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_active_residential_addresses
   display_name: USPS active residential addresses
@@ -2721,7 +2744,11 @@ variables:
   transformation: Preserve the source component and validate total equals active plus vacant plus no-stat.
   missing_value_policy: preserve null; never infer when a required component is missing
   revision_policy: archive every authorized raw response and crosswalk vintage
-  methodological_notes: Administrative mail-delivery status, not occupied rental inventory. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  methodological_notes: >-
+    Active administrative mail-delivery status, not occupied rental inventory. Tract
+    values are direct; California county values are constructed from complete tract
+    components; Los Angeles County postal-ZIP-part values are modeled with the fixed
+    2026 Q1 crosswalk. Licensed detailed outputs remain restricted.
   market_segment: Both
   variable_role: Diagnostic
   data_domain: residential_address_availability
@@ -2731,7 +2758,7 @@ variables:
   is_observed: true
   is_constructed: false
   is_proxy: false
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: observed
 - variable_id: usps_residential_vacancy_rate
   display_name: USPS residential vacancy rate proxy
@@ -2747,7 +2774,13 @@ variables:
   transformation: Sum address counts to the target geography before dividing; never average tract percentages and never include no-stat.
   missing_value_policy: null when the denominator is zero or any required component is missing
   revision_policy: rebuild from each archived source and crosswalk vintage
-  methodological_notes: Quarterly all-residential administrative address-vacancy proxy; not renter-only and not true rental-listing inventory. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  methodological_notes: >-
+    Active quarterly all-residential administrative address-vacancy proxy; not
+    renter-only and not true rental-listing inventory. It is constructed after
+    complete component aggregation: direct tract inputs, constructed California
+    county values, and modeled Los Angeles County postal-ZIP-part values using the
+    fixed 2026 Q1 crosswalk. No-stat remains separate. Licensed detailed outputs
+    remain restricted.
   market_segment: Both
   variable_role: Proxy
   data_domain: residential_address_availability
@@ -2757,7 +2790,7 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: proxy
 - variable_id: usps_residential_no_stat_rate
   display_name: USPS residential no-stat rate
@@ -2773,7 +2806,12 @@ variables:
   transformation: Divide no-stat residential addresses by total residential addresses after geography aggregation.
   missing_value_policy: null when the denominator is zero or a required component is missing
   revision_policy: rebuild from each archived source and crosswalk vintage
-  methodological_notes: Separate diagnostic; never combine with the vacancy numerator. ZIP-part rows are modeled and the supplied snapshot is quarantined.
+  methodological_notes: >-
+    Active separate diagnostic; never combine with the vacancy numerator. It is
+    constructed after complete component aggregation: direct tract inputs,
+    constructed California county values, and modeled Los Angeles County
+    postal-ZIP-part values using the fixed 2026 Q1 crosswalk. Licensed detailed
+    outputs remain restricted.
   market_segment: Both
   variable_role: Diagnostic
   data_domain: residential_address_availability
@@ -2783,5 +2821,5 @@ variables:
   is_observed: false
   is_constructed: true
   is_proxy: true
-  active_status: Quarantined
+  active_status: Active
   observed_constructed_proxy_or_scenario: proxy

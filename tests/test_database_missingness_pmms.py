@@ -54,9 +54,14 @@ def test_county_panel_exposes_all_pmms_monthly_aggregates():
 def test_duckdb_clean_schema_contains_active_sources_and_union_views():
     config = load_config(ROOT)
     expected = {
-        source.destination_clean_table or source.source_id
+        (source.destination_clean_table or source.source_id).split(".")[-1]
         for source in config.sources
         if source.enabled
+    }
+    expected |= {
+        "hud_usps_ca_county_quarterly",
+        "hud_usps_la_tract_2020_quarterly",
+        "hud_usps_la_postal_zip_county_part_quarterly",
     }
     with _connect() as connection:
         actual = {

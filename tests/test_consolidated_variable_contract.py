@@ -109,15 +109,17 @@ def test_version_a_finance_is_authoritative_and_b25106_is_legacy() -> None:
         assert "Version A" in notes
 
 
-def test_hud_usps_remains_quarantined_and_is_not_rental_inventory() -> None:
+def test_hud_usps_is_active_proxy_and_not_rental_inventory() -> None:
     sources = _by_id(_yaml("config/sources.yaml")["sources"], "source_id")
     source = sources["hud_usps_ncwm_quarterly"]
-    assert source["enabled"] is False
-    assert source["auto_download"] is False
-    assert source["provenance_status"] == "quarantined_derived_snapshot"
+    assert source["enabled"] is True
+    assert source["auto_download"] is True
+    assert source["provenance_status"] == "official_raw_archive_rebuilt"
     assert set(source["key_variables"]) == HUD_USPS_VARIABLE_IDS
     source_notes = str(source["methodology_notes"])
-    assert "Do not" in source_notes
+    assert "native quarterly frequency" in source_notes
+    assert "No-stat remains separate" in source_notes
+    assert "postal-ZIP-part values are modeled" in source_notes
     assert "true rental-listing inventory" in source_notes
 
     variables = _by_id(_yaml("config/variables.yaml")["variables"], "variable_id")
@@ -126,7 +128,7 @@ def test_hud_usps_remains_quarantined_and_is_not_rental_inventory() -> None:
     }
     assert usps_variables == HUD_USPS_VARIABLE_IDS
     assert all(
-        variables[variable_id]["active_status"] == "Quarantined"
+        variables[variable_id]["active_status"] == "Active"
         for variable_id in usps_variables
     )
     assert all(
@@ -141,10 +143,19 @@ def test_hud_usps_remains_quarantined_and_is_not_rental_inventory() -> None:
     assert "NO_STAT" not in rate["original_field"]
 
     configured = load_config(ROOT)
-    assert "hud_usps_ncwm_quarterly" not in {
+    assert "hud_usps_ncwm_quarterly" in {
         source_config.source_id for source_config in configured.selected_sources()
     }
     assert (ROOT / "docs/hud_usps_residential_vacancy_proxy.md").is_file()
+    source_manifest = pd.read_csv(
+        ROOT / "metadata/hud_usps_source_manifest.csv", dtype=str
+    )
+    assert len(source_manifest) == 75
+    assert source_manifest["artifact_role"].value_counts().to_dict() == {
+        "ncwm_standardized_2020": 73,
+        "tract_zip_crosswalk": 1,
+        "county_fips_reference_2020": 1,
+    }
     assert (ROOT / "metadata/hud_usps_quarantine_manifest.csv").is_file()
 
 
@@ -159,6 +170,7 @@ def test_readme_records_the_consolidated_contract_and_refresh_examples() -> None
         "all-residential administrative vacancy proxy",
         "not true rental-listing inventory",
         "(docs/hud_usps_residential_vacancy_proxy.md)",
+        "(metadata/hud_usps_source_manifest.csv)",
         "(metadata/hud_usps_quarantine_manifest.csv)",
     ):
         assert phrase in readme

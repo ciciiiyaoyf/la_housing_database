@@ -11,6 +11,14 @@ import duckdb
 import pandas as pd
 
 from src.common.config import ProjectConfig
+from src.geography.build import CALIFORNIA_COUNTY_FIPS
+
+
+GEO_ID_PATTERN = re.compile(
+    r"^(US|STATE_\d{2}|COUNTY_\d{5}|ZIP_\d{5}|ZCTA_\d{5}|"
+    r"TRACT_\d{11}|ZIPCOUNTYPART_\d{5}_\d{5}|"
+    r"METRO_\d{5}|METRODIV_\d{5})$"
+)
 
 
 @dataclass
@@ -53,6 +61,8 @@ def _classify_geo_type(geo_id: object) -> str:
     prefix_types = (
         ("STATE_", "state"),
         ("COUNTY_", "county"),
+        ("TRACT_", "tract_2020"),
+        ("ZIPCOUNTYPART_", "postal_zip_county_part"),
         ("ZIP_", "postal_zip"),
         ("ZCTA_", "zcta"),
         ("METRODIV_", "metro_division"),
@@ -62,6 +72,95 @@ def _classify_geo_type(geo_id: object) -> str:
         if value.startswith(prefix):
             return geo_type
     return "unknown"
+
+
+def _hud_usps_geography_identity_failures(fact: pd.DataFrame) -> pd.DataFrame:
+    """Return HUD-USPS tract/ZIP-part IDs inconsistent with their FIPS fields."""
+
+    source = fact.get("source_id", pd.Series(index=fact.index, dtype="string"))
+    hud = fact.loc[source.astype("string").eq("hud_usps_ncwm_quarterly")].copy()
+    if hud.empty:
+        return pd.DataFrame(
+            columns=["observation_date", "geo_id", "state_fips", "county_fips"]
+        )
+
+    geo_id = hud["geo_id"].astype("string")
+    state_fips = hud["state_fips"].astype("string")
+    county_fips = hud["county_fips"].astype("string")
+    tract_county = geo_id.str.extract(
+        r"^TRACT_(\d{5})\d{6}$", expand=False
+    )
+    zip_part_county = geo_id.str.extract(
+        r"^ZIPCOUNTYPART_(\d{5})_\d{5}$", expand=False
+    )
+    tract = geo_id.str.startswith("TRACT_", na=False)
+    zip_part = geo_id.str.startswith("ZIPCOUNTYPART_", na=False)
+    expected_county = tract_county.where(tract, zip_part_county)
+    relevant = tract | zip_part
+    mismatch = relevant & (
+        expected_county.isna()
+        | county_fips.ne(expected_county).fillna(True)
+        | state_fips.ne(expected_county.str[:2]).fillna(True)
+    )
+    columns = [
+        column
+        for column in (
+            "observation_date",
+            "geo_id",
+            "variable_id",
+            "state_fips",
+            "county_fips",
+        )
+        if column in hud
+    ]
+    return hud.loc[mismatch, columns]
+
+
+def _hud_usps_county_coverage_failures(fact: pd.DataFrame) -> pd.DataFrame:
+    """Require the exact 58-county California set for each HUD-USPS series."""
+
+    source = fact.get("source_id", pd.Series(index=fact.index, dtype="string"))
+    hud = fact.loc[source.astype("string").eq("hud_usps_ncwm_quarterly")].copy()
+    columns = [
+        "observation_date",
+        "variable_id",
+        "county_count",
+        "missing_counties",
+        "unexpected_counties",
+    ]
+    if hud.empty:
+        return pd.DataFrame(columns=columns)
+
+    expected = set(CALIFORNIA_COUNTY_FIPS)
+    county = hud.loc[
+        hud["geo_id"].astype("string").str.startswith("COUNTY_", na=False)
+    ]
+    rows: list[dict[str, object]] = []
+    for (date, variable_id), _ in hud.groupby(
+        ["observation_date", "variable_id"], dropna=False, sort=True
+    ):
+        group_counties = set(
+            county.loc[
+                county["observation_date"].eq(date)
+                & county["variable_id"].eq(variable_id),
+                "county_fips",
+            ]
+            .dropna()
+            .astype(str)
+        )
+        if group_counties != expected:
+            rows.append(
+                {
+                    "observation_date": date,
+                    "variable_id": variable_id,
+                    "county_count": len(group_counties),
+                    "missing_counties": "|".join(sorted(expected - group_counties)),
+                    "unexpected_counties": "|".join(
+                        sorted(group_counties - expected)
+                    ),
+                }
+            )
+    return pd.DataFrame(rows, columns=columns)
 
 
 def _coverage_reports(
@@ -488,12 +587,27 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
     invalid_geo = fact.loc[
         ~fact["geo_id"]
         .astype(str)
-        .str.match(
-            r"^(US|STATE_\d{2}|COUNTY_\d{5}|ZIP_\d{5}|ZCTA_\d{5}|METRO_\d{5}|METRODIV_\d{5})$"
-        ),
+        .str.match(GEO_ID_PATTERN),
         primary_key,
     ]
-    check("geography_format", "error", invalid_geo, "FIPS and ZIP IDs must retain fixed widths.")
+    check(
+        "geography_format",
+        "error",
+        invalid_geo,
+        "FIPS, tract, postal ZIP, and ZIP-county-part IDs must retain fixed widths.",
+    )
+    check(
+        "hud_usps_geography_identity",
+        "error",
+        _hud_usps_geography_identity_failures(fact),
+        "HUD-USPS tract and ZIP-county-part IDs must agree with state and county FIPS fields.",
+    )
+    check(
+        "hud_usps_california_county_coverage",
+        "error",
+        _hud_usps_county_coverage_failures(fact),
+        "Every active HUD-USPS quarter-variable series must contain the exact 58 California counties.",
+    )
     invalid_zip = zip_panel.loc[
         ~zip_panel.get("postal_zip", pd.Series(dtype=str)).astype(str).str.match(r"^\d{5}$")
     ]

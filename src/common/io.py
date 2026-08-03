@@ -107,13 +107,26 @@ def source_archive_paths(
     frame["archive_period"] = frame.get(
         "archive_period", pd.Series(index=frame.index, dtype=str)
     )
-    inferred = frame["download_url"].str.extract(
-        r"/(?:co|st)(\d{2})(\d{2})c\.txt$", expand=True
-    )
-    inferred_period = inferred[0].map(
-        lambda year: f"{2000 + int(year):04d}" if pd.notna(year) else None
-    ) + "-" + inferred[1]
-    frame["archive_period"] = frame["archive_period"].fillna(inferred_period)
+    frame["archive_period"] = frame["archive_period"].astype("string")
+    if source_id.startswith("census_bps_"):
+        inferred = frame["download_url"].str.extract(
+            r"/(?:co|st)(\d{2})(\d{2})c\.txt$", expand=True
+        )
+        inferred_period = pd.Series(
+            pd.NA, index=frame.index, dtype="string"
+        )
+        valid = inferred[0].notna() & inferred[1].notna()
+        inferred_period.loc[valid] = (
+            inferred.loc[valid, 0]
+            .astype(int)
+            .add(2000)
+            .astype(str)
+            + "-"
+            + inferred.loc[valid, 1].astype(str)
+        )
+        frame["archive_period"] = frame["archive_period"].fillna(
+            inferred_period
+        )
     frame = frame.loc[frame["archive_period"].notna()]
     frame["_retrieved"] = pd.to_datetime(
         frame["retrieved_at"], utc=True, errors="coerce", format="mixed"

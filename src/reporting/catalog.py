@@ -17,6 +17,38 @@ import yaml
 from src.common.config import ProjectConfig, SourceConfig
 
 
+HUD_USPS_SOURCE_ID = "hud_usps_ncwm_quarterly"
+HUD_USPS_VARIABLE_IDS = (
+    "usps_total_residential_addresses",
+    "usps_short_term_vacant_residential_addresses",
+    "usps_long_term_vacant_residential_addresses",
+    "usps_vacant_residential_addresses",
+    "usps_no_stat_residential_addresses",
+    "usps_active_residential_addresses",
+    "usps_residential_vacancy_rate",
+    "usps_residential_no_stat_rate",
+)
+HUD_USPS_PROXY_STATUS = (
+    "Partially implemented – active all-residential proxy only"
+)
+HUD_USPS_SOURCE_MANIFEST_PATH = "metadata/hud_usps_source_manifest.csv"
+HUD_USPS_HISTORICAL_QUARANTINE_MANIFEST_PATH = (
+    "metadata/hud_usps_quarantine_manifest.csv"
+)
+HUD_USPS_RESTRICTED_TABLES = (
+    "data/restricted/hud_usps/active/ca_county_quarterly.parquet",
+    "data/restricted/hud_usps/active/la_tract_2020_quarterly.parquet",
+    "data/restricted/hud_usps/active/"
+    "la_postal_zip_county_part_quarterly.parquet",
+    "data/restricted/hud_usps/active/long_observations_with_lineage.parquet",
+)
+HUD_USPS_ARTIFACT_ROLE_COUNTS = {
+    "ncwm_standardized_2020": 73,
+    "tract_zip_crosswalk": 1,
+    "county_fips_reference_2020": 1,
+}
+
+
 def _req(
     category: str,
     variable_name: str,
@@ -232,13 +264,29 @@ IMPLEMENTATION = {
     "Market Rent Index (ZORI)": _impl("Implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "observed", "Active ZORI is smoothed, seasonally adjusted, all homes plus multifamily."),
     "Rent Growth (YoY / MoM)": _impl("Implemented", "", "zori_growth_mom|zori_growth_yoy", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "constructed", "Calculated from seasonally adjusted ZORI with initial missing months preserved."),
     "Rental Inventory": _impl(
-        "Quarantined constructed proxy",
-        "hud_usps_ncwm_quarterly",
-        "usps_total_residential_addresses|usps_short_term_vacant_residential_addresses|usps_long_term_vacant_residential_addresses|usps_vacant_residential_addresses|usps_no_stat_residential_addresses|usps_active_residential_addresses|usps_residential_vacancy_rate|usps_residential_no_stat_rate",
-        "",
-        "usps_residential_vacancy_rate",
-        "constructed proxy (quarantined)",
-        "Quarterly all-residential USPS address-vacancy proxy only: (short-term vacant + long-term vacant) / total residential addresses. No-stat remains a separate diagnostic. It is not true rental-listing inventory; ZORI is not inventory (it is a rent index), and Redfin for-sale active listings are not a valid substitute. The surviving derived snapshot is quarantined because the official raw responses, raw crosswalk, exact retrieval timestamps, source release dates, and raw checksums were not preserved.",
+        HUD_USPS_PROXY_STATUS,
+        HUD_USPS_SOURCE_ID,
+        "|".join(HUD_USPS_VARIABLE_IDS),
+        "|".join(
+            (
+                "analytics.fact_housing_observation",
+                *HUD_USPS_RESTRICTED_TABLES,
+            )
+        ),
+        "|".join(HUD_USPS_VARIABLE_IDS),
+        "active all-residential proxy",
+        "The eight active HUD-USPS variables are native-quarterly only. The "
+        "vacancy proxy is (short-term vacant + long-term vacant) / total "
+        "residential addresses, while no-stat remains a separate diagnostic. "
+        "Direct provider components are observed at standardized 2020-tract "
+        "geography; California county aggregates are constructed, and Los "
+        "Angeles County postal-ZIP county-parts are modeled with the fixed "
+        "2026 Q1 crosswalk. Detailed tract and modeled ZIP-part derivatives "
+        "remain access-controlled under the HUD-USPS sublicense. This is not "
+        "true rental-listing inventory; ZORI is not inventory (it is a rent "
+        "index), and Redfin for-sale active listings are not a valid substitute. "
+        "The former derived package file was deleted; its historical "
+        "quarantine manifest is superseded and is not an active input.",
     ),
     "Rental Vacancy (HVS / CPS)": _impl("Implemented", "census_hvs_state_rental_vacancy|census_hvs_metro_rental_vacancy_2005_2014|census_hvs_metro_rental_vacancy_2015_2025|census_hvs_metro_rental_vacancy_2026", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "analytics.state_quarterly_panel|analytics.metro_quarterly_controls", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "observed", "State/metro quarterly only; not LA County."),
     "Multifamily Permits (5+ units)": _impl("Implemented", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "observed", "Supply-pipeline authorization measure; not starts or completions."),
@@ -661,6 +709,122 @@ def _raw_manifest(config: ProjectConfig) -> pd.DataFrame:
     return pd.read_csv(path, dtype=str) if path.exists() else pd.DataFrame()
 
 
+def _hud_usps_source_manifest(config: ProjectConfig) -> pd.DataFrame:
+    """Return the official active HUD-USPS artifact inventory."""
+
+    path = config.root / HUD_USPS_SOURCE_MANIFEST_PATH
+    if not path.exists():
+        return pd.DataFrame()
+    manifest = pd.read_csv(path, dtype=str)
+    if manifest.empty:
+        return manifest
+    if "source_id" not in manifest:
+        return pd.DataFrame()
+    return manifest.loc[
+        manifest["source_id"].eq(HUD_USPS_SOURCE_ID)
+    ].copy()
+
+
+def _hud_usps_expected_quarters() -> set[str]:
+    return {
+        f"{year}-Q{quarter}"
+        for year in range(2008, 2027)
+        for quarter in range(1, 5)
+        if (year, quarter) <= (2026, 1)
+    }
+
+
+def _hud_usps_manifest_checks(config: ProjectConfig) -> dict[str, bool]:
+    """Validate the 75-row official inventory without reading licensed payloads."""
+
+    manifest_path = config.root / HUD_USPS_SOURCE_MANIFEST_PATH
+    manifest = _hud_usps_source_manifest(config)
+    required = {
+        "artifact_role",
+        "archive_period",
+        "provider_vintage",
+        "source_filename",
+        "relative_path",
+        "retrieved_at",
+        "checksum_sha256",
+    }
+    columns_present = required.issubset(manifest.columns)
+    if not columns_present:
+        return {
+            "raw_snapshot_present": False,
+            "manifest_present": False,
+            "checksum_present": False,
+            "retrieval_timestamp_present": False,
+        }
+
+    role_counts = manifest["artifact_role"].value_counts().to_dict()
+    role_inventory_complete = role_counts == HUD_USPS_ARTIFACT_ROLE_COUNTS
+    ncwm = manifest.loc[
+        manifest["artifact_role"].eq("ncwm_standardized_2020")
+    ]
+    quarter_inventory_complete = (
+        set(ncwm["archive_period"].dropna())
+        == _hud_usps_expected_quarters()
+    )
+    paths = [
+        config.root / relative_path
+        for relative_path in manifest["relative_path"].fillna("")
+        if relative_path
+    ]
+    raw_snapshot_present = (
+        len(paths) == sum(HUD_USPS_ARTIFACT_ROLE_COUNTS.values())
+        and len(set(paths)) == len(paths)
+        and all(path.is_file() for path in paths)
+    )
+    checksums = manifest["checksum_sha256"].fillna("")
+    checksum_present = checksums.str.fullmatch(r"[0-9a-fA-F]{64}").all()
+    retrieval_timestamp_present = pd.to_datetime(
+        manifest["retrieved_at"],
+        utc=True,
+        errors="coerce",
+        format="mixed",
+    ).notna().all()
+    return {
+        "raw_snapshot_present": bool(raw_snapshot_present),
+        "manifest_present": bool(
+            manifest_path.is_file()
+            and len(manifest) == sum(HUD_USPS_ARTIFACT_ROLE_COUNTS.values())
+            and role_inventory_complete
+            and quarter_inventory_complete
+        ),
+        "checksum_present": bool(checksum_present),
+        "retrieval_timestamp_present": bool(retrieval_timestamp_present),
+    }
+
+
+def _hud_usps_catalog_manifest_row(
+    config: ProjectConfig,
+) -> dict[str, object]:
+    """Summarize the active source manifest without substituting the old package."""
+
+    manifest = _hud_usps_source_manifest(config)
+    if manifest.empty or "artifact_role" not in manifest:
+        return {}
+    ncwm = manifest.loc[
+        manifest["artifact_role"].eq("ncwm_standardized_2020")
+    ].copy()
+    if ncwm.empty:
+        return {}
+    latest = ncwm.sort_values("archive_period").iloc[-1].to_dict()
+    retrieved = pd.to_datetime(
+        manifest["retrieved_at"],
+        utc=True,
+        errors="coerce",
+        format="mixed",
+    )
+    if retrieved.notna().any():
+        latest["retrieved_at"] = retrieved.max().isoformat()
+    latest["provider_vintage"] = "2008Q1 through 2026Q1; crosswalk 2026Q1"
+    latest["source_manifest_path"] = HUD_USPS_SOURCE_MANIFEST_PATH
+    latest["source_manifest_artifact_count"] = len(manifest)
+    return latest
+
+
 def _latest_manifest_rows(config: ProjectConfig) -> pd.DataFrame:
     manifest = _raw_manifest(config)
     if manifest.empty:
@@ -670,26 +834,6 @@ def _latest_manifest_rows(config: ProjectConfig) -> pd.DataFrame:
         .drop_duplicates("source_id", keep="last")
         .set_index("source_id", drop=False)
     )
-
-
-def _quarantined_package_row(
-    config: ProjectConfig,
-    source: SourceConfig,
-) -> dict[str, object]:
-    """Return protected-package metadata without treating it as official raw."""
-
-    if source.source_id != "hud_usps_ncwm_quarterly":
-        return {}
-    path = config.root / "metadata" / "hud_usps_quarantine_manifest.csv"
-    if not path.exists():
-        return {}
-    manifest = pd.read_csv(path, dtype=str)
-    package = manifest.loc[manifest["artifact_type"].eq("package")]
-    if len(package) != 1:
-        raise ValueError(
-            "HUD/USPS quarantine manifest must contain exactly one package row"
-        )
-    return package.iloc[0].to_dict()
 
 
 def _raw_path(config: ProjectConfig, manifest_row: dict[str, object]) -> Path | None:
@@ -817,22 +961,18 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
             if source.source_id in manifest.index
             else {}
         )
+        if source.source_id == HUD_USPS_SOURCE_ID:
+            manifest_row = _hud_usps_catalog_manifest_row(config)
         variables = list(source.key_variables)
         stats = _source_stats(config, source)
         lifecycle_status = _source_lifecycle_status(source)
-        quarantine_row = (
-            _quarantined_package_row(config, source)
-            if lifecycle_status == "Quarantined"
-            else {}
-        )
         update_command = (
-            "BLOCKED: reacquire and archive the official HUD/USPS API responses "
-            "and crosswalk, complete provenance, and enable the source before "
-            "running a download workflow."
+            "BLOCKED: resolve the source's documented provenance or access "
+            "issue before running its download workflow."
             if lifecycle_status == "Quarantined"
             else f"python run_pipeline.py --stage download --source {source.source_id} --force-download"
         )
-        catalog_file_row = manifest_row or quarantine_row
+        catalog_file_row = manifest_row
         raw_path = _raw_path(config, catalog_file_row)
         rows.append(
             {
@@ -849,6 +989,10 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                 "active_status": lifecycle_status,
                 "provenance_status": source.provenance_status,
                 "observed_constructed_proxy_or_scenario": (
+                    "observed tract components|constructed county aggregates|"
+                    "modeled postal ZIP county-part proxy"
+                    if source.source_id == HUD_USPS_SOURCE_ID
+                    else
                     "constructed proxy (quarantined)"
                     if lifecycle_status == "Quarantined"
                     else "observed"
@@ -856,20 +1000,24 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                 "manual_download_required": not source.auto_download,
                 "manual_reason": source.manual_reason,
                 "raw_file_format": (
-                    "zip (quarantined derived package)"
-                    if lifecycle_status == "Quarantined"
+                    "json|txt (75 immutable artifacts indexed by CSV manifest)"
+                    if source.source_id == HUD_USPS_SOURCE_ID
                     else source.file_format
                 ),
                 "raw_file_path": catalog_file_row.get("relative_path"),
+                "source_manifest_path": catalog_file_row.get(
+                    "source_manifest_path"
+                ),
                 "original_filename": catalog_file_row.get("original_filename")
                 or catalog_file_row.get("source_filename"),
                 "retrieval_date": manifest_row.get("retrieved_at"),
-                "provider_vintage": manifest_row.get("provider_last_updated")
+                "provider_vintage": manifest_row.get("provider_vintage")
+                or manifest_row.get("provider_last_updated")
                 or manifest_row.get("source_last_updated")
                 or manifest_row.get("data_vintage")
-                or quarantine_row.get("snapshot_vintage"),
+                or "",
                 "checksum_sha256": catalog_file_row.get("checksum_sha256")
-                or catalog_file_row.get("sha256"),
+                or "",
                 "native_frequency": source.native_frequency,
                 "analytical_frequency": source.native_frequency,
                 "geography_level": "|".join(source.geography_levels),
@@ -885,11 +1033,18 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                 "destination_clean_table": (
                     ""
                     if lifecycle_status == "Quarantined"
+                    else "clean.hud_usps_ncwm_quarterly|"
+                    "data/restricted/hud_usps/active/"
+                    "long_observations_with_lineage.parquet"
+                    if source.source_id == HUD_USPS_SOURCE_ID
                     else _source_clean_name(source)
                 ),
                 "destination_analytical_table": (
                     ""
                     if lifecycle_status == "Quarantined"
+                    else "analytics.fact_housing_observation|"
+                    + "|".join(HUD_USPS_RESTRICTED_TABLES[:3])
+                    if source.source_id == HUD_USPS_SOURCE_ID
                     else source.destination_analytical_table
                     or "analytics.fact_housing_observation"
                 ),
@@ -900,7 +1055,14 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                 "license_or_use_notes": source.license_or_use_notes,
                 "last_verified": config.verified_at,
                 "notes": (
-                    "Intentional quarantine; excluded from active ingestion"
+                    "Official 75-artifact manifest verified at "
+                    f"{HUD_USPS_SOURCE_MANIFEST_PATH}; active licensed detail "
+                    "is restricted. The former package file was deleted; its "
+                    "historical record remains only in "
+                    f"{HUD_USPS_HISTORICAL_QUARANTINE_MANIFEST_PATH} as a "
+                    "historical, superseded record."
+                    if source.source_id == HUD_USPS_SOURCE_ID
+                    else "Intentional quarantine; excluded from active ingestion"
                     if lifecycle_status == "Quarantined"
                     else "Raw file exists"
                     if raw_path and raw_path.exists()
@@ -995,6 +1157,8 @@ def _raw_repository_completeness(config: ProjectConfig) -> pd.DataFrame:
             "geography_present": bool(source.geography_levels),
             "key_variables_present": bool(source.key_variables),
         }
+        if source.source_id == HUD_USPS_SOURCE_ID:
+            checks.update(_hud_usps_manifest_checks(config))
         issues = [name for name, ok in checks.items() if not ok]
         lifecycle_status = _source_lifecycle_status(source)
         if lifecycle_status == "Active":
@@ -1035,18 +1199,32 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
             "rationale": "The value and debt universes remain matched. No Zillow level, median-times-count construction, or B25106 payment-bin balance substitutes for the Version A benchmark.",
         },
         {
-            "methodology_id": "hud_usps_residential_vacancy_proxy_v1",
+            "methodology_id": "hud_usps_residential_vacancy_proxy_v2",
             "variable_id": "usps_residential_vacancy_rate",
             "assumption": "All-residential vacancy-proxy formula",
             "value": "(short-term vacant residential addresses + long-term vacant residential addresses) / total residential addresses; rates remain ratios in [0, 1].",
             "rationale": "No-stat residential addresses remain a separate count and rate diagnostic and never enter the vacancy numerator. This is an all-residential address-status proxy, not rental-listing inventory.",
         },
         {
-            "methodology_id": "hud_usps_residential_vacancy_proxy_v1",
+            "methodology_id": "hud_usps_residential_vacancy_proxy_v2",
             "variable_id": "usps_residential_vacancy_rate",
-            "assumption": "Quarantined provenance status",
-            "value": "provenance_status=quarantined_derived_snapshot; excluded from active facts and panels until official raw quarterly responses and the raw crosswalk are reacquired with complete immutable provenance.",
-            "rationale": "The derived snapshot alone cannot establish official ingestion, release dates, retrieval timestamps, source filenames, or raw checksums. Modeled ZIP rows are Los Angeles County postal-ZIP portions, not whole ZIPs or ZCTAs.",
+            "assumption": "Official active provenance",
+            "value": "provenance_status=official_raw_archive_rebuilt; 75 immutable official artifacts are indexed by metadata/hud_usps_source_manifest.csv, including 73 contiguous 2008 Q1-2026 Q1 NCWM responses, the 2026 Q1 tract-to-postal-ZIP crosswalk, and the 2020 Census California county reference.",
+            "rationale": "Every active observation is rebuilt from the verified official archive. The former derived package file was deleted; only its historical, superseded quarantine manifest remains, and it is not an active input.",
+        },
+        {
+            "methodology_id": "hud_usps_residential_vacancy_proxy_v2",
+            "variable_id": "usps_residential_vacancy_rate",
+            "assumption": "Geography-specific construction",
+            "value": "Provider component fields are direct at standardized 2020-tract geography; California county values are constructed from complete tract components; Los Angeles County postal-ZIP county-part values are modeled with the fixed 2026 Q1 crosswalk.",
+            "rationale": "Modeled ZIP rows describe only the Los Angeles County portion of USPS postal ZIPs. They are neither whole postal ZIPs nor Census ZCTAs, and no tract percentages are averaged.",
+        },
+        {
+            "methodology_id": "hud_usps_residential_vacancy_proxy_v2",
+            "variable_id": "usps_residential_no_stat_rate",
+            "assumption": "Quarterly-only restricted diagnostic",
+            "value": "No-stat / total remains a separate native-quarterly diagnostic. The eight active variables are stored in the common fact and restricted native-quarterly tables; they are not expanded into observed months.",
+            "rationale": "Licensed tract and modeled postal-ZIP county-part observations and derivatives remain access-controlled under data/restricted/hud_usps/ and outside public exports under the HUD-USPS sublicense.",
         },
         {
             "methodology_id": "acs_implied_mortgage_debt_proxy_v1",
@@ -1135,10 +1313,6 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
     )
     frame["methodology_status"] = "active"
     frame.loc[legacy, "methodology_status"] = "legacy"
-    frame.loc[
-        frame["variable_id"].eq("usps_residential_vacancy_rate"),
-        "methodology_status",
-    ] = "quarantined"
     return frame
 
 
@@ -1480,6 +1654,10 @@ def _write_workbooks(
         assumptions_frame.to_excel(
             writer, sheet_name="Proxy Assumptions", index=False
         )
+    gap_workbook = metadata_dir / "data_gap_analysis.xlsx"
+    with pd.ExcelWriter(gap_workbook, engine="openpyxl") as writer:
+        gap.to_excel(writer, sheet_name="Gap Analysis", index=False)
+    _format_workbook(gap_workbook, "catalog-stage")
     _write_source_tracker_workbook(
         metadata_dir / "LA_Housing_Source_Tracker.xlsx",
         catalog,
@@ -1563,6 +1741,7 @@ CATALOG_COLUMNS = [
     "manual_download_required",
     "raw_file_format",
     "raw_file_path",
+    "source_manifest_path",
     "original_filename",
     "retrieval_date",
     "provider_vintage",
@@ -1603,10 +1782,11 @@ UNAVAILABLE_ROWS = [
         "provenance_status": "unavailable_verified_source",
         "known_limitations": (
             "True rental-listing inventory remains unavailable. ZORI is a rent "
-            "index, not inventory. The quarantined HUD/USPS measure is an "
+            "index, not inventory. The active HUD/USPS measure is a quarterly "
             "all-residential address-vacancy proxy, not a rental-listing stock. "
-            "A documented listing universe, stable geography, history, and "
-            "revision policy are still required."
+            "Its modeled postal ZIP county-parts remain distinct from whole "
+            "postal ZIPs and Census ZCTAs. A documented listing universe, stable "
+            "geography, history, and revision policy are still required."
         ),
     },
     {
@@ -1706,6 +1886,8 @@ def build_raw_repository_completeness(
             "geography_present": bool(source.geography_levels),
             "key_variables_present": bool(source.key_variables),
         }
+        if source.source_id == HUD_USPS_SOURCE_ID:
+            checks.update(_hud_usps_manifest_checks(config))
         issues = [name for name, passed in checks.items() if not passed]
         lifecycle_status = _source_lifecycle_status(source)
         if lifecycle_status == "Active":
@@ -1826,6 +2008,12 @@ def _variable_text(config: ProjectConfig, variable_ids: tuple[str, ...]) -> dict
 
 
 def _geography_description(source_id: str, levels: tuple[str, ...]) -> tuple[str, str]:
+    if source_id == HUD_USPS_SOURCE_ID:
+        return (
+            "58 California counties; Los Angeles County standardized 2020 "
+            "tracts; modeled Los Angeles County postal-ZIP county-parts",
+            "COUNTY_*|TRACT_*|ZIPCOUNTYPART_*",
+        )
     if "zillow_zip" in source_id or source_id == "redfin_zip_monthly":
         return "Los Angeles County postal ZIPs", "POSTAL_ZIP"
     if "county" in levels:
@@ -1852,6 +2040,8 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
             if not latest.empty and source.source_id in latest.index
             else {}
         )
+        if source.source_id == HUD_USPS_SOURCE_ID:
+            raw = _hud_usps_catalog_manifest_row(config)
         source_files = (
             set(
                 manifest.loc[
@@ -1902,9 +2092,8 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
             )
         lifecycle_status = _source_lifecycle_status(source)
         command = (
-            "BLOCKED: reacquire and archive the official HUD/USPS API responses "
-            "and crosswalk, complete provenance, and enable the source before "
-            "running a download workflow."
+            "BLOCKED: resolve the source's documented provenance or access "
+            "issue before running its download workflow."
             if lifecycle_status == "Quarantined"
             else "python run_pipeline.py --stage download --source "
             f"{source.source_id} --force-download"
@@ -1912,18 +2101,15 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
             else "python run_pipeline.py --stage download --source "
             f"{source.source_id} --local-file PATH_TO_OFFICIAL_FILE"
         )
-        if end_date:
+        if source.source_id == HUD_USPS_SOURCE_ID:
+            provider_vintage = raw.get("provider_vintage", "")
+        elif end_date:
             provider_vintage = f"data through {str(end_date)[:10]}"
         else:
-            provider_vintage = raw.get("data_vintage", "")
-        quarantine_row = (
-            _quarantined_package_row(config, source)
-            if lifecycle_status == "Quarantined"
-            else {}
-        )
-        catalog_file_row = raw or quarantine_row
-        if quarantine_row and not provider_vintage:
-            provider_vintage = quarantine_row.get("snapshot_vintage", "")
+            provider_vintage = raw.get("provider_vintage", "") or raw.get(
+                "data_vintage", ""
+            )
+        catalog_file_row = raw
         rows.append(
             {
                 "Source": source.dataset_name,
@@ -1939,17 +2125,24 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                 "active_status": lifecycle_status,
                 "provenance_status": source.provenance_status,
                 "observed_constructed_proxy_or_scenario": (
+                    "observed tract components|constructed county aggregates|"
+                    "modeled postal ZIP county-part proxy"
+                    if source.source_id == HUD_USPS_SOURCE_ID
+                    else
                     "constructed proxy (quarantined)"
                     if lifecycle_status == "Quarantined"
                     else "observed"
                 ),
                 "manual_download_required": not source.auto_download,
                 "raw_file_format": (
-                    "zip (quarantined derived package)"
-                    if lifecycle_status == "Quarantined"
+                    "json|txt (75 immutable artifacts indexed by CSV manifest)"
+                    if source.source_id == HUD_USPS_SOURCE_ID
                     else source.file_format
                 ),
                 "raw_file_path": catalog_file_row.get("relative_path", ""),
+                "source_manifest_path": catalog_file_row.get(
+                    "source_manifest_path", ""
+                ),
                 "original_filename": catalog_file_row.get("original_filename", "")
                 or catalog_file_row.get("source_filename", ""),
                 "retrieval_date": raw.get("retrieved_at", ""),
@@ -1973,12 +2166,19 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                 "destination_clean_table": (
                     ""
                     if lifecycle_status == "Quarantined"
+                    else "clean.hud_usps_ncwm_quarterly|"
+                    "data/restricted/hud_usps/active/"
+                    "long_observations_with_lineage.parquet"
+                    if source.source_id == HUD_USPS_SOURCE_ID
                     else source.destination_clean_table
                     or f"clean.{source.source_id}"
                 ),
                 "destination_analytical_table": (
                     ""
                     if lifecycle_status == "Quarantined"
+                    else "analytics.fact_housing_observation|"
+                    + "|".join(HUD_USPS_RESTRICTED_TABLES[:3])
+                    if source.source_id == HUD_USPS_SOURCE_ID
                     else source.destination_analytical_table
                 ),
                 "update_command": command,
@@ -1992,7 +2192,14 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                 "license_or_use_notes": source.license_or_use_notes,
                 "last_verified": config.verified_at,
                 "notes": (
-                    "Intentional quarantine; excluded from active ingestion."
+                    "Official 75-artifact manifest verified at "
+                    f"{HUD_USPS_SOURCE_MANIFEST_PATH}; active licensed detail "
+                    "is restricted. The former package file was deleted; its "
+                    "historical record remains only in "
+                    f"{HUD_USPS_HISTORICAL_QUARANTINE_MANIFEST_PATH} as a "
+                    "historical, superseded record."
+                    if source.source_id == HUD_USPS_SOURCE_ID
+                    else "Intentional quarantine; excluded from active ingestion."
                     if lifecycle_status == "Quarantined"
                     else "Identifiers remain strings; raw vintages are immutable."
                 ),
@@ -2145,7 +2352,32 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
         _gap_row("monthly mortgage payment", "Homeowner", "Constructed indicator", "Redfin and Freddie Mac", "Yes", "Constructed variable", "analytics.county_monthly_panel", "mortgage_payment_10pct_down|mortgage_payment_20pct_down", "monthly", "Los Angeles County with U.S. rate", "2012-01-31", "2026-05-31", "Principal-and-interest scenarios exclude taxes, insurance, HOA, maintenance, and mortgage insurance.", "Keep scenario assumptions visible."),
         _gap_row("ZORI", "Renter", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zori", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Smoothed seasonally adjusted rent index; not inventory.", "Use as primary rent index."),
         _gap_row("rent growth", "Renter", "Constructed indicator", "Zillow ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "monthly", "Los Angeles County", "2015-02-28", "2026-05-31", "Depends on the active SA ZORI vintage.", "Rebuild when ZORI refreshes."),
-        _gap_row("rental inventory", "Renter", "Supply", "True rental-listing inventory; HUD/USPS all-residential proxy", "No verified source for true rental-listing inventory", "Quarantined constructed proxy only", "quarantined derived snapshot; excluded from active facts", "usps_total_residential_addresses|usps_short_term_vacant_residential_addresses|usps_long_term_vacant_residential_addresses|usps_vacant_residential_addresses|usps_no_stat_residential_addresses|usps_active_residential_addresses|usps_residential_vacancy_rate|usps_residential_no_stat_rate", "quarterly", "California counties; Los Angeles County 2020 tracts; modeled Los Angeles County postal-ZIP portions", "2008-03-31", "2026-03-31", "HUD/USPS is an all-residential address-vacancy proxy, not rental-listing inventory. The surviving derived snapshot lacks complete raw provenance and is intentionally quarantined.", "Keep true rental-listing inventory unavailable; reacquire and archive official HUD/USPS raw responses and crosswalk before activating the separate proxy."),
+        _gap_row(
+            "rental inventory",
+            "Renter",
+            "Supply",
+            "True rental-listing inventory; HUD/USPS all-residential proxy",
+            "Active official HUD/USPS proxy; no verified source for true "
+            "rental-listing inventory",
+            HUD_USPS_PROXY_STATUS,
+            "analytics.fact_housing_observation|"
+            + "|".join(HUD_USPS_RESTRICTED_TABLES),
+            "|".join(HUD_USPS_VARIABLE_IDS),
+            "quarterly only",
+            "58 California counties; Los Angeles County standardized 2020 "
+            "tracts; modeled Los Angeles County postal-ZIP county-parts",
+            "2008-03-31",
+            "2026-03-31",
+            "HUD/USPS is an active all-residential address-vacancy proxy, not "
+            "rental-listing inventory. No-stat remains a separate diagnostic. "
+            "Postal-ZIP county-parts are modeled, not whole ZIPs or ZCTAs. "
+            "Licensed tract and modeled ZIP-part detail remains restricted and "
+            "outside public exports. The earlier derived package is historical "
+            "and superseded, not an active source.",
+            "Keep the quarterly proxy active under its restricted license and "
+            "keep true rental-listing inventory unavailable until a verified "
+            "listing-universe source is implemented.",
+        ),
         _gap_row("rental vacancy", "Renter", "Supply", "Census HVS", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "quarterly", "California and published metro geographies", "2005-03-31", "2026-03-31", "Los Angeles County is not an HVS published geography; sampling uncertainty is retained.", "Retain native geography/frequency."),
         _gap_row("multifamily permits", "Renter", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_5_plus_units", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not completed or occupied rental units.", "Retain as multifamily supply proxy."),
         _gap_row("price-to-rent", "Overall housing market", "Constructed indicator", "Zillow ZHVI and ZORI", "Yes", "Constructed variable", "analytics.county_monthly_panel", "price_to_rent_ratio", "monthly", "Los Angeles County", "2015-01-31", "2026-05-31", "Index-based valuation ratio.", "Keep explicit formula."),
@@ -2173,6 +2405,7 @@ def _format_workbook(path: Path, build_version: str) -> None:
         "Implemented": "C6E0B4",
         "Constructed variable": "D9EAF7",
         "Partially implemented": "FFF2CC",
+        HUD_USPS_PROXY_STATUS: "FFF2CC",
         "Missing — no verified public source": "F4CCCC",
         "Deferred": "E2F0D9",
         "Proxy only": "E4DFEC",

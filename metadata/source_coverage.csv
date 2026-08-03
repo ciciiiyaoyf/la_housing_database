@@ -23,6 +23,30 @@ Freddie Mac,mortgage_rate_30y_monthly_average,national,1971-04-30,2026-06-30,663
 Freddie Mac,mortgage_rate_30y_monthly_median,national,1971-04-30,2026-06-30,663,663,1,2026-07-02
 Freddie Mac,mortgage_rate_30y_observation_count,national,1971-04-30,2026-06-30,663,663,1,2026-07-02
 Freddie Mac,mortgage_rate_30y_weekly,national,1971-04-02,2026-06-25,2883,2883,1,2026-07-02
+HUD-USPS,usps_active_residential_addresses,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_active_residential_addresses,postal_zip_county_part,2008-03-31,2026-03-31,34821,34821,477,2026Q1
+HUD-USPS,usps_active_residential_addresses,tract_2020,2008-03-31,2026-03-31,182062,182062,2494,2026Q1
+HUD-USPS,usps_long_term_vacant_residential_addresses,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_long_term_vacant_residential_addresses,postal_zip_county_part,2008-03-31,2026-03-31,34821,34821,477,2026Q1
+HUD-USPS,usps_long_term_vacant_residential_addresses,tract_2020,2008-03-31,2026-03-31,182062,182062,2494,2026Q1
+HUD-USPS,usps_no_stat_residential_addresses,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_no_stat_residential_addresses,postal_zip_county_part,2008-03-31,2026-03-31,34821,34821,477,2026Q1
+HUD-USPS,usps_no_stat_residential_addresses,tract_2020,2008-03-31,2026-03-31,182062,182062,2494,2026Q1
+HUD-USPS,usps_residential_no_stat_rate,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_residential_no_stat_rate,postal_zip_county_part,2008-03-31,2026-03-31,34821,31778,477,2026Q1
+HUD-USPS,usps_residential_no_stat_rate,tract_2020,2008-03-31,2026-03-31,182062,181353,2494,2026Q1
+HUD-USPS,usps_residential_vacancy_rate,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_residential_vacancy_rate,postal_zip_county_part,2008-03-31,2026-03-31,34821,31778,477,2026Q1
+HUD-USPS,usps_residential_vacancy_rate,tract_2020,2008-03-31,2026-03-31,182062,181353,2494,2026Q1
+HUD-USPS,usps_short_term_vacant_residential_addresses,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_short_term_vacant_residential_addresses,postal_zip_county_part,2008-03-31,2026-03-31,34821,34821,477,2026Q1
+HUD-USPS,usps_short_term_vacant_residential_addresses,tract_2020,2008-03-31,2026-03-31,182062,182062,2494,2026Q1
+HUD-USPS,usps_total_residential_addresses,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_total_residential_addresses,postal_zip_county_part,2008-03-31,2026-03-31,34821,34821,477,2026Q1
+HUD-USPS,usps_total_residential_addresses,tract_2020,2008-03-31,2026-03-31,182062,182062,2494,2026Q1
+HUD-USPS,usps_vacant_residential_addresses,county,2008-03-31,2026-03-31,4234,4015,58,2026Q1
+HUD-USPS,usps_vacant_residential_addresses,postal_zip_county_part,2008-03-31,2026-03-31,34821,34821,477,2026Q1
+HUD-USPS,usps_vacant_residential_addresses,tract_2020,2008-03-31,2026-03-31,182062,182062,2494,2026Q1
 Internal Revenue Service,irs_soi_in_migration_agi,county,2011-12-31,2023-12-31,13,13,1,2026-07-10
 Internal Revenue Service,irs_soi_in_migration_exemptions,county,2011-12-31,2023-12-31,13,13,1,2026-07-10
 Internal Revenue Service,irs_soi_in_migration_returns,county,2011-12-31,2023-12-31,13,13,1,2026-07-10

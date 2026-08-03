@@ -1,14 +1,21 @@
 import math
+import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from src.cleaning.hud_usps import (
+    ACTIVE_PROVENANCE_STATUS,
     HUD_USPS_VARIABLE_IDS,
     PROVENANCE_STATUS,
+    build_hud_usps_wide_tables,
+    clean_hud_usps_archive,
     normalize_hud_usps_quarterly_tables,
     normalize_hud_usps_table,
 )
+from src.common.config import load_config
+from src.ingestion.hud_usps import _targets
 
 
 def _values(
@@ -278,3 +285,248 @@ def test_modeled_zip_allows_fractional_allocations_and_surfaces_diagnostics() ->
         "source_incomplete_allocations",
         "source_low_address_count_flag",
     }.issubset(set(result.warnings["warning_code"]))
+
+
+def test_official_archive_targets_cover_every_quarter_and_support_file() -> None:
+    config = load_config()
+    source = next(
+        item
+        for item in config.sources
+        if item.source_id == "hud_usps_ncwm_quarterly"
+    )
+
+    targets = _targets(source, "2008-01-01", "2026-03-31")
+
+    ncwm = [
+        target
+        for target in targets
+        if target["artifact_role"] == "ncwm_standardized_2020"
+    ]
+    assert len(ncwm) == 73
+    assert ncwm[0]["archive_period"] == "2008-Q1"
+    assert ncwm[-1]["archive_period"] == "2026-Q1"
+    assert {target["artifact_role"] for target in targets} == {
+        "ncwm_standardized_2020",
+        "tract_zip_crosswalk",
+        "county_fips_reference_2020",
+    }
+    county_reference = next(
+        target
+        for target in targets
+        if target["artifact_role"] == "county_fips_reference_2020"
+    )
+    assert county_reference["download_url"].endswith("st06_ca_cou2020.txt")
+    assert county_reference["original_filename"] == "st06_ca_cou2020.txt"
+
+
+def _write_active_archive_fixture(
+    root: Path,
+) -> list[tuple[Path, dict[str, str]]]:
+    county_codes = [f"{number:03d}" for number in range(58)]
+    if "037" not in county_codes:
+        county_codes[-1] = "037"
+    county_codes = sorted(set(county_codes))
+    while len(county_codes) < 58:
+        candidate = f"{len(county_codes) + 100:03d}"
+        county_codes.append(candidate)
+    county_rows = [[f"County {code}, California", "06", code] for code in county_codes]
+    county_payload = [["NAME", "state", "county"], *county_rows]
+    county_path = root / "county_reference.json"
+    county_path.write_text(json.dumps(county_payload), encoding="utf-8")
+
+    results = []
+    la_tracts = [f"06037{number:06d}" for number in range(2_494)]
+    for tract in la_tracts:
+        results.append(
+            {
+                "TRACT ID": tract,
+                "STCNTY": "06037",
+                "TOTAL_RESIDENTIAL_ADDRESSES": "100",
+                "STV_RESIDENTIAL_ADDRESSES": "1",
+                "LTV_RESIDENTIAL_ADDRESSES": "1",
+                "NO_STAT_RESIDENTIAL_ADDRESSES": "3",
+                "Active_Residential_Addresses": "95",
+            }
+        )
+    for code in county_codes:
+        if code == "037":
+            continue
+        results.append(
+            {
+                "TRACT ID": f"06{code}000001",
+                "STCNTY": f"06{code}",
+                "TOTAL_RESIDENTIAL_ADDRESSES": "100",
+                "STV_RESIDENTIAL_ADDRESSES": "1",
+                "LTV_RESIDENTIAL_ADDRESSES": "1",
+                "NO_STAT_RESIDENTIAL_ADDRESSES": "3",
+                "Active_Residential_Addresses": "95",
+            }
+        )
+    ncwm_path = root / "ncwm_2026q1.json"
+    ncwm_path.write_text(
+        json.dumps(
+            {"year": "2026", "month": 3, "type": "1", "results": results}
+        ),
+        encoding="utf-8",
+    )
+
+    crosswalk_path = root / "crosswalk_2026q1.json"
+    crosswalk_path.write_text(
+        json.dumps(
+            {
+                "data": {
+                    "year": "2026",
+                    "quarter": "Q1",
+                    "results": [
+                        {
+                            "tract": tract,
+                            "geoid": "90001",
+                            "res_ratio": 1,
+                            "city": "Los Angeles",
+                        }
+                        for tract in la_tracts
+                    ],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    common = {
+        "source_id": "hud_usps_ncwm_quarterly",
+        "data_vintage": "2026-08-03",
+        "retrieved_at": "2026-08-03T08:00:00+00:00",
+        "checksum_sha256": "a" * 64,
+    }
+    return [
+        (
+            ncwm_path,
+            {
+                **common,
+                "artifact_role": "ncwm_standardized_2020",
+                "archive_period": "2026-Q1",
+                "provider_vintage": "2026Q1",
+                "source_filename": ncwm_path.name,
+            },
+        ),
+        (
+            crosswalk_path,
+            {
+                **common,
+                "artifact_role": "tract_zip_crosswalk",
+                "archive_period": "2026-Q1-crosswalk",
+                "provider_vintage": "2026Q1",
+                "source_filename": crosswalk_path.name,
+            },
+        ),
+        (
+            county_path,
+            {
+                **common,
+                "artifact_role": "county_fips_reference_2020",
+                "archive_period": "2020-county-fips-reference",
+                "provider_vintage": "2020 Census",
+                "source_filename": county_path.name,
+            },
+        ),
+    ]
+
+
+def test_rebuilds_active_tables_from_archived_official_json(tmp_path: Path) -> None:
+    archives = _write_active_archive_fixture(tmp_path)
+
+    county, tract, postal_zip, metadata = build_hud_usps_wide_tables(archives)
+
+    assert len(county) == 58
+    assert len(tract) == 2_494
+    assert len(postal_zip) == 1
+    assert metadata["crosswalk_vintage"] == "2026Q1"
+    assert metadata["crosswalk_zero_ratio_tract_count"] == 0
+    allocation = metadata["zip_allocation_coverage"]
+    assert allocation["unallocated_residual"].eq(0).all()
+    la_county = county.loc[county["county_fips"].eq("06037")].iloc[0]
+    assert la_county["usps_residential_vacancy_rate"] == pytest.approx(0.02)
+    assert postal_zip.iloc[0]["usps_residential_vacancy_rate"] == pytest.approx(
+        0.02
+    )
+
+
+def test_county_aggregation_does_not_emit_partial_component_sums(
+    tmp_path: Path,
+) -> None:
+    archives = _write_active_archive_fixture(tmp_path)
+    ncwm_path = next(
+        path
+        for path, record in archives
+        if record["artifact_role"] == "ncwm_standardized_2020"
+    )
+    payload = json.loads(ncwm_path.read_text(encoding="utf-8"))
+    payload["results"][0]["STV_RESIDENTIAL_ADDRESSES"] = None
+    ncwm_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    county, _, _, _ = build_hud_usps_wide_tables(archives)
+
+    la_county = county.loc[county["county_fips"].eq("06037")].iloc[0]
+    assert pd.isna(la_county["short_term_vacant_residential_addresses"])
+    assert pd.isna(la_county["vacant_residential_addresses"])
+    assert pd.isna(la_county["usps_residential_vacancy_rate"])
+    assert la_county["total_residential_addresses"] == 249_400
+    assert la_county["source_tracts_missing_required"] == 1
+
+
+def test_active_cleaner_preserves_raw_provenance_and_model_flags(
+    tmp_path: Path,
+) -> None:
+    archives = _write_active_archive_fixture(tmp_path)
+    output = tmp_path / "clean.parquet"
+
+    cleaned = clean_hud_usps_archive(
+        archives,
+        "hud_usps_ncwm_quarterly",
+        output,
+        tmp_path / "warnings.csv",
+        tmp_path / "restricted",
+        expected_start="2026-Q1",
+        expected_end="2026-Q1",
+    )
+
+    assert output.is_file()
+    assert (tmp_path / "hud_usps_zip_allocation_coverage.csv").is_file()
+    lineage_path = tmp_path / "restricted" / "long_observations_with_lineage.parquet"
+    assert lineage_path.is_file()
+    lineage = pd.read_parquet(lineage_path)
+    assert len(cleaned) == (58 + 2_494 + 1) * 8
+    assert cleaned["source_id"].eq("hud_usps_ncwm_quarterly").all()
+    assert cleaned["source_vintage"].eq("2026Q1").all()
+    assert cleaned["checksum_sha256"].eq("a" * 64).all()
+    assert cleaned["provider_last_updated"].isna().all()
+    tract_components = cleaned.loc[
+        cleaned["geo_id"].str.startswith("TRACT_")
+        & cleaned["variable_id"].eq("usps_total_residential_addresses")
+    ]
+    constructed_components = cleaned.loc[
+        ~cleaned["geo_id"].str.startswith("TRACT_")
+        & cleaned["variable_id"].eq("usps_total_residential_addresses")
+    ]
+    assert tract_components["reported_value"].notna().all()
+    assert constructed_components["reported_value"].isna().all()
+    assert lineage.loc[
+        lineage["geo_type"].eq("postal_zip_county_part"), "is_modeled"
+    ].all()
+    assert not lineage.loc[
+        ~lineage["geo_type"].eq("postal_zip_county_part"), "is_modeled"
+    ].any()
+    zip_lineage = lineage.loc[
+        lineage["geo_type"].eq("postal_zip_county_part")
+    ]
+    assert zip_lineage["crosswalk_vintage"].eq("2026Q1").all()
+    assert zip_lineage["crosswalk_source_filename"].eq(
+        "crosswalk_2026q1.json"
+    ).all()
+    assert zip_lineage["crosswalk_checksum_sha256"].eq("a" * 64).all()
+    assert lineage["provenance_status"].eq(ACTIVE_PROVENANCE_STATUS).all()
+    assert not cleaned["is_imputed"].any()
+    assert not cleaned["is_interpolated"].any()
+    assert cleaned["transformation_id"].eq(
+        "hud_usps_official_raw_to_quarterly_v2"
+    ).all()
+    assert ACTIVE_PROVENANCE_STATUS == "official_raw_archive_rebuilt"

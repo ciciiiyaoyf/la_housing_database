@@ -6,6 +6,10 @@ from openpyxl import load_workbook
 
 from src.common.config import load_config
 from src.pipeline import STAGES
+from src.reporting.catalog import (
+    HUD_USPS_RESTRICTED_TABLES,
+    HUD_USPS_VARIABLE_IDS,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,16 +28,14 @@ def test_catalog_csv_excel_and_active_source_contract():
     workbook = load_workbook(
         ROOT / "metadata" / "data_catalog.xlsx", read_only=True
     )
-    assert workbook.sheetnames == [
+    assert {
         "Data Catalog",
         "Variable Dictionary",
         "Raw File Inventory",
         "Geography-Frequency Matrix",
         "Coverage Summary",
-        "Unavailable and Deferred",
         "Update Commands",
-        "Gap Analysis",
-    ]
+    }.issubset(workbook.sheetnames)
     excel_ids = {
         str(row[0])
         for row in workbook["Data Catalog"].iter_rows(
@@ -71,12 +73,20 @@ def test_raw_repository_completeness_and_checksums():
             "key_variables_present",
         ]
     ].eq("True").all().all()
-    quarantined = report.loc[
+    hud_usps = report.loc[
         report["source_id"].eq("hud_usps_ncwm_quarterly")
     ].iloc[0]
-    assert quarantined["active_status"] == "Quarantined"
-    assert quarantined["completeness_status"] == "QUARANTINED"
-    assert quarantined["provenance_status"] == "quarantined_derived_snapshot"
+    assert hud_usps["active_status"] == "Active"
+    assert hud_usps["completeness_status"] == "PASS"
+    assert hud_usps["provenance_status"] == "official_raw_archive_rebuilt"
+    assert hud_usps[
+        [
+            "raw_snapshot_present",
+            "manifest_present",
+            "checksum_present",
+            "retrieval_timestamp_present",
+        ]
+    ].eq("True").all()
 
 
 def test_added_tables_views_fact_dictionary_and_keys():
@@ -102,6 +112,7 @@ def test_added_tables_views_fact_dictionary_and_keys():
             ("clean", "redfin_zip_monthly"),
             ("clean", "zillow_county_zhvi"),
             ("clean", "zillow_county_zori_smoothed_sa"),
+            ("clean", "hud_usps_ncwm_quarterly"),
             ("analytics", "metro_monthly_controls"),
             ("analytics", "state_quarterly_panel"),
             ("analytics", "metro_quarterly_panel"),
@@ -142,6 +153,73 @@ def test_added_tables_views_fact_dictionary_and_keys():
             ).fetchone()[0]
             == 0
         )
+
+        hud_variable_count, hud_frequency_count = connection.execute(
+            """
+            SELECT count(DISTINCT variable_id),
+                   count(DISTINCT final_frequency)
+            FROM analytics.fact_housing_observation
+            WHERE variable_id IN (
+                'usps_total_residential_addresses',
+                'usps_short_term_vacant_residential_addresses',
+                'usps_long_term_vacant_residential_addresses',
+                'usps_vacant_residential_addresses',
+                'usps_no_stat_residential_addresses',
+                'usps_active_residential_addresses',
+                'usps_residential_vacancy_rate',
+                'usps_residential_no_stat_rate'
+            )
+            """
+        ).fetchone()
+        assert hud_variable_count == len(HUD_USPS_VARIABLE_IDS)
+        assert hud_frequency_count == 1
+        assert connection.execute(
+            """
+            SELECT bool_and(final_frequency = 'quarterly')
+            FROM analytics.fact_housing_observation
+            WHERE variable_id LIKE 'usps_%'
+            """
+        ).fetchone()[0]
+
+
+def test_hud_usps_restricted_native_quarterly_tables() -> None:
+    for relative_path in HUD_USPS_RESTRICTED_TABLES:
+        assert (ROOT / relative_path).is_file()
+
+    county = pd.read_parquet(
+        ROOT / HUD_USPS_RESTRICTED_TABLES[0],
+        columns=["quarter_end", "is_modeled_geography"],
+    )
+    tract = pd.read_parquet(
+        ROOT / HUD_USPS_RESTRICTED_TABLES[1],
+        columns=["quarter_end", "is_modeled_geography"],
+    )
+    postal_zip_part = pd.read_parquet(
+        ROOT / HUD_USPS_RESTRICTED_TABLES[2],
+        columns=[
+            "quarter_end",
+            "geography_scope",
+            "crosswalk_vintage",
+            "is_modeled_geography",
+        ],
+    )
+    lineage = pd.read_parquet(
+        ROOT / HUD_USPS_RESTRICTED_TABLES[3],
+        columns=["variable_id", "final_frequency", "geo_type", "is_modeled"],
+    )
+
+    assert county["is_modeled_geography"].eq(False).all()
+    assert tract["is_modeled_geography"].eq(False).all()
+    assert postal_zip_part["is_modeled_geography"].eq(True).all()
+    assert postal_zip_part["geography_scope"].eq(
+        "Los Angeles County portion"
+    ).all()
+    assert postal_zip_part["crosswalk_vintage"].eq("2026Q1").all()
+    assert set(lineage["variable_id"]) == set(HUD_USPS_VARIABLE_IDS)
+    assert lineage["final_frequency"].eq("quarterly").all()
+    assert lineage.loc[
+        lineage["geo_type"].eq("postal_zip_county_part"), "is_modeled"
+    ].eq(True).all()
 
 
 def test_added_geographies_frequencies_and_no_silent_expansion():

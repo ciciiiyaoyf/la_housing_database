@@ -1,10 +1,9 @@
-"""Validate a quarantined HUD/USPS-derived quarterly snapshot.
+"""Validate HUD/USPS quarterly residential-address vacancy data.
 
-This module deliberately does *not* ingest or authenticate an official HUD or
-USPS release.  It only validates and normalizes three already-derived tables
-whose raw-file provenance is incomplete.  Callers must keep the resulting
-``provenance_status`` unchanged until the observations can be rebuilt from an
-archived provider file.
+The legacy normalizers preserve the quarantined status of the historical
+derived snapshot.  The active archive path separately rebuilds the same
+county, tract, and modeled ZIP-part contracts from immutable official HUD API
+responses plus an official Census county reference.
 
 The postal-ZIP table represents the Los Angeles County portion of a postal ZIP.
 It is modeled from 2020 Census tracts and must never be treated as either a
@@ -14,14 +13,19 @@ whole postal ZIP or a Census ZCTA.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 from typing import Final, Literal
 
 import numpy as np
 import pandas as pd
 
+from src.cleaning.common import OBSERVATION_COLUMNS, finalize
+
 GeographyType = Literal["county", "tract_2020", "postal_zip_county_part"]
 
 PROVENANCE_STATUS: Final = "quarantined_derived_snapshot"
+ACTIVE_PROVENANCE_STATUS: Final = "official_raw_archive_rebuilt"
 LA_COUNTY_FIPS: Final = "06037"
 CA_STATE_FIPS: Final = "06"
 LA_ZIP_SCOPE: Final = "Los Angeles County portion"
@@ -123,6 +127,7 @@ WARNING_COLUMNS: Final[tuple[str, ...]] = (
 HIGH_RATE_WARNING_THRESHOLD: Final = 0.20
 RATE_CHANGE_WARNING_THRESHOLD: Final = 0.10
 LOW_ADDRESS_WARNING_THRESHOLD: Final = 25.0
+ZIP_ALLOCATION_MAX_RESIDUAL_SHARE: Final = 0.001
 
 
 @dataclass(frozen=True)
@@ -711,3 +716,706 @@ def normalize_hud_usps_quarterly_tables(
             ["geo_type", "geo_id", "quarter_end", "warning_code"]
         ).reset_index(drop=True)
     return HudUspsNormalizationResult(observations, warnings)
+
+
+RAW_COMPONENT_COLUMNS: Final[dict[str, str]] = {
+    "TOTAL_RESIDENTIAL_ADDRESSES": "total_residential_addresses",
+    "STV_RESIDENTIAL_ADDRESSES": "short_term_vacant_residential_addresses",
+    "LTV_RESIDENTIAL_ADDRESSES": "long_term_vacant_residential_addresses",
+    "NO_STAT_RESIDENTIAL_ADDRESSES": "no_stat_residential_addresses",
+    "Active_Residential_Addresses": "active_residential_addresses",
+}
+
+
+def _read_json(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Could not read archived HUD-USPS JSON: {path}") from exc
+
+
+def _manifest_role(record: dict[str, str]) -> str:
+    role = str(record.get("artifact_role", "")).strip()
+    if not role:
+        raise ValueError(
+            f"HUD-USPS manifest row lacks artifact_role: "
+            f"{record.get('source_filename')}"
+        )
+    return role
+
+
+def _archive_period_end(record: dict[str, str], payload: dict) -> pd.Timestamp:
+    archive_period = str(record.get("archive_period", ""))
+    match = pd.Series([archive_period]).str.extract(r"^(\d{4})-Q([1-4])$").iloc[0]
+    if match.isna().any():
+        raise ValueError(f"Invalid HUD-USPS archive_period: {archive_period!r}")
+    period = pd.Period(f"{match.iloc[0]}Q{match.iloc[1]}", freq="Q")
+    quarter_end = period.end_time.normalize()
+    if str(payload.get("year")) != str(period.year):
+        raise ValueError(
+            f"HUD-USPS manifest/payload year mismatch for {archive_period}"
+        )
+    if int(payload.get("month", -1)) != int(quarter_end.month):
+        raise ValueError(
+            f"HUD-USPS manifest/payload month mismatch for {archive_period}"
+        )
+    return quarter_end
+
+
+def _county_reference(path: Path) -> dict[str, str]:
+    if path.suffix.lower() == ".txt":
+        try:
+            frame = pd.read_csv(path, sep="|", dtype="string")
+        except (OSError, UnicodeDecodeError, pd.errors.ParserError) as exc:
+            raise ValueError(
+                f"Could not read Census county reference: {path}"
+            ) from exc
+        required_columns = [
+            "STATE",
+            "STATEFP",
+            "COUNTYFP",
+            "COUNTYNS",
+            "COUNTYNAME",
+            "CLASSFP",
+            "FUNCSTAT",
+        ]
+        if list(frame.columns) != required_columns:
+            raise ValueError(
+                "Census county FIPS reference schema changed: "
+                f"{list(frame.columns)}"
+            )
+        if len(frame) != 58 or not frame["STATEFP"].eq(CA_STATE_FIPS).all():
+            raise ValueError(
+                "Official California county reference must contain 58 counties"
+            )
+        county_fips = frame["STATEFP"] + frame["COUNTYFP"].str.zfill(3)
+        reference = dict(zip(county_fips, frame["COUNTYNAME"], strict=True))
+        if len(reference) != 58 or any(not str(name).strip() for name in reference.values()):
+            raise ValueError("Census county reference contains invalid identifiers")
+        return {str(key): str(value).strip() for key, value in reference.items()}
+
+    payload = _read_json(path)
+    if not isinstance(payload, list) or len(payload) < 2:
+        raise ValueError("Census county FIPS reference is empty")
+    header = [str(value) for value in payload[0]]
+    if header != ["NAME", "state", "county"]:
+        raise ValueError(f"Census county FIPS reference schema changed: {header}")
+    reference: dict[str, str] = {}
+    for values in payload[1:]:
+        row = dict(zip(header, values, strict=True))
+        county_fips = f"{str(row['state']).zfill(2)}{str(row['county']).zfill(3)}"
+        name = str(row["NAME"]).removesuffix(", California").strip()
+        if not county_fips.startswith(CA_STATE_FIPS) or not name:
+            raise ValueError(
+                f"Invalid California county reference row: {row}"
+            )
+        reference[county_fips] = name
+    if len(reference) != 58:
+        raise ValueError(
+            f"Official California county reference must contain 58 counties; "
+            f"found {len(reference)}"
+        )
+    return reference
+
+
+def _normalized_ncwm_frame(
+    payload: dict,
+    quarter_end: pd.Timestamp,
+    county_reference: dict[str, str],
+) -> pd.DataFrame:
+    rows = payload.get("results")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"HUD-USPS {quarter_end.date()} response has no results")
+    frame = pd.DataFrame(rows)
+    required = {"TRACT ID", "STCNTY", *RAW_COMPONENT_COLUMNS}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(
+            f"HUD-USPS {quarter_end.date()} response missing fields: {missing}"
+        )
+    result = pd.DataFrame(index=frame.index)
+    result["quarter_end"] = quarter_end
+    result["tract_geoid"] = (
+        frame["TRACT ID"].astype("string").str.strip().str.zfill(11)
+    )
+    result["county_fips"] = (
+        frame["STCNTY"].astype("string").str.strip().str.zfill(5)
+    )
+    valid_tract = result["tract_geoid"].str.fullmatch(r"\d{11}", na=False)
+    valid_county = result["county_fips"].str.fullmatch(r"06\d{3}", na=False)
+    if not valid_tract.all() or not valid_county.all():
+        raise ValueError(
+            f"HUD-USPS {quarter_end.date()} contains malformed California IDs"
+        )
+    mismatch = result["tract_geoid"].str[:5].ne(result["county_fips"])
+    if mismatch.any():
+        raise ValueError(
+            f"HUD-USPS {quarter_end.date()} tract/county IDs do not agree"
+        )
+    unknown_counties = sorted(set(result["county_fips"]) - set(county_reference))
+    if unknown_counties:
+        raise ValueError(
+            f"HUD-USPS {quarter_end.date()} contains unknown county FIPS: "
+            f"{unknown_counties[:5]}"
+        )
+    result["county_name"] = result["county_fips"].map(county_reference)
+    for raw_column, clean_column in RAW_COMPONENT_COLUMNS.items():
+        values = pd.to_numeric(frame[raw_column], errors="coerce")
+        invalid = frame[raw_column].notna() & values.isna()
+        if invalid.any():
+            examples = frame.loc[invalid, raw_column].astype(str).tolist()[:5]
+            raise ValueError(
+                f"HUD-USPS {quarter_end.date()} {raw_column} has invalid "
+                f"values: {examples}"
+            )
+        result[clean_column] = values.astype("Float64")
+    duplicate = result.duplicated("tract_geoid", keep=False)
+    if duplicate.any():
+        raise ValueError(
+            f"HUD-USPS {quarter_end.date()} has duplicate standardized tracts"
+        )
+    result["vacant_residential_addresses"] = (
+        result["short_term_vacant_residential_addresses"]
+        + result["long_term_vacant_residential_addresses"]
+    )
+    components = [
+        "total_residential_addresses",
+        "short_term_vacant_residential_addresses",
+        "long_term_vacant_residential_addresses",
+        "no_stat_residential_addresses",
+        "active_residential_addresses",
+    ]
+    result["source_tract_complete"] = result[components].notna().all(axis=1)
+    complete = result["source_tract_complete"]
+    difference = result["total_residential_addresses"] - (
+        result["active_residential_addresses"]
+        + result["short_term_vacant_residential_addresses"]
+        + result["long_term_vacant_residential_addresses"]
+        + result["no_stat_residential_addresses"]
+    )
+    failure = complete & difference.abs().gt(1e-8)
+    if failure.any():
+        raise ValueError(
+            f"HUD-USPS {quarter_end.date()} source component identity failed"
+        )
+    result["component_balance_difference"] = difference.where(complete)
+    total = result["total_residential_addresses"]
+    result["usps_residential_vacancy_rate"] = (
+        result["vacant_residential_addresses"] / total
+    ).where(complete & total.gt(0))
+    result["usps_residential_no_stat_rate"] = (
+        result["no_stat_residential_addresses"] / total
+    ).where(complete & total.gt(0))
+    return result
+
+
+def _county_table(
+    tracts: pd.DataFrame,
+    county_reference: dict[str, str],
+) -> pd.DataFrame:
+    component_columns = [
+        "total_residential_addresses",
+        "short_term_vacant_residential_addresses",
+        "long_term_vacant_residential_addresses",
+        "vacant_residential_addresses",
+        "no_stat_residential_addresses",
+        "active_residential_addresses",
+    ]
+    grouped = tracts.groupby("county_fips", sort=True, dropna=False)
+    counts = grouped[component_columns].sum(min_count=1)
+    component_complete = grouped[component_columns].count().eq(
+        grouped.size(), axis=0
+    )
+    counts = counts.where(component_complete)
+    counts["source_tract_count"] = grouped.size()
+    counts["source_tracts_missing_required"] = grouped[
+        "source_tract_complete"
+    ].apply(lambda values: int((~values).sum()))
+    counts = counts.reset_index()
+    if set(counts["county_fips"]) != set(county_reference):
+        missing = sorted(set(county_reference) - set(counts["county_fips"]))
+        extra = sorted(set(counts["county_fips"]) - set(county_reference))
+        raise ValueError(
+            f"HUD-USPS quarter does not contain exactly 58 California counties: "
+            f"missing={missing}, extra={extra}"
+        )
+    counts["county_name"] = counts["county_fips"].map(county_reference)
+    counts["quarter_end"] = tracts["quarter_end"].iloc[0]
+    complete = counts["source_tracts_missing_required"].eq(0)
+    total = counts["total_residential_addresses"]
+    counts["usps_residential_vacancy_rate"] = (
+        counts["vacant_residential_addresses"] / total
+    ).where(complete & total.gt(0))
+    counts["usps_residential_no_stat_rate"] = (
+        counts["no_stat_residential_addresses"] / total
+    ).where(complete & total.gt(0))
+    counts["component_balance_difference"] = total - (
+        counts["active_residential_addresses"]
+        + counts["vacant_residential_addresses"]
+        + counts["no_stat_residential_addresses"]
+    )
+    counts["is_modeled_geography"] = False
+    return counts
+
+
+def _crosswalk_frame(path: Path) -> tuple[pd.DataFrame, str]:
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        raise ValueError("HUD-USPS tract-to-ZIP crosswalk must be a JSON object")
+    data = payload.get("data")
+    if isinstance(data, list):
+        if len(data) != 1 or not isinstance(data[0], dict):
+            raise ValueError("HUD-USPS crosswalk has ambiguous data blocks")
+        data = data[0]
+    if not isinstance(data, dict):
+        raise ValueError("HUD-USPS crosswalk lacks a data object")
+    rows = data.get("results")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("HUD-USPS tract-to-ZIP crosswalk has no results")
+    frame = pd.DataFrame(rows)
+    required = {"tract", "geoid", "res_ratio", "city"}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(f"HUD-USPS crosswalk missing fields: {missing}")
+    result = pd.DataFrame(
+        {
+            "tract_geoid": frame["tract"].astype("string").str.strip().str.zfill(11),
+            "zip_code": frame["geoid"].astype("string").str.strip().str.zfill(5),
+            "zip_city": frame["city"].astype("string").str.strip(),
+            "res_ratio": pd.to_numeric(frame["res_ratio"], errors="coerce"),
+        }
+    )
+    result = result.loc[result["tract_geoid"].str.startswith(LA_COUNTY_FIPS)].copy()
+    valid = (
+        result["tract_geoid"].str.fullmatch(r"\d{11}", na=False)
+        & result["zip_code"].str.fullmatch(r"\d{5}", na=False)
+        & result["zip_city"].notna()
+        & result["zip_city"].ne("")
+        & result["res_ratio"].notna()
+        & result["res_ratio"].ge(0)
+        & result["res_ratio"].le(1)
+    )
+    if not valid.all():
+        raise ValueError("HUD-USPS crosswalk contains malformed LA relationships")
+    if result.duplicated(["tract_geoid", "zip_code"]).any():
+        raise ValueError("HUD-USPS crosswalk has duplicate tract-ZIP relationships")
+    ratio_sums = result.groupby("tract_geoid")["res_ratio"].sum()
+    bad_sums = ~(ratio_sums.eq(0) | np.isclose(ratio_sums, 1, atol=1e-6, rtol=0))
+    if bad_sums.any():
+        examples = ratio_sums.loc[bad_sums].head().to_dict()
+        raise ValueError(
+            f"HUD-USPS tract residential ratios must sum to zero or one: {examples}"
+        )
+    year = payload.get("year") or data.get("year")
+    quarter = payload.get("quarter") or data.get("quarter")
+    if year is None or quarter is None:
+        raise ValueError("HUD-USPS crosswalk payload lacks year/quarter vintage")
+    quarter_number = int(str(quarter).upper().removeprefix("Q"))
+    if quarter_number not in {1, 2, 3, 4}:
+        raise ValueError(f"Invalid HUD-USPS crosswalk quarter: {quarter!r}")
+    vintage = f"{int(year)}Q{quarter_number}"
+    return result.sort_values(["tract_geoid", "zip_code"]), vintage
+
+
+def _zip_table(
+    la_tracts: pd.DataFrame,
+    crosswalk: pd.DataFrame,
+    crosswalk_vintage: str,
+) -> pd.DataFrame:
+    source_tracts = set(la_tracts["tract_geoid"])
+    crosswalk_tracts = set(crosswalk["tract_geoid"])
+    if source_tracts != crosswalk_tracts:
+        raise ValueError(
+            "HUD-USPS LA tract set does not match the fixed crosswalk: "
+            f"source_only={len(source_tracts - crosswalk_tracts)}, "
+            f"crosswalk_only={len(crosswalk_tracts - source_tracts)}"
+        )
+    merged = la_tracts.merge(
+        crosswalk, on="tract_geoid", how="inner", validate="one_to_many"
+    )
+    component_columns = [
+        "total_residential_addresses",
+        "short_term_vacant_residential_addresses",
+        "long_term_vacant_residential_addresses",
+        "no_stat_residential_addresses",
+        "active_residential_addresses",
+    ]
+    for column in component_columns:
+        merged[f"_allocated_{column}"] = merged[column] * merged["res_ratio"]
+    merged["_incomplete_positive"] = (
+        ~merged["source_tract_complete"] & merged["res_ratio"].gt(0)
+    )
+    grouped = merged.groupby("zip_code", sort=True, dropna=False)
+    allocated_columns = [f"_allocated_{column}" for column in component_columns]
+    result = grouped[allocated_columns].sum(min_count=1)
+    result.columns = component_columns
+    result["zip_city"] = grouped["zip_city"].agg(
+        lambda values: "|".join(sorted(set(values.dropna().astype(str))))
+    )
+    result["source_tract_count"] = grouped["tract_geoid"].nunique()
+    result["crosswalk_relationship_count"] = grouped.size()
+    result["source_incomplete_allocations"] = grouped[
+        "_incomplete_positive"
+    ].sum().astype(int)
+    result = result.reset_index()
+    result["vacant_residential_addresses"] = (
+        result["short_term_vacant_residential_addresses"]
+        + result["long_term_vacant_residential_addresses"]
+    )
+    complete = result["source_incomplete_allocations"].eq(0)
+    for column in [*component_columns, "vacant_residential_addresses"]:
+        result[column] = result[column].where(complete)
+    total = result["total_residential_addresses"]
+    result["usps_residential_vacancy_rate"] = (
+        result["vacant_residential_addresses"] / total
+    ).where(complete & total.gt(0))
+    result["usps_residential_no_stat_rate"] = (
+        result["no_stat_residential_addresses"] / total
+    ).where(complete & total.gt(0))
+    result["quarter_end"] = la_tracts["quarter_end"].iloc[0]
+    result["geography_scope"] = LA_ZIP_SCOPE
+    result["crosswalk_vintage"] = crosswalk_vintage
+    result["low_address_count_flag"] = complete & total.lt(100)
+    result["is_modeled_geography"] = True
+    return result
+
+
+def _zip_allocation_coverage(
+    la_tracts: pd.DataFrame,
+    postal_zip: pd.DataFrame,
+) -> pd.DataFrame:
+    component_columns = [
+        "total_residential_addresses",
+        "short_term_vacant_residential_addresses",
+        "long_term_vacant_residential_addresses",
+        "no_stat_residential_addresses",
+        "active_residential_addresses",
+    ]
+    source = la_tracts.groupby("quarter_end")[component_columns].sum(
+        min_count=1
+    )
+    allocated = postal_zip.groupby("quarter_end")[component_columns].sum(
+        min_count=1
+    )
+    records: list[dict[str, object]] = []
+    for quarter_end in source.index:
+        for column in component_columns:
+            source_value = source.at[quarter_end, column]
+            allocated_value = allocated.at[quarter_end, column]
+            residual = source_value - allocated_value
+            residual_share = (
+                residual / source_value
+                if pd.notna(source_value) and source_value != 0
+                else pd.NA
+            )
+            records.append(
+                {
+                    "quarter_end": quarter_end,
+                    "component": column,
+                    "la_tract_total": source_value,
+                    "modeled_zip_allocated_total": allocated_value,
+                    "unallocated_residual": residual,
+                    "unallocated_residual_share": residual_share,
+                }
+            )
+    coverage = pd.DataFrame(records)
+    excessive = coverage["unallocated_residual_share"].abs().gt(
+        ZIP_ALLOCATION_MAX_RESIDUAL_SHARE
+    )
+    if excessive.fillna(False).any():
+        examples = coverage.loc[
+            excessive,
+            ["quarter_end", "component", "unallocated_residual_share"],
+        ].head().to_dict("records")
+        raise ValueError(
+            "HUD-USPS modeled ZIP allocation residual exceeds the documented "
+            f"tolerance: {examples}"
+        )
+    return coverage
+
+
+def build_hud_usps_wide_tables(
+    archive_files: list[tuple[Path, dict[str, str]]],
+    expected_start: str | None = None,
+    expected_end: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, object]]:
+    """Rebuild county, LA tract, and modeled LA ZIP-part tables from raw JSON."""
+
+    if not archive_files:
+        raise ValueError("No HUD-USPS raw archives were supplied")
+    by_role: dict[str, list[tuple[Path, dict[str, str]]]] = {}
+    for path, record in archive_files:
+        by_role.setdefault(_manifest_role(record), []).append((path, record))
+    required_roles = {
+        "ncwm_standardized_2020",
+        "tract_zip_crosswalk",
+        "county_fips_reference_2020",
+    }
+    if set(by_role) != required_roles:
+        raise ValueError(
+            f"HUD-USPS raw archive roles must be {sorted(required_roles)}; "
+            f"found {sorted(by_role)}"
+        )
+    if len(by_role["tract_zip_crosswalk"]) != 1:
+        raise ValueError("Exactly one HUD-USPS crosswalk vintage is required")
+    if len(by_role["county_fips_reference_2020"]) != 1:
+        raise ValueError("Exactly one Census county reference is required")
+
+    county_reference = _county_reference(
+        by_role["county_fips_reference_2020"][0][0]
+    )
+    crosswalk_record = by_role["tract_zip_crosswalk"][0][1]
+    crosswalk, crosswalk_vintage = _crosswalk_frame(
+        by_role["tract_zip_crosswalk"][0][0]
+    )
+    manifest_crosswalk_vintage = str(
+        crosswalk_record.get("provider_vintage", "")
+    ).strip()
+    if manifest_crosswalk_vintage and (
+        manifest_crosswalk_vintage != crosswalk_vintage
+    ):
+        raise ValueError(
+            "HUD-USPS crosswalk payload vintage does not match its manifest"
+        )
+    ncwm_files = sorted(
+        by_role["ncwm_standardized_2020"],
+        key=lambda item: str(item[1].get("archive_period", "")),
+    )
+    periods = [str(record.get("archive_period", "")) for _, record in ncwm_files]
+    if len(periods) != len(set(periods)):
+        raise ValueError("HUD-USPS archive contains duplicate quarter vintages")
+    parsed_periods = pd.PeriodIndex(
+        [period.replace("-", "") for period in periods], freq="Q"
+    )
+    if (expected_start is None) != (expected_end is None):
+        raise ValueError(
+            "HUD-USPS expected archive endpoints must be supplied together"
+        )
+    range_start = (
+        pd.Period(expected_start.replace("-", ""), freq="Q")
+        if expected_start is not None
+        else parsed_periods.min()
+    )
+    range_end = (
+        pd.Period(expected_end.replace("-", ""), freq="Q")
+        if expected_end is not None
+        else parsed_periods.max()
+    )
+    expected_periods = pd.period_range(range_start, range_end, freq="Q")
+    if list(parsed_periods) != list(expected_periods):
+        raise ValueError(
+            "HUD-USPS quarterly archive does not match the required endpoints"
+        )
+
+    county_parts: list[pd.DataFrame] = []
+    tract_parts: list[pd.DataFrame] = []
+    zip_parts: list[pd.DataFrame] = []
+    quarter_records: dict[pd.Timestamp, dict[str, str]] = {}
+    expected_la_tracts: set[str] | None = None
+    for path, record in ncwm_files:
+        payload = _read_json(path)
+        if not isinstance(payload, dict):
+            raise ValueError(f"HUD-USPS NCWM archive is not an object: {path}")
+        quarter_end = _archive_period_end(record, payload)
+        quarter_records[quarter_end] = record
+        all_tracts = _normalized_ncwm_frame(
+            payload, quarter_end, county_reference
+        )
+        county_parts.append(_county_table(all_tracts, county_reference))
+        la_tracts = all_tracts.loc[
+            all_tracts["county_fips"].eq(LA_COUNTY_FIPS)
+        ].copy()
+        current_la_tracts = set(la_tracts["tract_geoid"])
+        if expected_la_tracts is None:
+            expected_la_tracts = current_la_tracts
+            if len(expected_la_tracts) != 2_494:
+                raise ValueError(
+                    "HUD-USPS standardized LA geography must contain 2,494 "
+                    f"2020 tracts; found {len(expected_la_tracts)}"
+                )
+        elif current_la_tracts != expected_la_tracts:
+            raise ValueError(
+                f"HUD-USPS LA standardized tract spine changed at {quarter_end.date()}"
+            )
+        la_tracts["is_modeled_geography"] = False
+        tract_parts.append(la_tracts)
+        zip_parts.append(_zip_table(la_tracts, crosswalk, crosswalk_vintage))
+
+    county = pd.concat(county_parts, ignore_index=True, sort=False)
+    tract = pd.concat(tract_parts, ignore_index=True, sort=False)
+    postal_zip = pd.concat(zip_parts, ignore_index=True, sort=False)
+    zip_allocation_coverage = _zip_allocation_coverage(tract, postal_zip)
+    for frame in (county, tract, postal_zip):
+        source_records = frame["quarter_end"].map(quarter_records)
+        frame["source_vintage"] = source_records.map(
+            lambda record: record.get("provider_vintage")
+        )
+        frame["source_filename"] = source_records.map(
+            lambda record: record.get("source_filename")
+        )
+        frame["source_checksum_sha256"] = source_records.map(
+            lambda record: record.get("checksum_sha256")
+        )
+        frame["source_retrieved_at"] = source_records.map(
+            lambda record: record.get("retrieved_at")
+        )
+    postal_zip["crosswalk_source_filename"] = crosswalk_record.get(
+        "source_filename"
+    )
+    postal_zip["crosswalk_checksum_sha256"] = crosswalk_record.get(
+        "checksum_sha256"
+    )
+    postal_zip["crosswalk_retrieved_at"] = crosswalk_record.get(
+        "retrieved_at"
+    )
+    if county.duplicated(["county_fips", "quarter_end"]).any():
+        raise ValueError("HUD-USPS rebuilt county table has duplicate keys")
+    if tract.duplicated(["tract_geoid", "quarter_end"]).any():
+        raise ValueError("HUD-USPS rebuilt tract table has duplicate keys")
+    if postal_zip.duplicated(["zip_code", "quarter_end"]).any():
+        raise ValueError("HUD-USPS rebuilt ZIP table has duplicate keys")
+    metadata: dict[str, object] = {
+        "quarter_records": quarter_records,
+        "crosswalk_record": crosswalk_record,
+        "county_reference_record": by_role["county_fips_reference_2020"][0][1],
+        "crosswalk_vintage": crosswalk_vintage,
+        "zip_allocation_coverage": zip_allocation_coverage,
+        "crosswalk_zero_ratio_tract_count": int(
+            crosswalk.groupby("tract_geoid")["res_ratio"].sum().eq(0).sum()
+        ),
+    }
+    return county, tract, postal_zip, metadata
+
+
+def _active_observation_contract(
+    normalized: pd.DataFrame,
+    metadata: dict[str, object],
+    source_id: str,
+) -> pd.DataFrame:
+    quarter_records = metadata["quarter_records"]
+    if not isinstance(quarter_records, dict):
+        raise TypeError("HUD-USPS quarter provenance mapping is invalid")
+    frame = normalized.copy()
+    frame["observation_date"] = pd.to_datetime(frame["observation_date"])
+    records = frame["observation_date"].map(quarter_records)
+    if records.isna().any():
+        raise ValueError("HUD-USPS observations lack quarter-level raw provenance")
+    frame["source_vintage"] = records.map(
+        lambda record: record.get("provider_vintage")
+        or record.get("data_vintage")
+    )
+    frame["retrieved_at"] = records.map(lambda record: record.get("retrieved_at"))
+    frame["source_filename"] = records.map(
+        lambda record: record.get("source_filename")
+    )
+    frame["checksum_sha256"] = records.map(
+        lambda record: record.get("checksum_sha256")
+    )
+    crosswalk_record = metadata["crosswalk_record"]
+    if not isinstance(crosswalk_record, dict):
+        raise TypeError("HUD-USPS crosswalk provenance mapping is invalid")
+    modeled_zip = frame["geo_type"].eq("postal_zip_county_part")
+    frame["crosswalk_vintage"] = frame.get(
+        "crosswalk_vintage", pd.Series(index=frame.index, dtype="string")
+    ).where(modeled_zip)
+    frame["crosswalk_source_filename"] = crosswalk_record.get(
+        "source_filename"
+    )
+    frame["crosswalk_source_filename"] = frame[
+        "crosswalk_source_filename"
+    ].where(modeled_zip)
+    frame["crosswalk_checksum_sha256"] = crosswalk_record.get(
+        "checksum_sha256"
+    )
+    frame["crosswalk_checksum_sha256"] = frame[
+        "crosswalk_checksum_sha256"
+    ].where(modeled_zip)
+    frame["crosswalk_retrieved_at"] = crosswalk_record.get("retrieved_at")
+    frame["crosswalk_retrieved_at"] = frame[
+        "crosswalk_retrieved_at"
+    ].where(modeled_zip)
+    # HUD's endpoint does not publish a release or last-updated date. The
+    # quarter end is an observation date and must not be relabeled as source
+    # metadata.
+    frame["provider_last_updated"] = None
+    frame["provider"] = "HUD-USPS"
+    frame["source_id"] = source_id
+    frame["reported_value"] = frame["value"].where(
+        frame["geo_type"].eq("tract_2020")
+        & frame["variable_id"].isin(
+            {
+                "usps_total_residential_addresses",
+                "usps_short_term_vacant_residential_addresses",
+                "usps_long_term_vacant_residential_addresses",
+                "usps_no_stat_residential_addresses",
+                "usps_active_residential_addresses",
+            }
+        )
+    )
+    frame["is_imputed"] = False
+    frame["is_interpolated"] = False
+    frame["is_seasonally_adjusted"] = False
+    frame["transformation_id"] = "hud_usps_official_raw_to_quarterly_v2"
+    crosswalk_vintage = str(metadata["crosswalk_vintage"])
+    frame["quality_flag"] = frame["geo_type"].map(
+        {
+            "county": "official_raw_rebuilt",
+            "tract_2020": "official_raw_rebuilt_restricted",
+            "postal_zip_county_part": (
+                "modeled_fixed_tract_zip_crosswalk_"
+                f"{crosswalk_vintage}_restricted"
+            ),
+        }
+    )
+    frame["provenance_status"] = ACTIVE_PROVENANCE_STATUS
+    for column in OBSERVATION_COLUMNS:
+        if column not in frame:
+            frame[column] = None
+    return frame
+
+
+def clean_hud_usps_archive(
+    archive_files: list[tuple[Path, dict[str, str]]],
+    source_id: str,
+    output_path: Path,
+    warnings_output_path: Path,
+    restricted_output_dir: Path,
+    expected_start: str = "2008-Q1",
+    expected_end: str = "2026-Q1",
+) -> pd.DataFrame:
+    """Rebuild, validate, and persist active HUD-USPS long observations."""
+
+    county, tract, postal_zip, metadata = build_hud_usps_wide_tables(
+        archive_files,
+        expected_start=expected_start,
+        expected_end=expected_end,
+    )
+    result = normalize_hud_usps_quarterly_tables(county, tract, postal_zip)
+    active = _active_observation_contract(
+        result.observations, metadata, source_id
+    )
+    restricted_output_dir.mkdir(parents=True, exist_ok=True)
+    county.to_parquet(
+        restricted_output_dir / "ca_county_quarterly.parquet", index=False
+    )
+    tract.to_parquet(
+        restricted_output_dir / "la_tract_2020_quarterly.parquet", index=False
+    )
+    postal_zip.to_parquet(
+        restricted_output_dir / "la_postal_zip_county_part_quarterly.parquet",
+        index=False,
+    )
+    warnings_output_path.parent.mkdir(parents=True, exist_ok=True)
+    result.warnings.to_csv(warnings_output_path, index=False)
+    allocation_coverage = metadata["zip_allocation_coverage"]
+    if not isinstance(allocation_coverage, pd.DataFrame):
+        raise TypeError("HUD-USPS ZIP allocation diagnostics are invalid")
+    allocation_coverage.to_csv(
+        warnings_output_path.with_name("hud_usps_zip_allocation_coverage.csv"),
+        index=False,
+    )
+    active.to_parquet(
+        restricted_output_dir / "long_observations_with_lineage.parquet",
+        index=False,
+    )
+    return finalize(active, output_path)

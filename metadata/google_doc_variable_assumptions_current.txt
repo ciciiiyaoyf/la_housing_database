@@ -1,8 +1,8 @@
-CURRENT METHOD PRECEDENCE (2026-08-02)
+CURRENT METHOD PRECEDENCE (2026-08-03)
 
 The Version A variables ending in `_benchmark` are the authoritative mortgage-debt and home-equity standard. They use direct ACS B25089/B25081/B25082/B25120 levels, weighted ACS PUMS parameters, exact-date NMDB controls when compatible, and clearly labeled PMMS sensitivity fallbacks. The older B25106 midpoint / 80% debt-service / 25-year method documented below is retained only as a legacy modeled scenario for reproducibility.
 
-The HUD-USPS `usps_residential_vacancy_rate` method is a quarterly all-residential administrative address-vacancy proxy, not true rental-listing inventory. Its surviving 2026-08-02 package is quarantined and excluded from active facts until official raw responses and crosswalk provenance are reacquired and archived. No-stat remains a separate diagnostic.
+The HUD-USPS `usps_residential_vacancy_rate` method is an active quarterly all-residential administrative address-vacancy proxy, not true rental-listing inventory. The active build uses 75 verified official artifacts: 73 contiguous standardized-2020-tract NCWM responses for 2008 Q1 through 2026 Q1, the official 2026 Q1 tract-to-postal-ZIP crosswalk, and the official 58-row 2020 Census California county-code reference. Tract components are direct source values, California county values are constructed from complete tract components, and Los Angeles County postal-ZIP county-parts are modeled with the fixed crosswalk. No-stat remains a separate diagnostic. Licensed detailed outputs stay restricted; the former 2026-08-02 package file was deleted and only its superseded quarantine manifest remains.
 
 Assumption/proxy variables
 
