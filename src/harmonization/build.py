@@ -19,18 +19,14 @@ COUNTY_VARIABLES = [
     "active_inventory",
     "new_listings",
     "homes_sold",
-    "pending_sales",
     "months_of_supply",
     "days_on_market",
     "price_drop_share",
-    "sale_to_list_ratio",
     "unemployment_rate",
     "employment",
     "unemployment",
     "labor_force",
-    "permits_total",
     "permits_1_unit",
-    "permits_2_to_4_units",
     "permits_5_plus_units",
 ]
 
@@ -50,36 +46,65 @@ ZIP_REDFIN_LEVEL_COLUMNS = [
     "median_days_on_market",
     "new_listings",
     "active_listings",
-    "pending_sales",
 ]
 
-ZIP_LEGACY_UNSUPPORTED_COLUMNS = [
-    "active_inventory",
-    "months_of_supply",
-    "days_on_market",
-    "price_drop_share",
+STATE_QUARTERLY_VARIABLES = [
+    "fhfa_hpi_ca_purchase_only_nsa",
+    "fhfa_hpi_ca_purchase_only_sa",
+    "bea_ca_personal_income_q_sa",
+    "bea_ca_per_capita_personal_income_q_sa",
+    "hvs_rental_vacancy_rate_ca",
+    "hvs_rental_vacancy_rate_ca_moe",
+]
+
+METRO_QUARTERLY_VARIABLES = [
+    "fhfa_hpi_la_metropolitan_division_purchase_only_nsa",
+    "fhfa_hpi_la_metropolitan_division_purchase_only_sa",
+    "hvs_rental_vacancy_rate_la_metro",
+    "hvs_rental_vacancy_rate_la_metro_moe",
+]
+
+METRO_MONTHLY_VARIABLES = [
+    "ces_total_nonfarm_employment_sa",
+    "cpi_u_all_items_la_nsa",
+]
+
+COUNTY_ANNUAL_VARIABLES = [
+    "fhfa_hpi_la_county_all_transactions_nsa_annual",
+    "bea_la_county_personal_income_annual",
+    "bea_la_county_per_capita_personal_income_annual",
 ]
 
 
-def _read_clean_files(root: Path) -> pd.DataFrame:
-    files = sorted(
-        path
-        for path in (root / "data" / "clean").glob("*.parquet")
-        if path.name
-        not in {
-            "geography.parquet",
-            "geography_crosswalk.parquet",
-            "redfin_zip_monthly_la_county.parquet",
-        }
-    )
-    redfin_zip_observations = (
-        root
-        / "data"
-        / "interim"
-        / "redfin_zip_monthly_observations.parquet"
-    )
-    if redfin_zip_observations.exists():
-        files.append(redfin_zip_observations)
+def _configured_clean_observation_files(config: ProjectConfig) -> list[Path]:
+    """Return only clean observation files produced by enabled active sources."""
+    files: list[Path] = []
+    clean_dir = config.root / "data" / "clean"
+    for source in config.selected_sources():
+        if source.source_id == "redfin_zip_monthly":
+            files.append(
+                config.root
+                / "data"
+                / "interim"
+                / "redfin_zip_monthly_observations.parquet"
+            )
+        elif source.source_id.startswith("census_acs_5year_"):
+            # ACS table-level files are intentionally not part of the active
+            # stage scope unless those source IDs are re-enabled later.
+            table_id = source.source_id.rsplit("_", 1)[-1]
+            files.extend(
+                [
+                    clean_dir / f"acs_county_annual_{table_id}.parquet",
+                    clean_dir / f"acs_zcta_annual_{table_id}.parquet",
+                ]
+            )
+        else:
+            files.append(clean_dir / f"{source.source_id}.parquet")
+    return sorted(path for path in files if path.exists())
+
+
+def _read_clean_files(config: ProjectConfig) -> pd.DataFrame:
+    files = _configured_clean_observation_files(config)
     frames = []
     for path in files:
         frame = pd.read_parquet(path)
@@ -89,7 +114,25 @@ def _read_clean_files(root: Path) -> pd.DataFrame:
         frames.append(frame[OBSERVATION_COLUMNS])
     if not frames:
         return empty_observations()
-    return pd.concat(frames, ignore_index=True)[OBSERVATION_COLUMNS]
+    result = pd.concat(frames, ignore_index=True)[OBSERVATION_COLUMNS]
+    string_columns = [
+        column
+        for column in OBSERVATION_COLUMNS
+        if column
+        not in {
+            "observation_date",
+            "source_observation_date",
+            "period_start",
+            "period_end",
+            "value",
+            "is_imputed",
+            "is_interpolated",
+            "is_seasonally_adjusted",
+        }
+    ]
+    for column in string_columns:
+        result[column] = result[column].astype("string")
+    return result
 
 
 def _date_filter(
@@ -110,6 +153,169 @@ def _latest_values(frame: pd.DataFrame) -> pd.DataFrame:
         .drop_duplicates(["observation_date", "geo_id", "variable_id"], keep="last")
         .copy()
     )
+
+
+def _wide_by_date(
+    fact: pd.DataFrame,
+    variables: list[str],
+    *,
+    date_column: str,
+) -> pd.DataFrame:
+    selected = _latest_values(
+        fact.loc[fact["variable_id"].isin(variables)].copy()
+    )
+    if selected.empty:
+        return pd.DataFrame(columns=[date_column, *variables])
+    panel = (
+        selected.pivot(
+            index="observation_date", columns="variable_id", values="value"
+        )
+        .reset_index()
+        .rename(columns={"observation_date": date_column})
+    )
+    for variable in variables:
+        if variable not in panel:
+            panel[variable] = pd.NA
+    return panel[[date_column, *variables]].sort_values(date_column)
+
+
+def _slow_frequency_panels(
+    fact: pd.DataFrame, county_monthly: pd.DataFrame
+) -> dict[str, pd.DataFrame]:
+    state = _wide_by_date(
+        fact.loc[
+            fact["geo_id"].eq("STATE_06")
+            & fact["final_frequency"].eq("quarterly")
+        ],
+        STATE_QUARTERLY_VARIABLES,
+        date_column="quarter_end",
+    )
+    state.insert(1, "state_fips", "06")
+    state.insert(2, "state_name", "California")
+    state["bea_ca_personal_income_growth_qoq"] = state[
+        "bea_ca_personal_income_q_sa"
+    ].pct_change(1, fill_method=None)
+    state["bea_ca_personal_income_growth_yoy"] = state[
+        "bea_ca_personal_income_q_sa"
+    ].pct_change(4, fill_method=None)
+    state["hvs_rental_vacancy_change_yoy_pp"] = state[
+        "hvs_rental_vacancy_rate_ca"
+    ].diff(4)
+
+    metro_monthly = _wide_by_date(
+        fact.loc[fact["final_frequency"].eq("monthly")],
+        METRO_MONTHLY_VARIABLES,
+        date_column="date",
+    )
+    metro_monthly.insert(1, "ces_geography_id", "CBSA_31080")
+    metro_monthly.insert(
+        2,
+        "ces_geography_name",
+        "Los Angeles-Long Beach-Anaheim, CA MSA",
+    )
+    metro_monthly.insert(3, "cpi_geography_id", "S49A")
+    metro_monthly.insert(
+        4,
+        "cpi_geography_name",
+        "Los Angeles-Long Beach-Anaheim, CA published CPI area",
+    )
+    metro_monthly["ces_total_nonfarm_employment_growth_mom"] = metro_monthly[
+        "ces_total_nonfarm_employment_sa"
+    ].pct_change(1, fill_method=None)
+    metro_monthly["ces_total_nonfarm_employment_growth_yoy"] = metro_monthly[
+        "ces_total_nonfarm_employment_sa"
+    ].pct_change(12, fill_method=None)
+    metro_monthly["cpi_inflation_yoy"] = metro_monthly[
+        "cpi_u_all_items_la_nsa"
+    ].pct_change(12, fill_method=None)
+
+    metro_quarterly = _wide_by_date(
+        fact.loc[fact["final_frequency"].eq("quarterly")],
+        METRO_QUARTERLY_VARIABLES,
+        date_column="quarter_end",
+    )
+    metro_quarterly.insert(1, "fhfa_geography_id", "METRODIV_31084")
+    metro_quarterly.insert(
+        2,
+        "fhfa_geography_name",
+        "Los Angeles-Long Beach-Glendale, CA Metropolitan Division",
+    )
+    metro_quarterly.insert(3, "hvs_geography_id", "MSA_PROVIDER_LABEL")
+    metro_quarterly.insert(
+        4,
+        "hvs_geography_name",
+        "Los Angeles published HVS MSA (vintage-specific label)",
+    )
+    metro_quarterly["hvs_rental_vacancy_change_yoy_pp"] = metro_quarterly[
+        "hvs_rental_vacancy_rate_la_metro"
+    ].diff(4)
+    metro_quarterly["fhfa_hpi_growth_yoy"] = metro_quarterly[
+        "fhfa_hpi_la_metropolitan_division_purchase_only_sa"
+    ].pct_change(4, fill_method=None)
+
+    county = _wide_by_date(
+        fact.loc[
+            fact["geo_id"].eq("COUNTY_06037")
+            & fact["final_frequency"].eq("annual")
+        ],
+        COUNTY_ANNUAL_VARIABLES,
+        date_column="year_end",
+    )
+    county.insert(1, "county_fips", "06037")
+    county.insert(2, "county_name", "Los Angeles County")
+    county.insert(3, "state_fips", "06")
+    annual_sales = county_monthly[["date", "homes_sold", "zhvi"]].copy()
+    annual_sales["year_end"] = (
+        annual_sales["date"].dt.to_period("Y").dt.to_timestamp("Y")
+    )
+    annual_sales = (
+        annual_sales.groupby("year_end", as_index=False)
+        .agg(
+            homes_sold_annual=("homes_sold", "sum"),
+            homes_sold_months_reported=("homes_sold", "count"),
+            zhvi_year_end=("zhvi", "last"),
+            latest_month=("date", lambda values: values.max().month),
+        )
+    )
+    annual_sales.loc[
+        annual_sales["homes_sold_months_reported"].lt(12),
+        "homes_sold_annual",
+    ] = pd.NA
+    annual_sales.loc[
+        annual_sales["latest_month"].ne(12), "zhvi_year_end"
+    ] = pd.NA
+    annual_sales = annual_sales.loc[
+        annual_sales[["homes_sold_annual", "zhvi_year_end"]]
+        .notna()
+        .any(axis=1)
+    ].drop(columns="latest_month")
+    county = county.merge(annual_sales, on="year_end", how="outer").sort_values(
+        "year_end"
+    )
+    county["county_fips"] = county["county_fips"].fillna("06037")
+    county["county_name"] = county["county_name"].fillna(
+        "Los Angeles County"
+    )
+    county["state_fips"] = county["state_fips"].fillna("06")
+    county["bea_personal_income_growth_yoy"] = county[
+        "bea_la_county_personal_income_annual"
+    ].pct_change(1, fill_method=None)
+    county["fhfa_hpi_growth_yoy"] = county[
+        "fhfa_hpi_la_county_all_transactions_nsa_annual"
+    ].pct_change(1, fill_method=None)
+    county["zhvi_growth_yoy_year_end"] = county["zhvi_year_end"].pct_change(
+        1, fill_method=None
+    )
+    county["fhfa_vs_zhvi_growth_gap_yoy"] = (
+        county["fhfa_hpi_growth_yoy"] - county["zhvi_growth_yoy_year_end"]
+    )
+
+    return {
+        "state_quarterly": state,
+        "metro_monthly": metro_monthly,
+        "metro_quarterly": metro_quarterly,
+        "county_annual": county,
+    }
 
 
 def _county_panel(fact: pd.DataFrame, config: ProjectConfig) -> pd.DataFrame:
@@ -255,12 +461,6 @@ def _zip_panel(fact: pd.DataFrame, config: ProjectConfig) -> pd.DataFrame:
             "date",
             "postal_zip",
             *ZIP_REDFIN_LEVEL_COLUMNS,
-            "homes_sold_yoy_pct_provider",
-            "median_sale_price_nsa_yoy_pct_provider",
-            "median_days_on_market_yoy_pct_provider",
-            "new_listings_yoy_pct_provider",
-            "active_listings_yoy_pct_provider",
-            "pending_sales_yoy_pct_provider",
             "redfin_frequency",
             "redfin_window_months",
             "redfin_last_updated",
@@ -274,12 +474,6 @@ def _zip_panel(fact: pd.DataFrame, config: ProjectConfig) -> pd.DataFrame:
     else:
         for column in [
             *ZIP_REDFIN_LEVEL_COLUMNS,
-            "homes_sold_yoy_pct_provider",
-            "median_sale_price_nsa_yoy_pct_provider",
-            "median_days_on_market_yoy_pct_provider",
-            "new_listings_yoy_pct_provider",
-            "active_listings_yoy_pct_provider",
-            "pending_sales_yoy_pct_provider",
             "redfin_frequency",
             "redfin_window_months",
             "redfin_last_updated",
@@ -294,13 +488,10 @@ def _zip_panel(fact: pd.DataFrame, config: ProjectConfig) -> pd.DataFrame:
         ),
         "new_listings": "new_listings_yoy_calculated",
         "active_listings": "active_listings_yoy_calculated",
-        "pending_sales": "pending_sales_yoy_calculated",
     }
     panel = panel.sort_values(["postal_zip", "date"]).reset_index(drop=True)
     for level_column, yoy_column in calculated_columns.items():
         panel[yoy_column] = _calculated_zip_yoy(panel, level_column)
-    for column in ZIP_LEGACY_UNSUPPORTED_COLUMNS:
-        panel[column] = pd.NA
     panel["zhvi_available"] = panel["zhvi"].notna()
     panel["zori_available"] = panel["zori"].notna()
     panel["redfin_available"] = panel[
@@ -338,13 +529,11 @@ def _redfin_yoy_report(config: ProjectConfig, panel: pd.DataFrame) -> None:
             "active_listings_yoy_pct_provider",
             "active_listings_yoy_calculated",
         ),
-        "pending_sales": (
-            "pending_sales_yoy_pct_provider",
-            "pending_sales_yoy_calculated",
-        ),
     }
     rows = []
     for metric, (provider_column, calculated_column) in pairs.items():
+        if provider_column not in panel or calculated_column not in panel:
+            continue
         comparable = panel[[provider_column, calculated_column]].dropna()
         difference = (
             comparable[provider_column] - comparable[calculated_column]
@@ -377,27 +566,17 @@ def build_analytical_outputs(
     end_date: str | None = None,
 ) -> dict[str, pd.DataFrame]:
     logger = logging.getLogger("la_housing.harmonize")
-    fact = _date_filter(_read_clean_files(config.root), start_date, end_date)
+    active_variable_ids = {str(item["variable_id"]) for item in config.variables}
+    fact = _date_filter(_read_clean_files(config), start_date, end_date)
+    fact = fact.loc[fact["variable_id"].isin(active_variable_ids)].copy()
     fact = fact.sort_values(
         ["observation_date", "geo_id", "variable_id", "source_vintage"]
     )
     county = _county_panel(fact, config)
     zip_panel = _zip_panel(fact, config)
     _redfin_yoy_report(config, zip_panel)
-    state_quarterly = pd.DataFrame(
-        {
-            "quarter_end": pd.Series(dtype="datetime64[ns]"),
-            "state_fips": pd.Series(dtype="string"),
-            "fhfa_hpi": pd.Series(dtype="float64"),
-            "permits": pd.Series(dtype="float64"),
-            "rental_vacancy": pd.Series(dtype="float64"),
-            "personal_income": pd.Series(dtype="float64"),
-            "unemployment": pd.Series(dtype="float64"),
-            "mortgage_rate": pd.Series(dtype="float64"),
-            "treasury_rate": pd.Series(dtype="float64"),
-            "mortgage_spread": pd.Series(dtype="float64"),
-        }
-    )
+    slow = _slow_frequency_panels(fact, county)
+    state_quarterly = slow["state_quarterly"]
     final_dir = config.root / "data" / "final"
     final_dir.mkdir(parents=True, exist_ok=True)
     fact.to_parquet(final_dir / "fact_housing_observation.parquet", index=False)
@@ -405,6 +584,15 @@ def build_analytical_outputs(
     zip_panel.to_parquet(final_dir / "zip_monthly_panel.parquet", index=False)
     state_quarterly.to_parquet(
         final_dir / "state_quarterly_panel.parquet", index=False
+    )
+    slow["metro_monthly"].to_parquet(
+        final_dir / "metro_monthly_controls.parquet", index=False
+    )
+    slow["metro_quarterly"].to_parquet(
+        final_dir / "metro_quarterly_panel.parquet", index=False
+    )
+    slow["county_annual"].to_parquet(
+        final_dir / "county_annual_controls.parquet", index=False
     )
     geography, crosswalk = build_geography(config, fact)
     pd.DataFrame(config.variables).to_csv(
@@ -481,6 +669,9 @@ def build_analytical_outputs(
         "county": county,
         "zip": zip_panel,
         "state_quarterly": state_quarterly,
+        "metro_monthly": slow["metro_monthly"],
+        "metro_quarterly": slow["metro_quarterly"],
+        "county_annual": slow["county_annual"],
         "geography": geography,
         "crosswalk": crosswalk,
     }

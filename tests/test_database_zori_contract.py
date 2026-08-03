@@ -24,13 +24,13 @@ def test_database_contains_only_active_sa_zori_contract():
                 """
                 SELECT table_name
                 FROM information_schema.tables
-                WHERE table_schema = 'clean' AND table_name LIKE '%zori%'
+                WHERE table_schema = 'clean' AND table_name LIKE '%rent_index%'
                 """
             ).fetchall()
         }
         assert clean_tables == {
-            "zillow_county_zori_smoothed_sa",
-            "zillow_zip_zori_smoothed_sa",
+            "zillow_county_rent_index",
+            "zillow_zip_rent_index",
         }
 
         fact_variables = {
@@ -63,16 +63,20 @@ def test_database_contains_only_active_sa_zori_contract():
         }.isdisjoint(source_ids)
 
         dictionary_variables = {
-            row[0]
+            row[0]: row[1]
             for row in connection.execute(
                 """
-                SELECT variable_id
+                SELECT variable_id, is_observed
                 FROM metadata.variable_dictionary
                 WHERE variable_id LIKE 'zori%'
                 """
             ).fetchall()
         }
-        assert dictionary_variables == {"zori_smoothed_sa"}
+        assert dictionary_variables == {
+            "zori_smoothed_sa": True,
+            "zori_growth_mom": False,
+            "zori_growth_yoy": False,
+        }
 
 
 def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
@@ -91,7 +95,7 @@ def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
         county_mismatches = connection.execute(
             """
             SELECT count(*)
-            FROM clean.zillow_county_zori_smoothed_sa AS clean
+            FROM clean.zillow_county_rent_index AS clean
             LEFT JOIN analytics.county_monthly_panel AS panel
               ON panel.date = clean.observation_date
             WHERE panel.date IS NULL
@@ -101,7 +105,7 @@ def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
         zip_mismatches = connection.execute(
             """
             SELECT count(*)
-            FROM clean.zillow_zip_zori_smoothed_sa AS clean
+            FROM clean.zillow_zip_rent_index AS clean
             LEFT JOIN analytics.zip_monthly_panel AS panel
               ON panel.date = clean.observation_date
              AND panel.postal_zip = replace(clean.geo_id, 'ZIP_', '')
@@ -113,13 +117,13 @@ def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
         assert zip_mismatches == 0
 
         clean_county_count = connection.execute(
-            "SELECT count(*) FROM clean.zillow_county_zori_smoothed_sa"
+            "SELECT count(*) FROM clean.zillow_county_rent_index"
         ).fetchone()[0]
         panel_county_count = connection.execute(
             "SELECT count(*) FROM analytics.county_monthly_panel WHERE zori IS NOT NULL"
         ).fetchone()[0]
         clean_zip_count = connection.execute(
-            "SELECT count(*) FROM clean.zillow_zip_zori_smoothed_sa"
+            "SELECT count(*) FROM clean.zillow_zip_rent_index"
         ).fetchone()[0]
         panel_zip_count = connection.execute(
             "SELECT count(*) FROM analytics.zip_monthly_panel WHERE zori IS NOT NULL"
@@ -147,14 +151,14 @@ def test_zori_keys_coverage_and_derived_features_are_valid():
         county_coverage = connection.execute(
             """
             SELECT count(*), min(observation_date), max(observation_date)
-            FROM clean.zillow_county_zori_smoothed_sa
+            FROM clean.zillow_county_rent_index
             """
         ).fetchone()
         zip_coverage = connection.execute(
             """
             SELECT count(*), count(DISTINCT geo_id),
                    min(observation_date), max(observation_date)
-            FROM clean.zillow_zip_zori_smoothed_sa
+            FROM clean.zillow_zip_rent_index
             """
         ).fetchone()
         assert county_coverage[0] > 12

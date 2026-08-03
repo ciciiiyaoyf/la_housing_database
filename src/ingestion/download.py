@@ -8,6 +8,7 @@ import re
 import shutil
 from datetime import date, datetime, timezone
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import pandas as pd
 import requests
@@ -16,20 +17,38 @@ from src.common.config import ProjectConfig, SourceConfig
 from src.common.io import append_csv, sha256_file
 from src.ingestion.bps_archive import download_bps_archive
 
-RAW_SUBDIR = {
-    "Zillow Research": "zillow",
-    "Redfin Data Center": "redfin",
-    "U.S. Bureau of Labor Statistics": "bls",
-    "Freddie Mac": "freddie_mac",
-    "U.S. Census Bureau": "census_bps",
-}
-
 BLS_SERIES = (
     "LAUCN060370000000003",
     "LAUCN060370000000004",
     "LAUCN060370000000005",
     "LAUCN060370000000006",
 )
+USER_AGENT = "UCLA housing research data pipeline yifan@g.ucla.edu"
+
+
+def _raw_subdir(source: SourceConfig) -> str:
+    source_id = source.source_id
+    if source_id.startswith("bls_ces_"):
+        return "bls_ces"
+    if source_id.startswith("bls_cpi_"):
+        return "bls_cpi"
+    if source_id.startswith("bls_"):
+        return "bls"
+    if source_id.startswith("census_bps_"):
+        return "census_bps"
+    if source_id.startswith("census_hvs_"):
+        return "census_hvs"
+    if source_id.startswith("census_acs_"):
+        return "census_acs"
+    if source_id.startswith("fhfa_"):
+        return "fhfa"
+    if source_id.startswith("bea_"):
+        return "bea"
+    return {
+        "Zillow Research": "zillow",
+        "Redfin Data Center": "redfin",
+        "Freddie Mac": "freddie_mac",
+    }[source.provider]
 
 
 def _today_manifest_record(
@@ -114,7 +133,7 @@ def _latest_bps_url(source: SourceConfig) -> str:
                 candidate,
                 timeout=30,
                 allow_redirects=True,
-                headers={"User-Agent": "UCLA housing research data pipeline/0.1"},
+                headers={"User-Agent": USER_AGENT},
             )
             if response.ok:
                 return candidate
@@ -150,7 +169,7 @@ def _download_bls(
             source.download_url,
             json=request_payload,
             timeout=120,
-            headers={"User-Agent": "UCLA housing research data pipeline/0.1"},
+            headers={"User-Agent": USER_AGENT},
         )
         response.raise_for_status()
         try:
@@ -264,9 +283,12 @@ def _download_bls(
 def _extension(source: SourceConfig) -> str:
     return {
         "csv": ".csv",
+        "dat": ".dat",
         "json": ".json",
         "txt": ".txt",
         "tsv.gz": ".tsv.gz",
+        "xlsx": ".xlsx",
+        "zip": ".zip",
     }[source.file_format]
 
 
@@ -318,7 +340,7 @@ def _import_local_file(
         f"{retrieved_at:%Y%m%dT%H%M%SZ}_{checksum[:12]}"
         f"{_extension(source)}"
     )
-    raw_dir = config.root / "data" / "raw" / RAW_SUBDIR[source.provider]
+    raw_dir = config.root / "data" / "raw" / _raw_subdir(source)
     raw_dir.mkdir(parents=True, exist_ok=True)
     destination = raw_dir / filename
     temp_path = raw_dir / f".{filename}.part"
@@ -410,14 +432,20 @@ def download_source(
             logger.info("Reusing today's raw archive for %s", source.source_id)
             return existing[1]
 
-    raw_dir = config.root / "data" / "raw" / RAW_SUBDIR[source.provider]
+    raw_dir = config.root / "data" / "raw" / _raw_subdir(source)
     raw_dir.mkdir(parents=True, exist_ok=True)
     retrieved_at = datetime.now(timezone.utc)
     temp_path = raw_dir / f".{source.source_id}.{retrieved_at:%Y%m%dT%H%M%SZ}.part"
     resolved_download_url = source.download_url
     request_metadata: dict[str, str | int] = {}
+    original_filename = (
+        "api_response.json"
+        if source.file_format == "json"
+        and source.provider == "U.S. Bureau of Labor Statistics"
+        else unquote(Path(urlparse(resolved_download_url).path).name)
+    )
     try:
-        if source.source_id == "bls_laus_la_county":
+        if source.file_format == "json" and source.source_id.startswith("bls_"):
             request_metadata = _download_bls(
                 source, temp_path, start_date, end_date
             )
@@ -426,12 +454,27 @@ def download_source(
                 resolved_download_url,
                 stream=True,
                 timeout=int(config.pipeline["request_timeout_seconds"]),
-                headers={"User-Agent": "UCLA housing research data pipeline/0.1"},
+                headers={"User-Agent": USER_AGENT},
             ) as response:
                 _write_response(
                     response,
                     temp_path,
                     int(config.pipeline["download_chunk_bytes"]),
+                )
+                disposition = response.headers.get("Content-Disposition", "")
+                match = re.search(r'filename="?([^";]+)', disposition)
+                if match:
+                    original_filename = match.group(1).strip()
+        if source.file_format in {"zip", "xlsx"}:
+            if temp_path.read_bytes()[:2] != b"PK":
+                raise ValueError(
+                    f"{source.source_id} did not return a valid ZIP/XLSX payload"
+                )
+        elif source.file_format in {"dat", "txt"}:
+            prefix = temp_path.read_bytes()[:200].lstrip().lower()
+            if prefix.startswith((b"<!doctype html", b"<html")):
+                raise ValueError(
+                    f"{source.source_id} returned HTML instead of source data"
                 )
         checksum = sha256_file(temp_path)
         filename = (
@@ -455,9 +498,17 @@ def download_source(
         "retrieved_at": retrieved_at.isoformat(),
         "data_vintage": retrieved_at.date().isoformat(),
         "source_filename": destination.name,
+        "original_filename": original_filename,
+        "stored_filename": destination.name,
         "relative_path": destination.relative_to(config.root).as_posix(),
         "byte_size": destination.stat().st_size,
         "checksum_sha256": checksum,
+        "retrieval_method": (
+            "official_api"
+            if source.file_format == "json"
+            and source.provider == "U.S. Bureau of Labor Statistics"
+            else source.access_method
+        ),
         "license_or_use_notes": source.license_or_use_notes,
         "revision_notes": source.revision_notes,
         "ingestion_status": "downloaded",
@@ -520,7 +571,7 @@ def download_sources(
                     "source_page_url": source.source_page_url,
                     "download_url": source.download_url,
                     "expected_directory": (
-                        f"data/raw/{RAW_SUBDIR[source.provider]}/"
+                        f"data/raw/{_raw_subdir(source)}/"
                     ),
                     "reason": reason,
                     "instruction": (
