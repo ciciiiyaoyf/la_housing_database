@@ -357,6 +357,14 @@ def _download_census_acs_5year_api(
         )
     variables = [_acs_api_variable(column) for column in variable_map]
     group_clause = f"group({table_id.upper()})"
+    if table_id == "b25004":
+        # The requested rental-availability rate needs the same-vintage
+        # renter-occupied denominator from B25003. Keep the source county-only
+        # and request only the auditable cells used by the construction.
+        variables = [*variables, "B25003_003E"]
+        get_clause = ",".join(["NAME", *variables])
+    else:
+        get_clause = group_clause
     zcta_ucgids = (
         _la_zcta_ucgids(config) if "zcta" in source.geography_levels else []
     )
@@ -366,20 +374,21 @@ def _download_census_acs_5year_api(
     session = requests.Session()
     for year in range(start_year, end_year + 1):
         base_url = f"https://api.census.gov/data/{year}/acs/acs5"
-        geography_requests = [
-            (
-                "county",
-                {
-                    "get": group_clause,
-                    "ucgid": "050C0US06037",
-                },
-            )
-        ]
+        county_params = {"get": get_clause, "ucgid": "050C0US06037"}
+        if table_id == "b25004":
+            # The personalized UCGID route returns HTTP 204 for this cross-table
+            # county query; standard Census geography predicates return the row.
+            county_params = {
+                "get": get_clause,
+                "for": "county:037",
+                "in": "state:06",
+            }
+        geography_requests = [("county", county_params)]
         geography_requests.extend(
             (
                 f"zcta_chunk_{chunk_number:02d}",
                 {
-                    "get": group_clause,
+                    "get": get_clause,
                     "ucgid": ",".join(chunk),
                 },
             )
@@ -444,7 +453,7 @@ def _download_census_acs_5year_api(
                         if key != "key"
                     },
                     "variables": variables,
-                    "api_get": group_clause,
+                    "api_get": get_clause,
                     "response": body,
                 }
             )
@@ -468,7 +477,7 @@ def _download_census_acs_5year_api(
     return {
         "request_api_base": "https://api.census.gov/data/{year}/acs/acs5",
         "request_table_id": table_id.upper(),
-        "request_variables": group_clause,
+        "request_variables": get_clause,
         "request_selected_variables": "|".join(variables),
         "request_geographies": "ucgid:050C0US06037|ucgid:860Z200US<LA ZIP chunks>",
         "request_start_year": str(start_year),

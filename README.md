@@ -61,7 +61,7 @@ General source pages, download URLs/API endpoints, file formats, source IDs, key
 | Freddie Mac | `freddie_mac_pmms` | Weekly and monthly 30-year fixed mortgage-rate measures |
 | Census BPS | `census_bps_county`, `census_bps_state` | Total, 1-unit, 2-to-4-unit, and 5-plus-unit permits |
 | Census HVS | `census_hvs_state_rental_vacancy`, `census_hvs_metro_rental_vacancy_2005_2014`, `census_hvs_metro_rental_vacancy_2015_2025`, `census_hvs_metro_rental_vacancy_2026` | Rental vacancy rates at state/metro geographies |
-| Census ACS 5-year detailed tables | `census_acs_5year_b11001`, `b19013`, `b25001`, `b25002`, `b25003`, `b25064`, `b25077`, `b25081`, `b25106` | Households, income, housing units, vacancy, tenure, gross rent, home value, mortgage status, owner housing-cost-burden bins |
+| Census ACS 5-year detailed tables | `census_acs_5year_b11001`, `b19013`, `b25001`, `b25002`, `b25003`, `b25004`, `b25064`, `b25077`, `b25081`, `b25106` | Households, income, housing units, vacancy, tenure, annual rental availability, gross rent, home value, mortgage status, owner housing-cost-burden bins |
 | FHFA HPI | `fhfa_hpi_state_purchase_only`, `fhfa_hpi_metro_purchase_only`, `fhfa_hpi_county_annual` | State, metro, and county HPI benchmarks |
 | BEA | `bea_state_personal_income`, `bea_county_personal_income` | Personal income and per-capita personal income |
 | IRS SOI | `irs_soi_county_migration` | LA County annual in-migration, out-migration, and net migration from IRS county migration returns, exemptions, and AGI |
@@ -451,6 +451,7 @@ ORDER BY postal_zip;
 - Redfin ZIP Key Metrics has no verified stable direct endpoint for the selected CSV export and requires manual official download/import.
 - Rental inventory is not implemented because no verified official rental-listing inventory source is integrated; ZORI is not inventory.
 - The HUD/USPS all-residential vacancy proxy is quarantined and disabled because its surviving derived package lacks the official raw API responses and complete provenance required for ingestion. It does not satisfy true rental-listing inventory.
+- ACS annual LA County rental availability is available for the 2010-2024 five-year vintages as B25004 for-rent vacant units divided by same-vintage renter-occupied plus for-rent vacant units. It is not monthly rental-listing inventory.
 - The B25106 mortgage debt/equity scenario remains only for reproducibility; use Version A `_benchmark` variables as the current authoritative finance standard.
 - Eviction trends are implemented only as annual Eviction Lab modeled county estimates for 2000-2018; they should not be interpreted as high-frequency ETS or direct LA court filing data.
 - Permits are not starts, completions, or units under construction.

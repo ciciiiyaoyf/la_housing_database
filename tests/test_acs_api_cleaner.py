@@ -96,6 +96,55 @@ def test_acs_api_json_cleaner_preserves_history_fips_and_zcta_filter(tmp_path):
     assert not frame.duplicated(["geo_id", "observation_date", "variable_id"]).any()
 
 
+def test_b25004_cleaner_constructs_same_vintage_rental_availability(tmp_path):
+    geography_path = tmp_path / "geography.parquet"
+    pd.DataFrame({"postal_zip": []}).to_parquet(geography_path)
+    raw_path = tmp_path / "b25004.json"
+    raw_path.write_text(
+        json.dumps(
+            {
+                "requests": [
+                    {
+                        "year": 2024,
+                        "geography": "county",
+                        "response": [
+                            [
+                                "NAME",
+                                "B25004_002E",
+                                "B25004_002M",
+                                "B25003_003E",
+                                "state",
+                                "county",
+                            ],
+                            [
+                                "Los Angeles County, California",
+                                "100",
+                                "10",
+                                "900",
+                                "06",
+                                "037",
+                            ],
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    frame = clean_acs_table(
+        raw_path,
+        _record(),
+        "census_acs_5year_b25004",
+        geography_path,
+        tmp_path / "clean_b25004.parquet",
+    )
+    values = frame.set_index("variable_id")["value"]
+    assert values["acs_for_rent_vacant_units"] == 100
+    assert values["acs_for_rent_vacant_units_moe"] == 10
+    assert values["acs_rental_availability_rate"] == 0.1
+    assert set(frame["geo_id"]) == {"COUNTY_06037"}
+
+
 def test_acs_api_download_surfaces_missing_key_without_archiving(tmp_path, monkeypatch):
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)
     (tmp_path / "data" / "clean").mkdir(parents=True)

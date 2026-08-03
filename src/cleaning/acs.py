@@ -257,6 +257,23 @@ def _clean_acs_api_json(
             part["variable_id"] = variable_id
             part["unit"] = unit
             rows.append(part)
+        if source_id == "census_acs_5year_b25004":
+            required_rate_columns = {"B25004_002E", "B25003_003E"}
+            missing_rate_columns = required_rate_columns - set(source.columns)
+            if missing_rate_columns:
+                raise ValueError(
+                    "ACS rental availability inputs missing: "
+                    f"{sorted(missing_rate_columns)}"
+                )
+            rate = source[["geo_id", "state_fips", "county_fips"]].copy()
+            for_rent = _numeric_acs(source["B25004_002E"])
+            renter_occupied = _numeric_acs(source["B25003_003E"])
+            denominator = for_rent + renter_occupied
+            rate["value"] = for_rent / denominator.where(denominator > 0)
+            rate["reported_value"] = rate["value"]
+            rate["variable_id"] = "acs_rental_availability_rate"
+            rate["unit"] = "fraction"
+            rows.append(rate)
         long = pd.concat(rows, ignore_index=True)
         long["observation_date"] = pd.Timestamp(year=year, month=12, day=31)
         long["source_observation_date"] = long["observation_date"]
