@@ -457,6 +457,13 @@ The cleaner keeps the newer days-on-market YoY change in days separate from the
 legacy percentage measure. See [Redfin downloads](docs/database_build_and_refresh.md#redfin-downloads)
 for the source formats and the separate county-data review hold.
 
+For a smaller update, the guide's [command selector](docs/database_build_and_refresh.md#choose-the-right-refresh-command)
+distinguishes one source, all general sources, and the whole project including
+finance B/C. `run_pipeline.py --stage refresh --source redfin` selects both Redfin
+county and ZIP sources and rebuilds the shared outputs once; it remains subject
+to the county review hold. A complete refresh already includes cleaning, so a
+separate `--stage clean` is only for the documented maintenance workflow.
+
 ### Load model inputs from DuckDB
 
 You can move data directly from DuckDB into Python, without downloading a CSV.

@@ -39,7 +39,9 @@ STAGES = (*PIPELINE_STAGES, "variable-metadata", "all", "refresh")
 def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(description=__doc__)
     command.add_argument("--stage", choices=STAGES, required=True)
-    command.add_argument("--source", help="Run only one configured source_id")
+    command.add_argument(
+        "--source", help="Configured source_id or source group; redfin selects county and ZIP sources"
+    )
     command.add_argument("--start-date", help="Inclusive ISO date filter")
     command.add_argument("--end-date", help="Inclusive ISO date filter")
     command.add_argument("--vintage", help="Reserved source-vintage selector (ISO date)")

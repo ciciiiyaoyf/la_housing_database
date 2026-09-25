@@ -7,6 +7,37 @@ For optional CSV downloads, use the [Data Browser instructions](query_and_export
 The commands here rebuild or update local research products; they are not a
 complete database installation recipe for a fresh clone.
 
+## Choose the right refresh command
+
+Run commands in **Windows PowerShell inside the project folder**, after closing
+database readers as explained below. Choose **one** workflow from this table;
+the rows are alternatives, not a sequence to run from top to bottom.
+
+| What you want to update | Command |
+|---|---|
+| All configured general sources and general database products | `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh` |
+| The whole project, including rebuilding finance B and building/validating finance C | `.\.venv\Scripts\python.exe run_system_refresh.py` |
+| One general source, for example LAUS | `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bls_laus_la_county` |
+| Both Redfin county and ZIP sources together | `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin` |
+
+Every `--stage refresh` command includes acquisition, cleaning, harmonization,
+DuckDB rebuilding, validation, catalog updates, and CSV exports. **You do not
+run a separate `clean` command after a successful refresh.** The integrated
+`run_system_refresh.py` command includes that general refresh and the additional
+finance work; running both all-source commands would repeat acquisition.
+
+A source filter limits which provider inputs are downloaded and cleaned. Shared
+general tables are then rebuilt using those inputs and the other sources already
+stored locally. It does not make the other sources current or rebuild finance B/C.
+For example, the combined ZIP panel still needs current Zillow ZIP-month keys to
+include new Redfin months; the full accepted Redfin subset remains in its clean
+and fact tables.
+
+**Current Redfin limitation:** the county source has a provider-method review hold.
+Selecting `redfin` includes that source and preserves the hold; it does not make
+county acquisition compatible. A combined or all-source run cannot finish
+successfully while that hold remains. See [Redfin downloads](#redfin-downloads).
+
 ## Refresh everything before modeling
 
 For a provisioned research workspace, this is the normal command for updating the
@@ -22,7 +53,8 @@ and close Python sessions connected to the database. The runner checks database
 access before downloading. It also requires the existing source archives and frozen
 finance inputs described under [What a rebuild requires](#what-a-rebuild-requires).
 
-For each subsequent data update, enter **this one command** and press Enter:
+For a whole-project update including finance B/C, enter **this one command**
+and press Enter:
 
 ```powershell
 .\.venv\Scripts\python.exe run_system_refresh.py
@@ -257,7 +289,7 @@ Retain the relationship vintage compatible with its PUMS geography.
 | [2010 Census tract-to-PUMA relationship file](https://www2.census.gov/geo/docs/maps-data/data/rel/2010_Census_Tract_to_2010_PUMA.txt)<br>`census_tract_to_puma_2010` | Decennial geography | Decennial relationship-file edition; corrections only within the named edition | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | See group note above. |
 | [HMDA combined Modified Loan Application Register](https://ffiec.cfpb.gov/data-publication/modified-lar)<br>`cfpb_hmda_modified_lar` | Annual | Annual activity-year publication; provider corrections may follow | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | Official combined ZIP is a manual finance import. Do not silently replace frozen benchmark loan records. |
 | [NMDB joint outstanding-rate and remaining-term parameter](https://www.fhfa.gov/programs/nmdb)<br>`fhfa_nmdb_joint_distribution` | Quarterly / published aggregate | Quarterly NMDB program; required exported parameter may be unavailable | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | Do not construct a joint distribution from separate marginals. Frozen benchmark inputs change only in a separately reviewed revision. |
-| [NMDB California unpaid principal balance](https://www.fhfa.gov/programs/nmdb)<br>`fhfa_nmdb_ca_upb` | Quarterly / published aggregate | Quarterly NMDB program; required exported parameter may be unavailable | **Manual:** Export the official NMDB file; archive with run_version_a.py --stage download --source fhfa_nmdb_ca_upb using explicit --start-year, --release-date and --local-file; then run `the unified refresh. See the finance guide before importing.` | Latest archived all-mortgage UPB supports B as a growth indicator only. It is not a compatible calibration level; unified refresh does not download it. |
+| [NMDB California unpaid principal balance](https://www.fhfa.gov/programs/nmdb)<br>`fhfa_nmdb_ca_upb` | Quarterly / published aggregate | Quarterly NMDB program; required exported parameter may be unavailable | **Manual:** Follow the [finance guide](housing_finance_versions.md) to import the official NMDB file with explicit `--start-year`, `--release-date`, and `--local-file` values; then run `.\.venv\Scripts\python.exe run_system_refresh.py`. | Latest archived all-mortgage UPB supports B as a growth indicator only. It is not a compatible calibration level; unified refresh does not download it. |
 | [CPI-U US city average, published annual average for finance deflation](https://www.bls.gov/cpi/news.htm)<br>`bls_cpi_u_us_city_average` | Monthly plus published annual average | Monthly CPI releases; published M13 annual average added after year end | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | Frozen benchmark uses published M13 and its explicit release date; do not recompute the annual average. |
 
 ### Database products
@@ -438,12 +470,22 @@ succeeds:
 
 The database is a static snapshot. Opening it does not contact providers.
 On an already provisioned workspace, stop database readers as above and confirm
-provider access and the manual-source requirements. The strict general-source
-workflow, run from the same project PowerShell window, is:
+provider access and the manual-source requirements. The commands in this section
+are **alternative scopes or maintenance stages**, not a checklist to run together.
+
+### Refresh all general sources
+
+In the project PowerShell window, run:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage refresh
 ```
+
+Omitting `--source` selects all enabled general sources. This command
+downloads, cleans, rebuilds, validates, and exports in one run. It does not
+recompute finance B/C; use the [whole-project command](#refresh-everything-before-modeling)
+when those products also need updating. Fixed-edition and manual sources retain
+the exceptions in the dataset schedule.
 
 Automatic acquisition and strict cleaning failures stop the workflow. Manual or
 licensed sources appear as intervention items in `metadata/source_refresh_status.csv`;
@@ -456,35 +498,49 @@ and exports only after the downstream stages have completed. The
 [Redfin compatibility hold](county_and_zip_housing_indicators.md#current-redfin-source-limitation)
 needs a reviewed source/method decision, not repeated blind refresh attempts.
 
-For a configured source, the following are **independent runnable examples** of
-archiving a fresh official release. Choose only the source or sources needed for
-your update; this block is not a required sequence or a complete database build:
+### Refresh one source
+
+For example, to update LAUS and carry its new observations into DuckDB, run:
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bls_laus_la_county
+```
+
+This is a complete individual-source refresh. Do not follow it with another
+download or clean step. Use the exact source ID and command in the
+[dataset schedule](#dataset-update-schedule) for another source, or the
+[combined Redfin command](#redfin-downloads) for both Redfin levels.
+
+### Download and clean separately for maintenance
+
+Use separate stages when inspecting a provider file before processing it or
+diagnosing a failed stage. They are not additional steps in the normal refresh
+workflow. For example, acquisition alone is:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage download --source bls_laus_la_county --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source bls_ces_la_metro --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source bls_cpi_la_metro --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source fhfa_hpi_state_purchase_only --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source fhfa_hpi_metro_purchase_only --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source fhfa_hpi_county_annual --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source bea_state_personal_income --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source bea_county_personal_income --force-download
-.\.venv\Scripts\python.exe run_pipeline.py --stage download --source census_hvs_state_rental_vacancy --force-download
 ```
 
-Check the exit code and selected source's manifest row after each command.
-Downloading alone does not update analytical values. For example, after a
-successful LAUS download, clean it with:
+`download` preserves the provider's original response in the raw archive and
+records its provenance. It does not convert that response into analytical
+observations. After a successful download, the next maintenance stage is:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage clean --source bls_laus_la_county
 ```
 
-Check its cleaned observations and transformation record, then run the downstream
-sequence from `harmonize` through `export` above. Alternatively, run the offline
-rebuild once all required archives are present; that includes cleaning. Every
-retrieval preserves endpoint/request metadata, original
-filename, source vintage, exact retrieval time, size, and SHA-256 checksum.
+`clean` reads the archived response, parses source dates and values, preserves
+geographic identifiers, applies the source's documented transformations, and
+writes standardized observations with lineage. **Cleaning alone still does not
+update the analytical tables in DuckDB.** Check its observations and transformation
+record, then follow the downstream sequence from `harmonize` through `export` in
+[Rebuild from existing archives](#rebuild-from-existing-archives). That section
+also gives an offline rebuild which includes cleaning without downloading again.
+
+Check `$LASTEXITCODE` immediately after each maintenance command and stop on
+failure. The complete `refresh` workflow already performs these stages in order.
+Every retrieval preserves endpoint/request metadata, original filename, source
+vintage, exact retrieval time, size, and SHA-256 checksum.
 
 For LA County LAUS, the official BLS Public Data API requests series
 `LAUCN060370000000003` (unemployment rate), `...004` (unemployment), `...005`
@@ -494,6 +550,48 @@ manifest row rather than relying on a date copied into a document.
 
 ## Redfin downloads
 
+### Refresh county and ZIP data together
+
+In **Windows PowerShell inside the project folder**, after closing DuckDB and
+other database readers, the combined command is:
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin
+```
+
+`redfin` is a source group defined in `config/pipeline.yaml`: it selects
+`redfin_county_monthly` and `redfin_zip_monthly`. It acquires and cleans both
+sources, then runs the shared harmonization, database build, validation, catalog,
+and export stages once. Other providers are not downloaded by this command.
+
+**Currently blocked by the county review hold:** the accepted county series
+ends in May 2026; newer county files require the documented methodology migration.
+The combined command reports that blocker and cannot claim a completed update
+just because ZIP acquisition succeeds. Downloads may have been archived before
+the run stops. The source group does not remove or bypass the hold. Review the
+[county-source limitation](county_and_zip_housing_indicators.md#current-redfin-source-limitation)
+before attempting it. To list known requirements without downloading, use
+`.\.venv\Scripts\python.exe run_system_refresh.py --check --source redfin`.
+
+For an individual Redfin level, choose **one** of these commands:
+
+**County only** (subject to the same current hold):
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_county_monthly
+```
+
+**ZIP only:**
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_zip_monthly
+```
+
+Use `run_system_refresh.py` without a source filter for all configured sources
+and finance products. You do not need to run the separate Redfin commands first.
+
+### ZIP download method and source formats
+
 The ZIP downloader uses Redfin's official public files directly. It reads the
 [provider file index](https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_data_center/index.json)
 and follows its `housing_market.monthly.zip.all` entry. That index and file path
@@ -502,7 +600,8 @@ No browser, API key, or manual download is needed for this route. Install the
 project requirements as described in the README; a separate Chromium installation
 is no longer required.
 
-**Where to type:** in Windows PowerShell, inside `la_housing_database`. Run:
+For acquisition only, use this maintenance command in the project PowerShell
+window. The refresh commands above already include this work:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage download --source redfin_zip_monthly --force-download
@@ -520,17 +619,8 @@ the configured January 2019 window-start bound and LA County ZIP reference
 produced 27,538 ZIP-period rows across 330 ZIPs, ending March 2019 through August
 2026. These are dated verification results; later releases can revise them.
 
-Downloading alone does not update analytical observations. To acquire, clean,
-rebuild, and validate this source in an already provisioned workspace, close
-DuckDB and other readers, then run:
-
-```powershell
-.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_zip_monthly
-```
-
-Use the integrated `run_system_refresh.py` workflow above when updating all
-sources and finance products. The county Redfin review hold remains separate;
-an all-source refresh can still fail on that unresolved source.
+Downloading alone does not update analytical observations. Use one of the
+refresh workflows above to complete cleaning, rebuilding, validation, and exports.
 
 **Versioned formats and units:** the cleaner accepts the exact legacy 20-column
 Key Metrics export, the successor 22-column export, and the official full
@@ -555,7 +645,7 @@ measure; it is not relabeled as the provider's days change.
 
 **If you saw HTTP 429:** that error came from the earlier browser-page method.
 Update the project code using the README's update instructions, then use the
-command above. `--force-download` bypasses the local cache; it does not override
+ZIP refresh command above. `--force-download` bypasses the local cache; it does not override
 provider access limits. If the direct file itself refuses access, stop repeated
 attempts and read the reported failure. Existing database observations remain
 available for queries; a failed acquisition is never reported as a data refresh.

@@ -33,7 +33,9 @@ def parser() -> argparse.ArgumentParser:
             "date and creates/reuses that append-only vintage."
         ),
     )
-    command.add_argument("--source", help="Optionally refresh one general source_id")
+    command.add_argument(
+        "--source", help="Optionally refresh a general source_id or group; redfin selects county and ZIP sources"
+    )
     command.add_argument("--start-date", help="Optional supported-source start date")
     command.add_argument("--end-date", help="Optional supported-source end date")
     command.add_argument(

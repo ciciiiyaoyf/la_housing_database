@@ -397,6 +397,60 @@ def test_provider_review_hold_blocks_successful_download_and_keeps_archive_metad
     assert (tmp_path / downloaded[0]["relative_path"]).is_file()
 
 
+def test_redfin_group_keeps_county_review_hold_after_both_downloads_succeed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    county = _source("redfin_county_monthly")
+    zipcode = _source("redfin_zip_monthly")
+    config = _config(tmp_path, county, zipcode, _source("unrelated_source"))
+    config.pipeline.update({
+        "source_groups": {"redfin": [county.source_id, zipcode.source_id]},
+        "source_refresh_review_holds": {county.source_id: "County successor definition needs review."},
+    })
+    acquired = []
+
+    def download_group(actual_config, source_filter, force, offline, *args, **kwargs):
+        assert source_filter == "redfin"
+        assert force is True and offline is False and kwargs["refresh_latest"] is True
+        for source in actual_config.selected_sources(source_filter):
+            acquired.append(_archive(
+                tmp_path, source.source_id, retrieved_at="2026-09-25T12:00:00+00:00"
+            ))
+        pd.DataFrame(acquired).to_csv(tmp_path / "metadata/raw_file_manifest.csv", index=False)
+        return acquired, []
+
+    monkeypatch.setattr("src.ingestion.refresh.download_sources", download_group)
+    with pytest.raises(SourceRefreshBlocked, match="redfin_county_monthly"):
+        refresh_latest_sources(config, source_filter="redfin")
+    assert [record["source_id"] for record in acquired] == [county.source_id, zipcode.source_id]
+    report = pd.read_csv(tmp_path / "metadata/source_refresh_status.csv").set_index("source_id")
+    assert set(report.index) == {county.source_id, zipcode.source_id}
+    assert report.loc[county.source_id, "refresh_status"] == "provider_release_review_required"
+    assert bool(report.loc[county.source_id, "is_blocking"])
+    assert not bool(report.loc[zipcode.source_id, "is_blocking"])
+    assert report["archive_verified"].all()
+
+
+def test_group_refresh_runs_shared_pipeline_stages_once(tmp_path, monkeypatch):
+    from src import pipeline
+
+    config = _config(tmp_path, _source("redfin_county_monthly"), _source("redfin_zip_monthly"), _source("unrelated"))
+    config.pipeline["source_groups"] = {"redfin": ["redfin_county_monthly", "redfin_zip_monthly"]}
+    monkeypatch.setattr(pipeline, "load_config", lambda: config)
+    calls = []
+
+    def record_stage(stage, arguments, *, refresh_latest=False):
+        assert refresh_latest is True
+        assert arguments.source == "redfin"
+        calls.append(stage)
+
+    monkeypatch.setattr(pipeline, "_run_stage", record_stage)
+    assert pipeline.main(["--stage", "refresh", "--source", "redfin"]) == 0
+    assert calls == list(pipeline.PIPELINE_STAGES)
+    assert calls.count("harmonize") == calls.count("build-database") == 1
+    assert calls.count("validate") == calls.count("export") == 1
+
+
 def test_clean_verification_cannot_clear_provider_hold_or_accept_coverage_baseline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

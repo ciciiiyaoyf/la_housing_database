@@ -87,9 +87,35 @@ class ProjectConfig:
         enabled = tuple(item for item in self.sources if item.enabled)
         if source is None:
             return enabled
+        groups = self.pipeline.get("source_groups", {})
+        if not isinstance(groups, dict) or any(
+            not isinstance(name, str) or not name.strip() for name in groups
+        ):
+            raise ValueError("source_groups must map nonempty group names to source ID lists")
+        if source in groups:
+            by_id = {item.source_id: item for item in self.sources}
+            if source in by_id:
+                raise ValueError(f"Source group '{source}' conflicts with a source_id")
+            members = groups[source]
+            if (
+                not isinstance(members, list)
+                or not members
+                or any(not isinstance(item, str) or not item.strip() for item in members)
+                or len(set(members)) != len(members)
+            ):
+                raise ValueError(f"Source group '{source}' must be a nonempty list of unique source IDs")
+            unavailable = [
+                item for item in members if item not in by_id or not by_id[item].enabled
+            ]
+            if unavailable:
+                raise ValueError(
+                    f"Source group '{source}' has unknown or disabled members: "
+                    + ", ".join(unavailable)
+                )
+            return tuple(by_id[item] for item in members)
         selected = tuple(item for item in enabled if item.source_id == source)
         if not selected:
-            valid = ", ".join(item.source_id for item in enabled)
+            valid = ", ".join([*(item.source_id for item in enabled), *groups])
             raise ValueError(f"Unknown or disabled source '{source}'. Choose from: {valid}")
         return selected
 

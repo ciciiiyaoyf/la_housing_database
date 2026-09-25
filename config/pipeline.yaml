@@ -9,6 +9,10 @@ stale_after_days: 120
 extreme_mom_threshold: 0.25
 extreme_yoy_threshold: 0.60
 market_tightness_min_components: 3
+source_groups:
+  redfin:
+    - redfin_county_monthly
+    - redfin_zip_monthly
 source_refresh_review_holds:
   redfin_county_monthly: >-
     As of September 22, 2026, the configured official legacy county download

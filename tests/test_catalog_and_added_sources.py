@@ -328,17 +328,22 @@ def test_maintenance_guide_refresh_commands_match_cli():
     assert any(command.stage == "catalog" for command in commands)
     refresh_sources = {
         command.source for command in commands
-        if command.stage == "download" and command.force_download
+        if command.stage == "refresh"
     }
-    for source_id in (
-        "bls_laus_la_county",
-        "bls_ces_la_metro",
-        "bls_cpi_la_metro",
-        "fhfa_hpi_state_purchase_only",
-        "fhfa_hpi_metro_purchase_only",
-        "fhfa_hpi_county_annual",
-        "bea_state_personal_income",
-        "bea_county_personal_income",
-        "census_hvs_state_rental_vacancy",
-    ):
-        assert source_id in refresh_sources
+    assert {
+        None, "bls_laus_la_county", "redfin", "redfin_county_monthly",
+        "redfin_zip_monthly",
+    }.issubset(refresh_sources)
+    config = load_config()
+    for command in commands:
+        if command.source is not None:
+            assert config.selected_sources(command.source)
+    assert any(
+        command.stage == "download" and command.force_download
+        and command.source == "bls_laus_la_county"
+        for command in commands
+    )
+    assert any(
+        command.stage == "clean" and command.source == "bls_laus_la_county"
+        for command in commands
+    )
