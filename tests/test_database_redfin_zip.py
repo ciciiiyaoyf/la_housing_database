@@ -53,7 +53,7 @@ def test_redfin_zip_clean_and_fact_contract():
                 """
             ).fetchall()
         }
-        assert variables == {
+        expected_variables = {
             "redfin_zip_homes_sold_rolling_3m",
             "redfin_zip_median_sale_price_nsa_rolling_3m",
             "redfin_zip_median_days_on_market_rolling_3m",
@@ -67,6 +67,24 @@ def test_redfin_zip_clean_and_fact_contract():
             "redfin_zip_active_listings_yoy_pct_provider_rolling_3m",
             "redfin_zip_pending_sales_yoy_pct_provider_rolling_3m",
         }
+        clean_columns = {
+            row[0] for row in connection.execute(
+                "DESCRIBE clean.redfin_zip_monthly"
+            ).fetchall()
+        }
+        if "median_days_on_market_yoy_days_provider" in clean_columns:
+            expected_variables.add(
+                "redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m"
+            )
+            invalid_yoy_units = connection.execute("""
+                SELECT count(*) FROM analytics.fact_housing_observation
+                WHERE (variable_id = 'redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m'
+                       AND unit IS DISTINCT FROM 'days')
+                   OR (variable_id = 'redfin_zip_median_days_on_market_yoy_pct_provider_rolling_3m'
+                       AND value IS NOT NULL)
+            """).fetchone()[0]
+            assert invalid_yoy_units == 0
+        assert variables == expected_variables
         invalid_fact_geographies = connection.execute(
             """
             SELECT count(*)
@@ -100,11 +118,10 @@ def test_redfin_left_join_preserves_zillow_spine_and_values():
             """
             SELECT count(*)
             FROM clean.redfin_zip_monthly AS clean
-            LEFT JOIN analytics.zip_monthly_panel AS panel
+            JOIN analytics.zip_monthly_panel AS panel
               ON panel.postal_zip = clean.postal_zip
              AND panel.date = clean.period_end
-            WHERE panel.date IS NULL
-               OR panel.homes_sold IS DISTINCT FROM clean.homes_sold
+            WHERE panel.homes_sold IS DISTINCT FROM clean.homes_sold
                OR panel.median_sale_price_nsa
                     IS DISTINCT FROM clean.median_sale_price_nsa
                OR panel.median_days_on_market

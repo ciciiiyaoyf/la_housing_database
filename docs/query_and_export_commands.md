@@ -14,9 +14,9 @@ running an export does not fetch new provider releases.
 Filters use the [current variable dictionary](../metadata/data_dictionary.csv),
 originally aligned with the **Variable Inventory** sheet of the August 24 overview
 workbook. The historical workbook contains 482 variable IDs. The current dictionary
-contains 558, including all 482 workbook IDs. For those shared IDs, Domain, Layer,
+contains 559, including all 482 workbook IDs. For those shared IDs, Domain, Layer,
 Proxy, Constructed, Geography, Native frequency, and Final frequency agree with the
-workbook. The same filters also work for the 76 newer variables. A definition does
+workbook. The same filters also work for the 77 newer variables. A definition does
 not guarantee observations in every snapshot, dataset, place, or date range.
 
 ## Browser downloads
@@ -663,7 +663,7 @@ The following reference explains the classifications and their aggregation limit
 
 ## 9. Units and temporal types
 
-The variable dictionary covers all 558 configured variables. `unit_simplified`
+The variable dictionary covers all 559 configured variables. `unit_simplified`
 and `temporal_type` are stable query fields; the existing `unit` remains the
 original unit. Labels never rescale values or change observation dates,
 frequency, geography, source vintage, or aggregation rules.
@@ -671,7 +671,7 @@ frequency, geography, source vintage, or aggregation rules.
 `config/variable_metadata.csv` is the explicit per-variable registry.
 `config/variable_metadata_provenance.json` records the supplied workbook's
 filename, SHA-256, import timestamp, definitions, additions, and corrections.
-The workbook covers 482 IDs; 76 later additions are classified from the current
+The workbook covers 482 IDs; 77 later additions are classified from the current
 configuration and transformation definitions. The source workbook remains intact.
 
 | Temporal type | Meaning |
@@ -697,6 +697,13 @@ Unit simplifications include `current_dollars` to `USD`, `housing_units` to
 index bases remain distinct. `monetary_basis` preserves inflation information
 when the simplified label is less specific. A growth fraction labeled `share`
 can be negative or exceed one; the label does not impose a zero-to-one bound.
+
+The generated `la_version_a_benchmark.csv` retains the frozen benchmark's
+original unit labels. For 30 explicitly reviewed variables, older labels such
+as `dollars`, `rate`, and `share` have equivalent current dictionary labels.
+The export includes `unit_simplified` and explains each equivalence in
+`unit_simplification_note`; it does not rescale values or rewrite frozen files.
+Unreviewed unit mismatches still stop the export.
 
 Five reviewed classification corrections are recorded in `metadata_review_note`,
 with the original supplied type retained in `workbook_temporal_type`: three

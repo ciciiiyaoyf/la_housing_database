@@ -10,6 +10,7 @@ fred_dprime,data/clean/fred_dprime.parquet,20263,1955-08-04T00:00:00,2026-09-18T
 fred_fedfunds,data/clean/fred_fedfunds.parquet,866,1954-07-31T00:00:00,2026-08-31T00:00:00,2026-09-22T18:25:05.125066+00:00
 fred_sofr,data/clean/fred_sofr.parquet,2412,2018-04-03T00:00:00,2026-09-21T00:00:00,2026-09-22T18:25:06.568509+00:00
 redfin_county_monthly,data/clean/redfin_county_monthly.parquet,12438,2012-01-31T00:00:00,2026-05-31T00:00:00,2026-09-22T18:27:59.344268+00:00
+redfin_zip_monthly,data/clean/redfin_zip_monthly_la_county.parquet,27538,2019-03-31T00:00:00,2026-08-31T00:00:00,2026-09-25T10:57:04.813281+00:00
 zillow_county_zhvi,data/clean/zillow_county_zhvi.parquet,2560,2000-01-31T00:00:00,2026-08-31T00:00:00,2026-09-22T18:27:03.287732+00:00
 zillow_county_zori_smoothed_sa,data/clean/zillow_county_zori_smoothed_sa.parquet,1120,2015-01-31T00:00:00,2026-08-31T00:00:00,2026-09-22T18:27:11.957773+00:00
 zillow_zip_zhvi,data/clean/zillow_zip_zhvi.parquet,87680,2000-01-31T00:00:00,2026-08-31T00:00:00,2026-09-22T18:27:10.901967+00:00

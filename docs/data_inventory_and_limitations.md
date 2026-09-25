@@ -15,7 +15,7 @@ source refreshes, storage, and validation.
 
 ## Definitions, coverage, and evidence
 
-The configured contract has **558 unique variables**: 375 general variables,
+The configured contract has **559 unique variables**: 376 general variables,
 67 Version A variables, 58 Version B variables, and 58 Version C variables.
 There are **69 unique provider source IDs**; B/C reuse archived inputs rather
 than adding provider sources. These are configured counts, not assurances that
@@ -251,8 +251,18 @@ normalization decision are required before combining these histories.
 claiming current-release success merely because the legacy endpoint downloads.
 Historical offline builds remain usable with the stated cutoff. An offline
 rebuild does not acquire newer data; a source refresh must check for revisions.
-No verified automatic successor endpoint or incremental-only revision policy
-was established by this review.
+The September 25 ZIP refresh uses Redfin's verified public file index; this
+does not resolve the county-series definition and normalization issue. No
+incremental-only revision policy was established by the county review.
+
+The separately refreshed Redfin ZIP source contains 27,538 LA ZIP-period rows
+across 330 ZIPs through August 2026, from the provider's September 3 publication.
+Its observations are overlapping three-month windows. The full LA subset is
+queryable in `clean.redfin_zip_monthly` and the fact table. The combined monthly
+panel keeps its Zillow ZIP-month keys, so additional Redfin-only keys appear in
+QA coverage warnings rather than expanding that panel. The provider's new
+days-on-market YoY change in days has a separate variable; the absent legacy
+percentage field stays null. See [Redfin downloads](database_build_and_refresh.md#redfin-downloads).
 
 ## Partial and intentionally unavailable targets
 

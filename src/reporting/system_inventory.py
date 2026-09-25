@@ -11,6 +11,7 @@ import pandas as pd
 import yaml
 
 from src.common.config import ProjectConfig
+from src.common.variable_metadata import ENRICHMENT_COLUMNS
 
 
 INTERNAL_PRODUCT_PREFIX = "housing_finance_version_"
@@ -599,6 +600,11 @@ def _estimate_inventory(variables: pd.DataFrame) -> pd.DataFrame:
                     special_limit or row.get("methodological_notes", "")
                 ),
                 "materialized_locations": row.get("materialized_locations", ""),
+                **{
+                    column: row[column]
+                    for column in ("unit_original", *ENRICHMENT_COLUMNS)
+                    if column in row
+                },
             }
         )
     return pd.DataFrame(records).sort_values(

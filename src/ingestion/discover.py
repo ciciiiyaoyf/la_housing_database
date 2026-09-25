@@ -79,7 +79,15 @@ def discover_sources(
             }
         )
     frame = pd.DataFrame(records)
-    frame.to_csv(
-        config.root / "metadata" / "source_discovery.csv", index=False
-    )
+    report_path = config.root / "metadata" / "source_discovery.csv"
+    report = frame
+    if source_filter is not None and report_path.exists():
+        previous = pd.read_csv(report_path, dtype=str, keep_default_na=False)
+        if "source_id" not in previous.columns:
+            raise ValueError("Existing source discovery report is missing source_id")
+        unrelated = previous.loc[~previous["source_id"].isin(frame["source_id"])]
+        report = pd.concat([unrelated, frame], ignore_index=True)
+    report.to_csv(report_path, index=False)
+    # Callers receive only this run's discovery results, even when the saved
+    # report also preserves sources that were not selected for this run.
     return frame

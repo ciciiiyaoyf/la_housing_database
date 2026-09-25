@@ -35,7 +35,11 @@ from src.ingestion.bps_annual import (
 from src.ingestion.irs_migration import download_irs_soi_county_migration
 from src.ingestion.hud_usps import download_hud_usps_archive
 from src.ingestion.macro_claims import download_claims
-from src.ingestion.redfin_download import download_redfin_zip
+from src.ingestion.redfin_download import (
+    MANUAL_IMPORT_GUIDANCE,
+    download_redfin_zip,
+    validate_zip_download,
+)
 
 RAW_SUBDIR = {
     "Zillow Research": "zillow",
@@ -842,7 +846,14 @@ def _import_local_file(
         raise FileNotFoundError(f"Local source file does not exist: {path}")
     header = pd.read_csv(path, nrows=1, dtype=str)
     actual_columns = tuple(header.columns)
-    if source.expected_columns and actual_columns != source.expected_columns:
+    redfin_validation = (
+        validate_zip_download(path) if source.source_id == "redfin_zip_monthly" else {}
+    )
+    if (
+        source.source_id != "redfin_zip_monthly"
+        and source.expected_columns
+        and actual_columns != source.expected_columns
+    ):
         missing = sorted(set(source.expected_columns) - set(actual_columns))
         extra = sorted(set(actual_columns) - set(source.expected_columns))
         raise ValueError(
@@ -875,12 +886,14 @@ def _import_local_file(
     )
     filename = (
         f"{source.source_id}_{range_label}_"
-        f"{retrieved_at:%Y%m%dT%H%M%SZ}_{checksum[:12]}"
+        f"{retrieved_at:%Y%m%dT%H%M%S%fZ}_{checksum[:12]}"
         f"{_extension(source)}"
     )
     raw_dir = config.root / "data" / "raw" / _raw_subdir(source)
     raw_dir.mkdir(parents=True, exist_ok=True)
     destination = raw_dir / filename
+    if destination.exists():
+        raise FileExistsError(f"Refusing to replace raw archive: {destination}")
     temp_path = raw_dir / f".{filename}.part"
     try:
         shutil.copyfile(path, temp_path)
@@ -890,7 +903,7 @@ def _import_local_file(
                 f"Checksum changed while importing {path.name}: "
                 f"{checksum} != {copied_checksum}"
             )
-        temp_path.replace(destination)
+        temp_path.rename(destination)
     finally:
         if temp_path.exists():
             temp_path.unlink()
@@ -900,7 +913,11 @@ def _import_local_file(
     provider_vintage = (
         "2023" if source.source_id == AHS_TABLE_CREATOR_SOURCE_ID else None
     )
-    data_vintage = provider_vintage or retrieved_at.date().isoformat()
+    data_vintage = (
+        redfin_validation.get("provider_last_updated")
+        or provider_vintage
+        or retrieved_at.date().isoformat()
+    )
     record = {
         "source_id": source.source_id,
         "provider": source.provider,
@@ -935,7 +952,14 @@ def _import_local_file(
         "license_or_use_notes": source.license_or_use_notes,
         "revision_notes": source.revision_notes,
         "ingestion_status": "manually_imported",
+        **redfin_validation,
     }
+    if source.source_id == "redfin_zip_monthly":
+        record["download_url"] = ""
+        record["acquisition_note"] = (
+            "User-supplied official file; original download URL was not supplied. "
+            "The provider page is recorded separately in source_page_url."
+        )
     append_csv(config.root / "metadata" / "raw_file_manifest.csv", [record])
     _mark_manual_resolved(
         config, source.source_id, retrieved_at.isoformat()
@@ -1273,7 +1297,9 @@ def download_sources(
                     "expected_directory": f"data/raw/{_raw_subdir(source)}/",
                     "reason": reason,
                     "instruction": (
-                        (
+                        MANUAL_IMPORT_GUIDANCE
+                        if source.source_id == "redfin_zip_monthly"
+                        else (
                             "Download the official file without modifying it, then run "
                             "python run_pipeline.py --stage download --source "
                             f"{source.source_id} --local-file PATH_TO_FILE. "

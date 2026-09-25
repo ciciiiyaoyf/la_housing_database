@@ -977,7 +977,22 @@ variables:
   transformation: retain provider percentage-point value
   missing_value_policy: preserve null
   revision_policy: archive every retrieval
-  methodological_notes: Kept separate from pipeline-calculated YoY.
+  methodological_notes: Legacy percent field only; absent and retained as null in the successor days-based export. Never substitute the provider days change or pipeline-calculated YoY.
+- variable_id: redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m
+  display_name: Redfin ZIP median days on market provider YoY change in days - rolling 3 months
+  definition: Provider-reported year-over-year change in median listing-to-contract days for an overlapping three-calendar-month window
+  provider: Redfin Data Center
+  original_field: MEDIAN DAYS ON MARKET YOY (DAYS)
+  unit: days
+  native_frequency: rolling_3_months
+  final_frequency: monthly
+  geography: postal_zip
+  seasonal_adjustment: not seasonally adjusted
+  smoothing: overlapping rolling window
+  transformation: retain the provider-reported change in days dated by period end
+  missing_value_policy: preserve null; unavailable in the legacy percent-based source contract
+  revision_policy: archive every retrieval
+  methodological_notes: Successor field observed in the September 3 2026 provider release; distinct from the legacy percentage variable and from the pipeline-calculated YoY percent. Negative changes are valid. No conversion between days and percent.
 - variable_id: redfin_zip_new_listings_yoy_pct_provider_rolling_3m
   display_name: Redfin ZIP new listings provider YoY - rolling 3 months
   definition: Provider-reported year-over-year change in rolling-three-month new listings

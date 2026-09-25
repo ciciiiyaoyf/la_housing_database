@@ -2998,6 +2998,71 @@ def _write_missingness_report(
     )
 
 
+def _redfin_zip_panel_checks(
+    fact: pd.DataFrame, zip_panel: pd.DataFrame, redfin_zip: pd.DataFrame
+) -> list[tuple[str, str, pd.DataFrame, str]]:
+    """Keep the Zillow panel spine and report source-only Redfin coverage."""
+    expected_spine = fact.loc[
+        fact["geo_id"].astype(str).str.startswith("ZIP_")
+        & fact["variable_id"].isin({"zhvi", "zori_smoothed_sa"}),
+        ["observation_date", "geo_id"],
+    ].drop_duplicates()
+    expected_spine["postal_zip"] = expected_spine.pop("geo_id").str.removeprefix("ZIP_")
+    expected_spine = expected_spine.rename(columns={"observation_date": "date"})
+    actual_spine = zip_panel[["date", "postal_zip"]].drop_duplicates()
+    spine_difference = expected_spine.merge(
+        actual_spine, on=["date", "postal_zip"], how="outer", indicator=True
+    )
+    # Source observations outside the independently defined Zillow spine stay
+    # in clean/fact; they must neither expand the panel nor masquerade as errors.
+    source_scope = redfin_zip.merge(
+        expected_spine.rename(columns={"date": "period_end"}),
+        on=["period_end", "postal_zip"], how="left", indicator="_spine_membership",
+    )
+    outside = source_scope.loc[
+        source_scope["_spine_membership"].eq("left_only"),
+        ["postal_zip", "period_end"],
+    ].copy()
+    redfin_panel = source_scope.loc[
+        source_scope["_spine_membership"].eq("both")
+    ].drop(columns="_spine_membership").merge(
+        zip_panel, left_on=["period_end", "postal_zip"],
+        right_on=["date", "postal_zip"], how="left", suffixes=("_clean", "_panel"),
+    )
+    mismatch_rows = []
+    for column in (
+        "homes_sold", "median_sale_price_nsa", "median_days_on_market",
+        "new_listings", "active_listings",
+    ):
+        clean_values = redfin_panel[f"{column}_clean"]
+        panel_values = redfin_panel[f"{column}_panel"]
+        mismatch = ~(
+            clean_values.eq(panel_values)
+            | (clean_values.isna() & panel_values.isna())
+        )
+        if mismatch.any():
+            rows = redfin_panel.loc[mismatch, ["postal_zip", "period_end"]].copy()
+            rows["metric"] = column
+            mismatch_rows.append(rows)
+    return [
+        (
+            "redfin_zip_left_join_preserves_zillow_spine", "error",
+            spine_difference.loc[spine_difference["_merge"].ne("both")],
+            "Redfin must be left-joined without adding or removing Zillow ZIP-month keys.",
+        ),
+        (
+            "redfin_zip_outside_zillow_spine", "warning", outside,
+            "Verified LA Redfin ZIP-month observations outside the Zillow spine remain "
+            "available in clean and fact tables; they do not expand the ZIP panel.",
+        ),
+        (
+            "redfin_zip_panel_matches_clean", "error",
+            pd.concat(mismatch_rows, ignore_index=True) if mismatch_rows else pd.DataFrame(),
+            "ZIP panel Redfin levels must exactly match clean values on the Zillow spine.",
+        ),
+    ]
+
+
 def _write_redfin_active_vintage_report(
     coverage_dir: Path, fact: pd.DataFrame
 ) -> None:
@@ -4805,66 +4870,8 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             invalid_county,
             "Only ZIPs in the versioned LA County geography reference may enter the clean subset.",
         )
-        expected_spine = fact.loc[
-            fact["geo_id"].astype(str).str.startswith("ZIP_")
-            & fact["variable_id"].isin({"zhvi", "zori_smoothed_sa"}),
-            ["observation_date", "geo_id"],
-        ].drop_duplicates()
-        expected_spine["postal_zip"] = expected_spine.pop(
-            "geo_id"
-        ).str.removeprefix("ZIP_")
-        expected_spine = expected_spine.rename(
-            columns={"observation_date": "date"}
-        )
-        actual_spine = zip_panel[["date", "postal_zip"]].drop_duplicates()
-        spine_difference = expected_spine.merge(
-            actual_spine,
-            on=["date", "postal_zip"],
-            how="outer",
-            indicator=True,
-        )
-        check(
-            "redfin_zip_left_join_preserves_zillow_spine",
-            "error",
-            spine_difference.loc[spine_difference["_merge"].ne("both")],
-            "Redfin must be left-joined without adding or removing Zillow ZIP-month keys.",
-        )
-        redfin_panel = redfin_zip.merge(
-            zip_panel,
-            left_on=["period_end", "postal_zip"],
-            right_on=["date", "postal_zip"],
-            how="left",
-            suffixes=("_clean", "_panel"),
-        )
-        panel_mismatch_rows: list[pd.DataFrame] = []
-        panel_pairs = {
-            "homes_sold": "homes_sold",
-            "median_sale_price_nsa": "median_sale_price_nsa",
-            "median_days_on_market": "median_days_on_market",
-            "new_listings": "new_listings",
-            "active_listings": "active_listings",
-        }
-        for clean_column, panel_column in panel_pairs.items():
-            clean_values = redfin_panel[f"{clean_column}_clean"]
-            panel_values = redfin_panel[f"{panel_column}_panel"]
-            mismatch = ~(
-                clean_values.eq(panel_values)
-                | (clean_values.isna() & panel_values.isna())
-            )
-            if mismatch.any():
-                rows = redfin_panel.loc[
-                    mismatch, ["postal_zip", "period_end"]
-                ].copy()
-                rows["metric"] = clean_column
-                panel_mismatch_rows.append(rows)
-        check(
-            "redfin_zip_panel_matches_clean",
-            "error",
-            pd.concat(panel_mismatch_rows, ignore_index=True)
-            if panel_mismatch_rows
-            else pd.DataFrame(),
-            "ZIP panel Redfin levels must exactly match clean Key Metrics values.",
-        )
+        for check_arguments in _redfin_zip_panel_checks(fact, zip_panel, redfin_zip):
+            check(*check_arguments)
     sa_fact = (
         fact.loc[fact["variable_id"].eq("zori_smoothed_sa")]
         .sort_values(["source_vintage", "retrieved_at"])

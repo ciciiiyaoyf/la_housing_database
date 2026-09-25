@@ -57,7 +57,7 @@ def test_consolidated_variable_and_source_counts_are_exact() -> None:
         str(variable["variable_id"]) for variable in version_c_variables
     }
 
-    assert len(general_variables) == len(general_variable_ids) == 375
+    assert len(general_variables) == len(general_variable_ids) == 376
     assert len(version_a_variables) == len(version_a_variable_ids) == 67
     assert len(version_b_variables) == len(version_b_variable_ids) == 58
     assert len(version_c_variables) == len(version_c_variable_ids) == 58
@@ -67,7 +67,7 @@ def test_consolidated_variable_and_source_counts_are_exact() -> None:
         | version_b_variable_ids
         | version_c_variable_ids
     )
-    assert len(all_contract_ids) == 558
+    assert len(all_contract_ids) == 559
     assert all(variable_id.endswith("_benchmark") for variable_id in version_a_variable_ids)
     assert all(variable_id.endswith("_monthly_hist") for variable_id in version_b_variable_ids)
     assert all(variable_id.endswith("_monthly_rt") for variable_id in version_c_variable_ids)
@@ -75,11 +75,11 @@ def test_consolidated_variable_and_source_counts_are_exact() -> None:
     loaded_variable_ids = [
         str(variable["variable_id"]) for variable in load_config(ROOT).variables
     ]
-    assert len(loaded_variable_ids) == len(set(loaded_variable_ids)) == 442
+    assert len(loaded_variable_ids) == len(set(loaded_variable_ids)) == 443
     assert set(loaded_variable_ids) == general_variable_ids | version_a_variable_ids
 
     dictionary = pd.read_csv(ROOT / "metadata/data_dictionary.csv", dtype=str)
-    assert len(dictionary) == dictionary["variable_id"].nunique() == 558
+    assert len(dictionary) == dictionary["variable_id"].nunique() == 559
     assert set(dictionary["variable_id"]) == all_contract_ids
 
     general_sources = _yaml("config/sources.yaml")["sources"]
@@ -634,8 +634,8 @@ def test_guides_record_the_consolidated_contract_and_refresh_examples() -> None:
     reference = (ROOT / "docs/data_inventory_and_limitations.md").read_text(encoding="utf-8")
     reference = " ".join(reference.split())
     for phrase in (
-        "558 unique variables",
-        "375 general variables",
+        "559 unique variables",
+        "376 general variables",
         "67 Version A variables",
         "58 Version B variables",
         "58 Version C variables",

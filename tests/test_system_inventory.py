@@ -7,6 +7,7 @@ import duckdb
 import pandas as pd
 
 from src.common.config import ProjectConfig, SourceConfig
+from src.common.variable_metadata import ENRICHMENT_COLUMNS
 from src.reporting.system_inventory import (
     _estimate_inventory,
     _storage_inventory,
@@ -311,3 +312,52 @@ def test_estimate_inventory_accepts_provider_constructed_rows() -> None:
     assert result["variable_id"].tolist() == ["market_tightness_index"]
     assert result.loc[0, "estimate_family"] == "Market tightness"
     assert "Full-history z-score" in result.loc[0, "important_limitation"]
+
+
+def test_estimate_inventory_preserves_available_variable_metadata_and_order() -> None:
+    base = pd.DataFrame([
+        {
+            "variable_id": "other_proxy", "system_layer": "General",
+            "provider": "Provider", "is_constructed": False, "is_proxy": True,
+            "unit": "current_dollars", "primary_nonnull_count": 8,
+        },
+        {
+            "variable_id": "observed_only", "system_layer": "General",
+            "provider": "Provider", "is_constructed": False, "is_proxy": False,
+            "unit": "count", "primary_nonnull_count": 11,
+        },
+        {
+            "variable_id": "mortgage_payment", "system_layer": "General",
+            "provider": "Constructed", "is_constructed": True, "is_proxy": False,
+            "unit": "USD/month", "primary_nonnull_count": 12,
+        },
+    ])
+    minimal = _estimate_inventory(base)
+    enriched = base.assign(
+        unit_original=base["unit"],
+        unit_simplified=["USD", "count", "USD/month"],
+        temporal_type=["stock", "flow", "period_statistic"],
+        temporal_type_note=["Outstanding balance", "Period count", "Modeled monthly payment"],
+        monetary_basis=["nominal", "not_applicable", "not_specified_in_unit"],
+        unit_simplification_note=["Label only", "Unchanged", "Unchanged"],
+        metadata_source=["configuration", "workbook", "configuration"],
+        workbook_temporal_type=["", "flow", ""],
+        workbook_temporal_type_note=["", "Period count", ""],
+        metadata_review_note=["Added proxy", "", "Added modeled payment"],
+    )
+    source_copy = enriched.copy(deep=True)
+    result = _estimate_inventory(enriched)
+    pd.testing.assert_frame_equal(result[minimal.columns], minimal)
+    pd.testing.assert_frame_equal(enriched, source_copy)
+    metadata_columns = ["unit_original", *ENRICHMENT_COLUMNS]
+    expected = enriched.set_index("variable_id").loc[
+        result["variable_id"], metadata_columns
+    ].reset_index(drop=True)
+    pd.testing.assert_frame_equal(result[metadata_columns], expected)
+    assert "observed_only" not in result["variable_id"].tolist()
+
+    # Small projects may provide only a subset of labels and need no registry file.
+    partial = _estimate_inventory(enriched.drop(columns=list(ENRICHMENT_COLUMNS[1:])))
+    assert "unit_simplified" in partial
+    assert "temporal_type" not in partial
+    pd.testing.assert_frame_equal(partial[minimal.columns], minimal)

@@ -226,17 +226,6 @@ This step needs an internet connection and can take several minutes. It reads
 `requirements.txt`; you do not need to open that file or install its entries by
 hand. Wait for installation to finish before continuing.
 
-Then install the browser used by the automated Redfin download. In the same
-PowerShell window, run:
-
-```powershell
-.\.venv\Scripts\python.exe -m playwright install chromium
-```
-
-Wait for the download to finish. This installs a browser managed by Playwright;
-you do not need to open it yourself or replace your normal web browser. It is
-needed when refreshing Redfin data, and repeating the command is safe.
-
 **D. Check that setup worked.** Run:
 
 ```powershell
@@ -462,6 +451,12 @@ inputs, and products**, distinguishes observation frequency from provider releas
 cadence, and gives each update command or required action. The same guide explains
 refresh logs and actions to resolve before modeling.
 
+Redfin ZIP acquisition uses the provider's public file index and downloads its
+national CSV directly (about 1.3 GB); no browser automation or API key is needed.
+The cleaner keeps the newer days-on-market YoY change in days separate from the
+legacy percentage measure. See [Redfin downloads](docs/database_build_and_refresh.md#redfin-downloads)
+for the source formats and the separate county-data review hold.
+
 ### Load model inputs from DuckDB
 
 You can move data directly from DuckDB into Python, without downloading a CSV.
@@ -539,14 +534,7 @@ work to force it through.
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Wait for package installation to finish, then install or update the browser used
-by the Redfin downloader in the same PowerShell window:
-
-```powershell
-.\.venv\Scripts\python.exe -m playwright install chromium
-```
-
-Wait for that command to finish without errors. **`git pull` updates code and
+Wait for package installation to finish without errors. **`git pull` updates code and
 documentation; it does not refresh housing observations.** To update the data on
 a provisioned workspace, follow [Refresh the data before modeling](#refresh-the-data-before-modeling).
 If you only have a supplied database snapshot, obtain a newer compatible snapshot
@@ -654,17 +642,11 @@ python3 -m venv .venv
 ```
 
 ```bash
-.venv/bin/python -m playwright install chromium
-```
-
-```bash
 .venv/bin/python run_query.py --help
 ```
 
 Environment creation may be silent; package installation prints progress. Wait
-for completion without errors. The Chromium command installs the browser used
-for Redfin refreshes; you do not need to open it yourself. The last command should
-show query-tool help.
+for completion without errors. The last command should show query-tool help.
 
 Use **Finder** on macOS or your Linux **Files** application to place the permitted
 snapshot directly at `la_housing_database/database/housing.duckdb`, following
@@ -707,7 +689,7 @@ The CSV browser is an alternative described in the
 
 For later updates, exit DuckDB with `.quit`, return to the project folder with `cd`, then
 run `git status --short`. Continue only if it lists no local changes. Run these
-three commands separately, stopping if any fails:
+two commands separately, stopping if any fails:
 
 ```bash
 git pull --ff-only
@@ -715,10 +697,6 @@ git pull --ff-only
 
 ```bash
 .venv/bin/python -m pip install -r requirements.txt
-```
-
-```bash
-.venv/bin/python -m playwright install chromium
 ```
 
 These commands update programs and packages. Use `run_system_refresh.py` as
@@ -766,7 +744,7 @@ The standalone progress report has been absorbed there. Its reusable building an
 QA code is preserved in [report authoring](scripts/README.md#optional-document-tools).
 
 For current variable definitions, use the [data dictionary](metadata/data_dictionary.csv),
-which contains 558 IDs. The generated Excel catalog is `metadata/data_catalog.xlsx`
+which contains 559 IDs. The generated Excel catalog is `metadata/data_catalog.xlsx`
 in a local build.
 [Source coverage](metadata/source_coverage.csv) and the
 [dataset inventory](metadata/analytical_dataset_inventory.csv) describe the

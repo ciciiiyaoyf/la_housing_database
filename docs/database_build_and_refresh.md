@@ -22,12 +22,6 @@ and close Python sessions connected to the database. The runner checks database
 access before downloading. It also requires the existing source archives and frozen
 finance inputs described under [What a rebuild requires](#what-a-rebuild-requires).
 
-After updating the project's packages, install Redfin's browser runtime once:
-
-```powershell
-.\.venv\Scripts\python.exe -m playwright install chromium
-```
-
 For each subsequent data update, enter **this one command** and press Enter:
 
 ```powershell
@@ -37,7 +31,7 @@ For each subsequent data update, enter **this one command** and press Enter:
 It attempts current provider acquisition, checks and cleans sources, rebuilds
 general analytical products and retrospective finance B, builds or validates the
 finance C cutoff, registers the integrated database and unit/temporal metadata,
-and runs QA and exports. Downloading large Redfin files can take several minutes.
+and runs QA and exports. The complete national Redfin ZIP CSV is about 1.3 GB and can take several minutes to download.
 Automatic acquisition or structural failures stop the workflow and identify the
 source or stage needing attention.
 
@@ -155,7 +149,7 @@ For FHFA, selected state/metro series are quarterly; the county developmental in
 | Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
 |---|---|---|---|---|
 | [Housing Market Tracker monthly county data](https://www.redfin.com/news/data-center/downloads/)<br>`redfin_county_monthly` | Monthly | Monthly product; provider may revise history | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_county_monthly` | Legacy county endpoint has a configured provider-release review hold. Download success cannot clear that hold. |
-| [Housing Market Tracker ZIP Key Metrics, rolling three months](https://www.redfin.com/news/data-center/downloads/)<br>`redfin_zip_monthly` | Overlapping 3-month windows | Monthly product; provider may revise history | **Automatic browser attempt, currently blocked:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_zip_monthly` | Current unattended access denial and provider YoY unit change require attention; see [Redfin downloads](#redfin-downloads). National CSV stays raw-only; cleaning uses the versioned LA County ZIP reference. |
+| [Housing Market Tracker ZIP measures, rolling three months](https://www.redfin.com/news/data-center/downloads/)<br>`redfin_zip_monthly` | Overlapping 3-month windows | Monthly product; provider may revise history | **Automatic public-file download:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_zip_monthly` | Resolves the official CSV from the provider index; see [Redfin downloads](#redfin-downloads) for versioned units and raw-only fields. National CSV stays raw-only; cleaning uses the versioned LA County ZIP reference. |
 
 ### Construction
 
@@ -500,50 +494,82 @@ manifest row rather than relying on a date copied into a document.
 
 ## Redfin downloads
 
-The ZIP source now attempts the official Data Center's public browser controls:
-Housing Market Tracker, Monthly, Zip Codes, All Zip Codes, Key Metrics, and YoY.
-It selects the latest enabled end month, downloads the original national CSV,
-validates the exact schema, ZIP identifiers, rolling windows, and date coverage,
-then archives compatible files with the provider filename, publication date,
-retrieval time, and checksum. It does not guess a private API endpoint.
-Install the Chromium runtime once as described above.
+The ZIP downloader uses Redfin's official public files directly. It reads the
+[provider file index](https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_data_center/index.json)
+and follows its `housing_market.monthly.zip.all` entry. That index and file path
+are published in the [official download page](https://www.redfin.com/news/data-center/downloads/).
+No browser, API key, or manual download is needed for this route. Install the
+project requirements as described in the README; a separate Chromium installation
+is no longer required.
 
-To attempt acquisition alone, in project **PowerShell**, run:
+**Where to type:** in Windows PowerShell, inside `la_housing_database`. Run:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage download --source redfin_zip_monthly --force-download
 ```
 
-Acquisition alone does not update the analytical database. The one-command integrated
-refresh includes acquisition, cleaning, and rebuilding when all required contracts pass.
+The downloader streams the full national CSV (about **1.3 GB** for the September
+2026 publication). Wait for the command to finish. It archives the CSV unchanged,
+checks its complete schema, postal ZIP identifiers, overlapping three-month windows,
+duplicate keys, and date coverage, and records its checksum and source metadata.
+The exact provider index is also archived so the URL selection can be reproduced.
 
-**Current verified limitations (September 25, 2026):** the ordinary browser download
-works, but Redfin denies the unattended Chromium session on this computer. The
-adapter reports that failure and does not reuse an old file as a successful refresh.
-The September 3 ZIP release also changes `MEDIAN DAYS ON MARKET YOY (%)` to
-`MEDIAN DAYS ON MARKET YOY (DAYS)` and adds listing-price-per-square-foot fields.
-The existing percentage variable cannot receive the new days-valued field. The
-source contract therefore rejects that successor CSV, including a manual import,
-pending an explicit variable/method migration. This is recorded as a refresh hold.
+The September 25, 2026 verification downloaded 4,960,669 national rows, with
+provider update date September 3 and observations through August 31. Applying
+the configured January 2019 window-start bound and LA County ZIP reference
+produced 27,538 ZIP-period rows across 330 ZIPs, ending March 2019 through August
+2026. These are dated verification results; later releases can revise them.
 
-The county source has a separate hold: its legacy series and the newer calendar-month
-exports have unresolved definition/normalization differences, described in the
-[county indicator guide](county_and_zip_housing_indicators.md#current-redfin-source-limitation).
-Until these holds are resolved, an all-source refresh cannot report the complete
-database as current. Do not remove a hold just to make a run succeed.
+Downloading alone does not update analytical observations. To acquire, clean,
+rebuild, and validate this source in an already provisioned workspace, close
+DuckDB and other readers, then run:
 
-The manual importer remains available for **contract-compatible** official ZIP files.
-First review the [ZIP source rules](county_and_zip_housing_indicators.md). This is a
-**template**: replace the quoted path with the real CSV path before running:
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_zip_monthly
+```
+
+Use the integrated `run_system_refresh.py` workflow above when updating all
+sources and finance products. The county Redfin review hold remains separate;
+an all-source refresh can still fail on that unresolved source.
+
+**Versioned formats and units:** the cleaner accepts the exact legacy 20-column
+Key Metrics export, the successor 22-column export, and the official full
+50-column CSV. The national file stays raw-only. Only the reviewed measures,
+selected dates, and ZIPs in the versioned LA County ZIP reference enter clean data.
+Other columns in the full provider file remain raw-only, including its separate
+`INVENTORY` field. Active listings are never renamed inventory.
+
+Query `clean.redfin_zip_monthly` or filter `analytics.fact_housing_observation`
+by `source_id = 'redfin_zip_monthly'` for the complete accepted LA subset. The
+combined `analytics.zip_monthly_panel` retains its existing Zillow ZIP-month
+keys; Redfin rows outside those keys remain available in the source and fact
+tables and appear as a coverage warning in QA.
+
+The newer files publish median days-on-market YoY as a change in **days**. This is
+stored under the separate variable
+`redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m`. The existing
+provider percentage variable retains its definition and is missing in vintages
+that do not supply it. Its old values remain in the immutable historical archives.
+The ZIP panel's calculated calendar-year percentage change is another independent
+measure; it is not relabeled as the provider's days change.
+
+**If you saw HTTP 429:** that error came from the earlier browser-page method.
+Update the project code using the README's update instructions, then use the
+command above. `--force-download` bypasses the local cache; it does not override
+provider access limits. If the direct file itself refuses access, stop repeated
+attempts and read the reported failure. Existing database observations remain
+available for queries; a failed acquisition is never reported as a data refresh.
+
+Manual import is still available for an unchanged official file matching a
+supported versioned format. Replace the example path with the actual path:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage download --source redfin_zip_monthly --local-file "C:\path\to\official_redfin.csv"
 ```
 
-Confirm the import's exit code and new manifest record before using the offline
-rebuild above, which still requires all other archives. The national file stays
-raw-only; cleaning filters to the versioned LA County postal-ZIP reference.
-Observation windows overlap across three months.
+The same structural checks apply to direct and manual acquisition. Do not rename
+columns or edit the provider file to force a match. Source releases with a new,
+unrecognized format stop ingestion until their definitions are reviewed.
 
 ## Finance layers and integrated refresh
 

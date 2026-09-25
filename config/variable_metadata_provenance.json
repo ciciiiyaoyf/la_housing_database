@@ -8,8 +8,8 @@
   "source_retrieved_at_note": "Original retrieval time was not supplied; imported_at_utc records this local metadata import only.",
   "source_sheet": "Variable Temporal Types",
   "source_variable_count": 482,
-  "configured_variable_count": 558,
-  "added_variable_count": 76,
+  "configured_variable_count": 559,
+  "added_variable_count": 77,
   "added_variable_ids": [
     "bea_ca_real_gdp_qoq_annualized_pct",
     "bea_ca_real_gdp_quarterly",
@@ -54,6 +54,7 @@
     "price_to_rent_ratio_log_change_mom_pct",
     "price_to_rent_ratio_log_change_yoy_pct",
     "price_to_rent_ratio_zillow_z_fixed",
+    "redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m",
     "relative_valuation_pressure_la_zip",
     "us_baa_10y_spread_daily",
     "us_baa_10y_spread_monthly_average",
@@ -106,7 +107,7 @@
     "metadata_or_assumption": 84,
     "period_average": 11,
     "period_statistic": 70,
-    "rolling_window": 17,
+    "rolling_window": 18,
     "stock": 151
   },
   "workbook_unit_simplifications": [
@@ -187,5 +188,14 @@
   },
   "method": "Explicit per-variable mapping. Preserve original unit, all numerical observations, source-specific frequency conversion rules, source provenance and geography. Apply only label aliases recorded in the reference workbook. Add configured variables through explicit review of their existing definitions and transformations.",
   "unit_simplification_caveat": "The workbook's generic 0-to-1 assumption for fraction/share/proportion does not describe growth/change variables. Renaming fraction to share changes no numbers and imposes no range restriction; growth can be negative or above one. Percent, ratio, percentage_points, index base, annualization, dollar scale and constant-dollar labels remain distinct.",
-  "monetary_basis_note": "Retain monetary basis explicitly encoded by original units; plain USD labels use not_specified_in_unit, so source-specific methodological notes remain authoritative. Inflation-adjusted USD/year retains inflation_adjusted_unspecified_base and its original unit."
+  "monetary_basis_note": "Retain monetary basis explicitly encoded by original units; plain USD labels use not_specified_in_unit, so source-specific methodological notes remain authoritative. Inflation-adjusted USD/year retains inflation_adjusted_unspecified_base and its original unit.",
+  "configured_additions": {
+    "redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m": {
+      "temporal_type": "rolling_window",
+      "unit": "days",
+      "reason": "Provider successor exports report median days-on-market YoY as a change in days. Keep it distinct from the legacy percent field and calculated percent growth. No unit conversion or observation fabrication.",
+      "evidence": "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_data_center/index.json -> housing_market.monthly.zip.all; September 3 2026 provider release; src/cleaning/redfin_zip.py exact versioned contracts",
+      "source_workbook_status": "Not present in the original workbook; explicit configured addition."
+    }
+  }
 }

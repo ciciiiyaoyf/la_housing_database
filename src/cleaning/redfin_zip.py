@@ -1,4 +1,4 @@
-"""Clean the manually downloaded Redfin ZIP Key Metrics product."""
+"""Clean versioned official Redfin ZIP exports without mixing metric units."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import duckdb
 import pandas as pd
 
 from src.cleaning.common import finalize
-from src.common.io import atomic_json
+from src.common.io import atomic_json, sha256_file
 
 REQUIRED_COLUMNS = (
     "LAST UPDATED",
@@ -32,6 +32,54 @@ REQUIRED_COLUMNS = (
     "PENDING SALES",
     "PENDING SALES YOY (%)",
 )
+
+# Exact provider-published contracts, including column order. The public all-
+# metrics file contains additional fields which remain raw-only in this adapter.
+LEGACY_COLUMNS = REQUIRED_COLUMNS
+SUCCESSOR_COLUMNS = tuple(
+    "MEDIAN DAYS ON MARKET YOY (DAYS)"
+    if column == "MEDIAN DAYS ON MARKET YOY (%)" else column
+    for column in LEGACY_COLUMNS
+) + (
+    "MEDIAN NEW LISTING PRICE PER SQ.FT. ($)",
+    "MEDIAN NEW LISTING PRICE PER SQ.FT. YOY (%)",
+)
+OFFICIAL_COLUMNS = (
+    "LAST UPDATED", "FREQUENCY", "PERIOD BEGIN", "PERIOD END",
+    "REGION ID", "REGION TYPE", "REGION NAME", "METRO",
+    "HOMES SOLD", "HOMES SOLD MOM (%)", "HOMES SOLD YOY (%)",
+    "MEDIAN SALE PRICE NSA ($)", "MEDIAN SALE PRICE NSA MOM (%)",
+    "MEDIAN SALE PRICE NSA YOY (%)", "MEDIAN DAYS ON MARKET (DAYS)",
+    "MEDIAN DAYS ON MARKET MOM (DAYS)", "MEDIAN DAYS ON MARKET YOY (DAYS)",
+    "AVERAGE SALE TO LIST RATIO (%)", "AVERAGE SALE TO LIST RATIO MOM (PPTS)",
+    "AVERAGE SALE TO LIST RATIO YOY (PPTS)",
+    "SHARE SOLD ABOVE ORIGINAL LIST (%)",
+    "SHARE SOLD ABOVE ORIGINAL LIST MOM (PPTS)",
+    "SHARE SOLD ABOVE ORIGINAL LIST YOY (PPTS)",
+    "NEW LISTINGS", "NEW LISTINGS MOM (%)", "NEW LISTINGS YOY (%)",
+    "ACTIVE LISTINGS", "ACTIVE LISTINGS MOM (%)", "ACTIVE LISTINGS YOY (%)",
+    "INVENTORY", "INVENTORY MOM (%)", "INVENTORY YOY (%)",
+    "PENDING SALES", "PENDING SALES MOM (%)", "PENDING SALES YOY (%)",
+    "MEDIAN NEW LISTING PRICE ($)", "MEDIAN NEW LISTING PRICE MOM (%)",
+    "MEDIAN NEW LISTING PRICE YOY (%)", "MEDIAN NEW LISTING PRICE PER SQ.FT. ($)",
+    "MEDIAN NEW LISTING PRICE PER SQ.FT. MOM (%)",
+    "MEDIAN NEW LISTING PRICE PER SQ.FT. YOY (%)",
+    "MEDIAN SALE PRICE PER SQ.FT. ($)", "MEDIAN SALE PRICE PER SQ.FT. MOM (%)",
+    "MEDIAN SALE PRICE PER SQ.FT. YOY (%)", "MONTHS OF SUPPLY",
+    "MONTHS OF SUPPLY MOM (%)", "MONTHS OF SUPPLY YOY (%)",
+    "PERCENT OFF MARKET IN TWO WEEKS (%)",
+    "PERCENT OFF MARKET IN TWO WEEKS MOM (PPTS)",
+    "PERCENT OFF MARKET IN TWO WEEKS YOY (PPTS)",
+)
+SCHEMA_COLUMNS = {
+    "legacy_key_metrics_v1": LEGACY_COLUMNS,
+    "key_metrics_days_yoy_v2": SUCCESSOR_COLUMNS,
+    "official_all_metrics_v3": OFFICIAL_COLUMNS,
+}
+CLEANER_VERSION = "redfin_zip_versioned_units_v2_na"
+DOM_DAYS_SOURCE_FIELD = "MEDIAN DAYS ON MARKET YOY (DAYS)"
+DOM_DAYS_COLUMN = "median_days_on_market_yoy_days_provider"
+DOM_DAYS_VARIABLE = "redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m"
 
 LEVEL_FIELDS = {
     "homes_sold": (
@@ -94,17 +142,21 @@ PROVIDER_YOY_FIELDS = {
 }
 
 
-def validate_redfin_zip_schema(columns: list[str] | tuple[str, ...]) -> None:
+def redfin_zip_schema_version(columns: list[str] | tuple[str, ...]) -> str:
+    """Identify an exact reviewed source contract; never guess metric units."""
     actual = tuple(columns)
-    if actual != REQUIRED_COLUMNS:
-        missing = sorted(set(REQUIRED_COLUMNS) - set(actual))
-        extra = sorted(set(actual) - set(REQUIRED_COLUMNS))
-        raise ValueError(
-            "Redfin ZIP Key Metrics schema changed: "
-            f"missing={missing}, extra={extra}, "
-            f"expected_order={list(REQUIRED_COLUMNS)}, "
-            f"actual_order={list(actual)}"
-        )
+    for version, expected in SCHEMA_COLUMNS.items():
+        if actual == expected:
+            return version
+    raise ValueError(
+        "Redfin ZIP Key Metrics schema changed: "
+        f"expected one exact ordered contract from {list(SCHEMA_COLUMNS)}, "
+        f"actual_order={list(actual)}"
+    )
+
+
+def validate_redfin_zip_schema(columns: list[str] | tuple[str, ...]) -> None:
+    redfin_zip_schema_version(columns)
 
 
 def _quoted(column: str) -> str:
@@ -115,17 +167,18 @@ def _read_csv_sql(path: Path) -> str:
     escaped = path.as_posix().replace("'", "''")
     return (
         f"read_csv('{escaped}', header=true, all_varchar=true, "
-        "sample_size=-1)"
+        "sample_size=-1, nullstr=['', 'NA'])"
     )
 
 
 def _source_audit(
     connection: duckdb.DuckDBPyConnection,
     coverage_dir: Path,
+    columns: tuple[str, ...],
 ) -> dict:
     null_expressions = ",\n".join(
         f"count(*) - count({_quoted(column)}) AS {_quoted('null__' + column)}"
-        for column in REQUIRED_COLUMNS
+        for column in columns
     )
     audit = connection.execute(
         f"""
@@ -149,10 +202,10 @@ def _source_audit(
     ).fetchdf()
     nulls = pd.DataFrame(
         {
-            "source_field": list(REQUIRED_COLUMNS),
+            "source_field": list(columns),
             "null_count": [
                 int(audit.iloc[0][f"null__{column}"])
-                for column in REQUIRED_COLUMNS
+                for column in columns
             ],
         }
     )
@@ -222,6 +275,7 @@ def _coverage_report(wide: pd.DataFrame, coverage_dir: Path) -> None:
 def _to_observations(
     wide: pd.DataFrame,
     output_path: Path,
+    schema_version: str,
 ) -> pd.DataFrame:
     variable_map = {
         output: (variable_id, unit)
@@ -233,6 +287,8 @@ def _to_observations(
             for output, (_, variable_id) in PROVIDER_YOY_FIELDS.items()
         }
     )
+    if DOM_DAYS_COLUMN in wide:
+        variable_map[DOM_DAYS_COLUMN] = (DOM_DAYS_VARIABLE, "days")
     melted = wide.melt(
         id_vars=[
             "period_begin",
@@ -261,15 +317,17 @@ def _to_observations(
         lambda item: variable_map[item][1]
     )
     melted["provider"] = "Redfin Data Center"
+    melted["source_id"] = "redfin_zip_monthly"
     melted["native_frequency"] = "rolling_3_months"
     melted["final_frequency"] = "monthly"
-    melted["transformation_id"] = (
-        "redfin_zip_key_metrics_rolling_3m_to_long_v1"
-    )
+    melted["transformation_id"] = f"redfin_zip_{schema_version}_to_long_v2"
     melted["is_imputed"] = False
     melted["is_interpolated"] = False
     melted["is_seasonally_adjusted"] = False
     melted["quality_flag"] = "overlapping_rolling_3_month_window"
+    if schema_version != "legacy_key_metrics_v1":
+        unavailable = melted["_metric"].eq("median_days_on_market_yoy_pct_provider")
+        melted.loc[unavailable, "quality_flag"] += ";source_field_not_in_schema"
     return finalize(melted, output_path)
 
 
@@ -282,12 +340,30 @@ def clean_redfin_zip_key_metrics(
     coverage_dir: Path,
 ) -> pd.DataFrame:
     sidecar = output_path.with_suffix(".metadata.json")
+    selected_range = {
+        name: str(record.get(name) or "")
+        for name in ("selected_start_date", "selected_end_date")
+    }
+    # Normalize only complete supplied dates, never invent a time coverage bound.
+    for name, value in selected_range.items():
+        if value:
+            selected_range[name] = pd.Timestamp(value).date().isoformat()
+    if all(selected_range.values()) and (
+        selected_range["selected_start_date"] > selected_range["selected_end_date"]
+    ):
+        raise ValueError("Redfin selected start date must not follow selected end date")
     required_reports = (
         coverage_dir / "redfin_zip_source_audit.csv",
         coverage_dir / "redfin_zip_source_null_counts.csv",
         coverage_dir / "redfin_zip_coverage.csv",
         coverage_dir / "redfin_zip_unmatched.csv",
     )
+    if not geography_path.exists():
+        raise FileNotFoundError(
+            "Versioned geography reference is required before Redfin ZIP "
+            f"cleaning: {geography_path}"
+        )
+    geography_checksum = sha256_file(geography_path)
     if sidecar.exists() and output_path.exists() and observations_path.exists():
         metadata = pd.read_json(sidecar, typ="series")
         cached_observations = pd.read_parquet(observations_path)
@@ -295,6 +371,12 @@ def clean_redfin_zip_key_metrics(
         if (
             str(metadata.get("checksum_sha256"))
             == str(record["checksum_sha256"])
+            and metadata.get("cleaner_version") == CLEANER_VERSION
+            and metadata.get("selected_range") == selected_range
+            and metadata.get("geography_checksum_sha256") == geography_checksum
+            and metadata.get("source_filename") == str(record["source_filename"])
+            and metadata.get("retrieved_at") == str(record["retrieved_at"])
+            and metadata.get("source_vintage") == str(record["data_vintage"])
             and all(report.exists() for report in required_reports)
             and {
                 "checksum_sha256",
@@ -307,11 +389,6 @@ def clean_redfin_zip_key_metrics(
         ):
             return cached_observations
 
-    if not geography_path.exists():
-        raise FileNotFoundError(
-            "Versioned geography reference is required before Redfin ZIP "
-            f"cleaning: {geography_path}"
-        )
     geography = pd.read_parquet(geography_path)
     eligible = (
         geography.loc[
@@ -336,11 +413,11 @@ def clean_redfin_zip_key_metrics(
             f"DESCRIBE SELECT * FROM {source_sql}"
         ).fetchall()
     ]
-    validate_redfin_zip_schema(actual_columns)
+    schema_version = redfin_zip_schema_version(actual_columns)
     connection.execute(
         f"CREATE TEMP VIEW redfin_source AS SELECT * FROM {source_sql}"
     )
-    audit = _source_audit(connection, coverage_dir)
+    audit = _source_audit(connection, coverage_dir, tuple(actual_columns))
     if audit["frequency_values"] != "Rolling 3 Months":
         raise ValueError(
             "Unexpected Redfin ZIP frequency values: "
@@ -375,9 +452,30 @@ def clean_redfin_zip_key_metrics(
         for output, (source_column, _, _) in LEVEL_FIELDS.items()
     )
     projections.extend(
-        f'try_cast(source.{_quoted(source_column)} AS DOUBLE) AS {output}'
+        (
+            f'try_cast(source.{_quoted(source_column)} AS DOUBLE) AS {output}'
+            if source_column in actual_columns
+            else f'NULL::DOUBLE AS {output}'
+        )
         for output, (source_column, _) in PROVIDER_YOY_FIELDS.items()
     )
+    if DOM_DAYS_SOURCE_FIELD in actual_columns:
+        projections.append(
+            f'try_cast(source.{_quoted(DOM_DAYS_SOURCE_FIELD)} AS DOUBLE) '
+            f'AS {DOM_DAYS_COLUMN}'
+        )
+    filters = []
+    if selected_range["selected_start_date"]:
+        filters.append(
+            'try_cast(source."PERIOD BEGIN" AS DATE) >= '
+            f"DATE '{selected_range['selected_start_date']}'"
+        )
+    if selected_range["selected_end_date"]:
+        filters.append(
+            'try_cast(source."PERIOD END" AS DATE) <= '
+            f"DATE '{selected_range['selected_end_date']}'"
+        )
+    date_filter = "WHERE " + " AND ".join(filters) if filters else ""
     wide = connection.execute(
         f"""
         SELECT {", ".join(projections)}
@@ -385,6 +483,7 @@ def clean_redfin_zip_key_metrics(
         JOIN eligible_zips AS eligible
           ON eligible.postal_zip =
              lpad(trim(source."REGION NAME"), 5, '0')
+        {date_filter}
         """
     ).fetchdf()
     unmatched = connection.execute(
@@ -423,6 +522,7 @@ def clean_redfin_zip_key_metrics(
     wide["source_filename"] = str(record["source_filename"])
     wide["checksum_sha256"] = str(record["checksum_sha256"])
     wide["provider_last_updated"] = wide["last_updated"]
+    wide["source_schema_version"] = schema_version
     wide["quality_flag"] = "overlapping_rolling_3_month_window"
     wide = wide.sort_values(["postal_zip", "period_end"])
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -432,12 +532,23 @@ def clean_redfin_zip_key_metrics(
         coverage_dir / "redfin_zip_unmatched.csv", index=False
     )
     _coverage_report(wide, coverage_dir)
-    observations = _to_observations(wide, observations_path)
+    observations = _to_observations(wide, observations_path, schema_version)
+    mapped_fields = {
+        field[0] for field in LEVEL_FIELDS.values()
+    } | {field[0] for field in PROVIDER_YOY_FIELDS.values()} | {DOM_DAYS_SOURCE_FIELD}
+    raw_only_fields = [column for column in actual_columns[8:] if column not in mapped_fields]
     atomic_json(
         sidecar,
         {
             "checksum_sha256": str(record["checksum_sha256"]),
+            "cleaner_version": CLEANER_VERSION,
+            "source_schema_version": schema_version,
+            "selected_range": selected_range,
+            "geography_checksum_sha256": geography_checksum,
+            "raw_only_metric_fields": raw_only_fields,
             "source_filename": str(record["source_filename"]),
+            "retrieved_at": str(record["retrieved_at"]),
+            "source_vintage": str(record["data_vintage"]),
             "clean_rows": len(wide),
             "fact_observations": len(observations),
         },

@@ -261,9 +261,9 @@ sources:
     config/pipeline.yaml; historical observations remain usable as dated.
 - source_id: redfin_zip_monthly
   provider: Redfin Data Center
-  dataset_name: Housing Market Tracker ZIP Key Metrics, rolling three months
+  dataset_name: Housing Market Tracker ZIP measures, rolling three months
   source_page_url: https://www.redfin.com/news/data-center/downloads/
-  download_url: https://www.redfin.com/news/data-center/downloads/
+  download_url: https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_data_center/index.json
   native_frequency: rolling_3_months
   geography_levels:
   - postal_zip
@@ -275,15 +275,14 @@ sources:
   - redfin_zip_new_listings_rolling_3m
   - redfin_zip_active_listings_rolling_3m
   - redfin_zip_pending_sales_rolling_3m
+  - redfin_zip_median_days_on_market_yoy_days_provider_rolling_3m
   enabled: true
   auto_download: true
-  access_method: official_browser_download
-  manual_reason: The browser adapter uses the public download form. Provider access
-    restrictions can block unattended requests; compatible official CSVs can still
-    be imported with --local-file. The September 2026 export changes days-on-market
-    YoY from percent to days, so the current successor schema requires a versioned
-    migration before active ingestion.
-  manual_filename: redfin_housing_market_monthly_all_zips_key_metrics_2019_Jan_to_2026_May.csv
+  access_method: official_public_download
+  manual_reason: Automatic acquisition resolves the public national ZIP CSV from
+    Redfin's official file index. An unchanged official file matching one of the
+    three versioned source formats can also be imported with --local-file.
+  manual_filename: all_zips.csv
   selected_start_date: '2019-01-01'
   rolling_window_months: 3
   expected_columns:
@@ -296,28 +295,62 @@ sources:
   - REGION NAME
   - METRO
   - HOMES SOLD
+  - HOMES SOLD MOM (%)
   - HOMES SOLD YOY (%)
   - MEDIAN SALE PRICE NSA ($)
+  - MEDIAN SALE PRICE NSA MOM (%)
   - MEDIAN SALE PRICE NSA YOY (%)
   - MEDIAN DAYS ON MARKET (DAYS)
-  - MEDIAN DAYS ON MARKET YOY (%)
+  - MEDIAN DAYS ON MARKET MOM (DAYS)
+  - MEDIAN DAYS ON MARKET YOY (DAYS)
+  - AVERAGE SALE TO LIST RATIO (%)
+  - AVERAGE SALE TO LIST RATIO MOM (PPTS)
+  - AVERAGE SALE TO LIST RATIO YOY (PPTS)
+  - SHARE SOLD ABOVE ORIGINAL LIST (%)
+  - SHARE SOLD ABOVE ORIGINAL LIST MOM (PPTS)
+  - SHARE SOLD ABOVE ORIGINAL LIST YOY (PPTS)
   - NEW LISTINGS
+  - NEW LISTINGS MOM (%)
   - NEW LISTINGS YOY (%)
   - ACTIVE LISTINGS
+  - ACTIVE LISTINGS MOM (%)
   - ACTIVE LISTINGS YOY (%)
+  - INVENTORY
+  - INVENTORY MOM (%)
+  - INVENTORY YOY (%)
   - PENDING SALES
+  - PENDING SALES MOM (%)
   - PENDING SALES YOY (%)
-  methodology_notes: Key Metrics download dated by PERIOD END; every observation is
-    an overlapping Rolling 3 Months window. Only ZIPs verified to primary county FIPS
-    06037 are loaded into clean analytics.
+  - MEDIAN NEW LISTING PRICE ($)
+  - MEDIAN NEW LISTING PRICE MOM (%)
+  - MEDIAN NEW LISTING PRICE YOY (%)
+  - MEDIAN NEW LISTING PRICE PER SQ.FT. ($)
+  - MEDIAN NEW LISTING PRICE PER SQ.FT. MOM (%)
+  - MEDIAN NEW LISTING PRICE PER SQ.FT. YOY (%)
+  - MEDIAN SALE PRICE PER SQ.FT. ($)
+  - MEDIAN SALE PRICE PER SQ.FT. MOM (%)
+  - MEDIAN SALE PRICE PER SQ.FT. YOY (%)
+  - MONTHS OF SUPPLY
+  - MONTHS OF SUPPLY MOM (%)
+  - MONTHS OF SUPPLY YOY (%)
+  - PERCENT OFF MARKET IN TWO WEEKS (%)
+  - PERCENT OFF MARKET IN TWO WEEKS MOM (PPTS)
+  - PERCENT OFF MARKET IN TWO WEEKS YOY (PPTS)
+  methodology_notes: Archive the provider's full national CSV unchanged. The cleaner
+    accepts the exact legacy 20-column, successor 22-column, and official full
+    50-column formats. Only the explicitly mapped measures and ZIPs verified to
+    primary county FIPS 06037 enter clean analytics, within the selected dates.
+    Every observation is an overlapping Rolling 3 Months window dated by PERIOD END.
+    Additional provider fields, including inventory, remain raw-only.
   license_or_use_notes: Official Redfin Data Center download; the complete
     national file remains immutable raw data and provider postal ZIPs are not Census
     ZCTAs.
   revision_notes: Historical values can be revised. Provider YoY percentages are retained
     as percentage points and active listings are not relabeled as inventory. The
     September 3, 2026 ZIP export replaces the days-on-market YoY percent field with
-    a YoY change in days and adds listing-price-per-square-foot fields. This successor
-    is rejected until an explicit variable and source-contract migration is implemented.
+    a YoY change in days. The versioned cleaner stores the days change in an independent
+    variable and leaves the unavailable legacy percentage missing in newer vintages.
+    The panel's calculated calendar-year percentage change remains a separate measure.
 - source_id: bls_laus_la_county
   provider: U.S. Bureau of Labor Statistics
   dataset_name: Local Area Unemployment Statistics, Los Angeles and seven comparable California counties

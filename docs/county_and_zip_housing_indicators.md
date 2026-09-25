@@ -39,7 +39,7 @@ The county comparison set is fixed and identified by five-character FIPS codes:
 | Redfin Housing Market Tracker | `redfin_county_monthly` | Monthly county | Months of supply, median days on market, and price-drop share for tightness |
 | BLS Local Area Unemployment Statistics (LAUS) | `bls_laus_la_county` | Monthly county | Resident employment momentum and contextual unemployment rate |
 
-The LAUS source ID is retained for backward compatibility even though it now contains all eight counties. The six source records above are configured for automatic public download and normally require no login or credential. The manually imported Redfin ZIP Key Metrics file is not an input to these nine constructions.
+The LAUS source ID is retained for backward compatibility even though it now contains all eight counties. The six source records above are configured for automatic public download and normally require no login or credential. The separately acquired Redfin ZIP measures are not an input to these nine constructions.
 
 ### Current Redfin source limitation
 
@@ -52,9 +52,10 @@ September 16. Its [May 12 pipeline announcement](https://www.redfin.com/news/new
 also describes changed methodology and seasonal-adjustment defaults.
 
 The successor [download hub](https://www.redfin.com/news/data-center/downloads/)
-returned HTTP 429 to direct access, and browser access timed out. A stable,
-compatible replacement county download containing all three inputs has not been
-verified. The user supplied official tracker and price-drop CSVs on September 22.
+returned HTTP 429 during the September 22 investigation. Its official public-file
+index was subsequently verified on September 25 and is used by the ZIP downloader;
+that resolves ZIP acquisition but does not establish county-method compatibility.
+The user supplied official tracker and price-drop CSVs on September 22.
 The read-only audit confirms exact calendar months, unique keys, a one-to-one
 join, and complete coverage of all three required inputs for eight counties
 over 176 months (January 2012–August 2026). The correct share is `PERCENT ACTIVE

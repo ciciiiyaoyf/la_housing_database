@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import pandas as pd
 
@@ -11,6 +12,51 @@ from src.common.variable_metadata import enrich_variable_metadata
 
 
 RESTRICTED_PUBLIC_COLUMN_PREFIXES = ("usps_",)
+
+# Frozen Version A predates the catalog's spelling changes. These exact source
+# variables already use the same dollar amounts and dimensionless fractions;
+# no multiplication, division, or change to the frozen observations is allowed.
+VERSION_A_UNIT_ALIASES = {
+    **{
+        f"acs_aggregate_household_income_{group}_benchmark": (
+            "inflation_adjusted_dollars_per_year", "inflation_adjusted_USD_per_year"
+        )
+        for group in ("owner", "mortgaged_owner", "no_mortgage_owner")
+    },
+    **{
+        f"acs_aggregate_owner_value_{group}_benchmark": ("dollars", "USD")
+        for group in ("all", "mortgaged", "no_mortgage")
+    },
+    **{
+        f"hmda_{metric}{group}_benchmark": ("rate", "ratio")
+        for metric in ("median_downpayment_rate", "property_value_weighted_downpayment_rate")
+        for group in ("", "_conventional", "_fha", "_va")
+    },
+    **{
+        f"hmda_share_downpayment_below_{threshold}pct{group}_benchmark": ("share", "ratio")
+        for threshold in (3, 5, 10, 20)
+        for group in ("", "_conventional", "_fha", "_va")
+    },
+}
+
+
+def _enrich_version_a_export(frame: pd.DataFrame, root: Path) -> pd.DataFrame:
+    """Add current labels after validating only documented frozen-unit aliases."""
+    canonical = frame.copy()
+    aliases = frame["variable_id"].map(VERSION_A_UNIT_ALIASES)
+    frozen_units = aliases.map(lambda pair: pair[0] if isinstance(pair, tuple) else None)
+    registry_units = aliases.map(lambda pair: pair[1] if isinstance(pair, tuple) else None)
+    changed = aliases.notna() & frame["unit"].eq(frozen_units)
+    canonical.loc[changed, "unit"] = registry_units.loc[changed]
+    # Unknown IDs or any unreviewed unit change still fail the ordinary validator.
+    enriched = enrich_variable_metadata(canonical, root)
+    enriched["unit"] = frame["unit"]
+    enriched.loc[changed, "unit_simplification_note"] += (
+        " Frozen Version A retains source unit '" + frame.loc[changed, "unit"]
+        + "', equivalent here to registry unit '" + registry_units.loc[changed]
+        + "'; original labels and numeric values are unchanged."
+    )
+    return enriched
 
 
 def _assert_public_export_safe(frame: pd.DataFrame, export_name: str) -> None:
@@ -134,7 +180,7 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
             benchmark["county_fips"].astype("string").eq("06037")
         ]
         if (config.root / "config" / "variable_metadata.csv").exists():
-            la_benchmark = enrich_variable_metadata(la_benchmark, config.root)
+            la_benchmark = _enrich_version_a_export(la_benchmark, config.root)
         la_benchmark.to_csv(
             export_dir / "la_version_a_benchmark.csv", index=False
         )

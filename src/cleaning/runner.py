@@ -599,8 +599,12 @@ def clean_sources(
                             else (
                                 "Validate the Key Metrics schema, filter the national "
                                 "CSV through the versioned LA County ZIP reference, "
-                                "preserve rolling-three-month windows and provider YoY "
-                                "values, and emit the LA clean table plus long observations."
+                                "apply any manifest-selected period bounds, preserve "
+                                "rolling-three-month windows, and retain provider YoY "
+                                "percent and days changes as distinct variables. Fields "
+                                "absent from a source contract stay null; additional "
+                                "reviewed all-metrics fields remain raw-only. Emit the "
+                                "LA clean table plus long observations with schema-version lineage."
                                 if source.source_id == "redfin_zip_monthly"
                                 else (
                                     "Read the official California DOI XLSX "
