@@ -43,10 +43,19 @@ Configured IDs, populated IDs, table rows, and files are different counts:
 some configured targets have explicit null rows, and some constructed measures
 exist only in a panel or scenario table rather than the main fact table.
 
-The [overview workbook](../outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx)
-is a filterable **August 24, 2026 reference snapshot**. Its smaller inventory is
-not the current contract. Likewise, the [document variable audit](../metadata/docx_variable_audit.csv)
+The earlier Excel inventories and finance comparison are dated presentations
+of these records. They are not build inputs or current catalogs; use the
+dictionary and generated inventories above for current definitions and recorded
+coverage, and the [finance guide](housing_finance_versions.md) for the A/B/C
+crosswalk and methods. The [document variable audit](../metadata/docx_variable_audit.csv)
 preserves an earlier requirements scope; it is not a complete current inventory.
+
+A methodology concept can map to several configured IDs. Assess whether its
+target has non-null observations at the required geography and frequency,
+separately from whether inputs, alternate measures, or proxies exist. A
+populated scenario does not establish observed-target completeness, and an
+all-null schema does not establish availability. Source authorization is a
+separate question from physical availability, as described below.
 
 ## Choose the right analytical product
 

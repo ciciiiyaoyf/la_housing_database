@@ -18,6 +18,8 @@ Frozen reference parameters, regime-model JSON files, Version A freeze checksums
 B/C build manifests, and source lineage support computation or reproducibility.
 Generated CSV/XLSX inventories describe their recorded build, not a live provider
 connection. Local raw manifests and some run logs are excluded from Git.
-[history/](history/README.md) holds clearly dated superseded evidence.
+`history/` holds superseded evidence, including the
+[August 3 HUD-USPS build summary](history/hud_usps_official_rebuild_summary_20260803.csv).
+These historical values must not be rewritten to describe a later build.
 
-[Parent folder](../README.md) · [Start here](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)
+[Project tutorial](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)

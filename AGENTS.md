@@ -14,3 +14,5 @@
 - Run `pytest` and `python run_pipeline.py --stage validate` before declaring work complete.
 - Update `README.md`, configuration, tests, and the data dictionary whenever schemas or methods change.
 - Keep the project Python 3.11+ compatible and avoid unnecessary frameworks.
+- Keep README.md files at the project root and top-level module folders. Describe nested modules in their parent guide.
+- Use output/ for generated exports, QA, and reports. Historical presentation artifacts belong in the ignored output/archive/ tree, not a second outputs/ folder.

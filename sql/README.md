@@ -13,4 +13,4 @@ The Python pipeline builds the analytical tables. The optional view files are no
 a replacement for acquisition, harmonization, or validation and are not run by the
 normal build. Keep them as usable SQL definitions.
 
-[Parent folder](../README.md) · [Start here](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)
+[Project tutorial](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)

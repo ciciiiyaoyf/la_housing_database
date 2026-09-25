@@ -15,4 +15,4 @@ These are the six detailed references:
 Folder READMEs describe local responsibilities and point here; they do not repeat
 the tutorials. Dated narrative reports are consolidated into these guides.
 
-[Parent folder](../README.md) · [Start here](../README.md) · [Build and refresh guide](database_build_and_refresh.md)
+[Project tutorial](../README.md) · [Build and refresh guide](database_build_and_refresh.md)

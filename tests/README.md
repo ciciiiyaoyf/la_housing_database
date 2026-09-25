@@ -15,4 +15,4 @@ local database and data products. A clone without observations is not a fully
 provisioned integration-test workspace. Tests must not substitute invented data
 for missing production observations. Keep failures visible and investigate them.
 
-[Parent folder](../README.md) · [Start here](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)
+[Project tutorial](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)

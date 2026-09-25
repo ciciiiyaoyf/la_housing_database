@@ -14,4 +14,4 @@ Defines which sources, variables, geographies, and methods the pipeline uses.
 These files affect computation, not just display. Version A files are checksum-frozen;
 method changes require a documented version update and validation.
 
-[Parent folder](../README.md) · [Start here](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)
+[Project tutorial](../README.md) · [Build and refresh guide](../docs/database_build_and_refresh.md)

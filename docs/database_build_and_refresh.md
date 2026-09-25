@@ -210,5 +210,8 @@ parallel current guides. The [August 3 HUD-USPS summary](../metadata/history/hud
 describes an earlier build, not the active database. The
 [quarantine manifest](../metadata/hud_usps_quarantine_manifest.csv) likewise records
 superseded provenance; do not rewrite historical entries to describe current data.
-The dated reference workbooks preserve their original inventory scope; current
-CSV/JSON inventories take precedence for present availability.
+The dated workbooks and previews from the former `outputs/` folder are preserved
+locally under `output/archive/legacy_reports/`. Previously published workbooks also
+remain in Git history. Their useful explanations are consolidated in the data and
+finance guides; current CSV/JSON inventories take precedence for present availability.
+Use `output/` for all new exports, QA, and reports.

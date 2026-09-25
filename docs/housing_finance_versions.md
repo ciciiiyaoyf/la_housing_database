@@ -20,6 +20,24 @@ The Version A freeze is enforced through [the checksum manifest](../metadata/ver
 
 The dictionaries are closed contracts: emitted IDs must match their version dictionary exactly. Version B configures 58 IDs: 28 canonical modeled repeats, 16 canonical explicit-null targets, four Redfin flow proxies, and ten debt/equity sensitivities or scenarios. Version C also configures 58 IDs: 28 canonical modeled carries, 16 canonical explicit-null targets, four Redfin flow proxies, and ten debt/equity sensitivities or scenarios.
 
+The A/B/C crosswalk contains 71 concepts: 54 mapped across all three versions,
+four separately named B/C Redfin flow proxies linked to the corresponding A
+HMDA anchors, and 13 A-only support/audit output concepts. The latter comprise
+ten ACS population, owner-unit, value, income, and cost inputs plus three PUMS
+payment-share and junior-lien diagnostics. They remain available as benchmark
+inputs even though B/C do not emit them as separate monthly output concepts.
+Read `benchmark_variable_id` and `construction_anchor_variable_ids` in the B/C
+dictionaries when tracing a monthly ID; replacing the suffix alone misses the
+separate proxy-to-anchor relationships.
+
+For comparisons, match county, month, and the declared concept mapping, and
+select one Version C information cutoff. Inspect non-null values separately
+from row and flag counts: explicit-null contracts are materialized rows too.
+The `canonical`, `proxy`, and `scenario` flags are separate attributes; the four
+Version C Redfin proxies currently also have `scenario=true`, while the four
+Version B proxies have `scenario=false`. Their `output_status` remains `proxy`
+in both dictionaries.
+
 The implemented methods follow the methodology's frequency and accounting rules:
 
 - Mortgage payment: Version B repeats the Version A ACS/PUMS structural payment and related debt-service measures within the anchor's reference calendar year. Version C carries the latest eligible aggregate P&I benchmark forward. Payment is not regenerated from modeled debt, which avoids circularity.

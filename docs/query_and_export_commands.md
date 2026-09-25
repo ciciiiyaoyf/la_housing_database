@@ -2,12 +2,13 @@
 
 For dropdowns and CSV download buttons, start with the
 [beginner tutorial in the README](../README.md). This optional command reference
-supports saved, repeatable queries. Filters correspond to the **Variable Inventory**
-sheet in the [reference overview workbook](../outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx). It covers
-both finding variables and downloading their data. All examples use the local
+supports saved, repeatable queries. Filters use the classifications in the
+[current variable dictionary](../metadata/data_dictionary.csv), originally aligned
+with the **Variable Inventory** sheet of the August 24 overview workbook. This guide
+covers both finding variables and downloading their data. All examples use the local
 database snapshot; they do not download new releases from providers.
 
-The workbook contains 482 variable IDs. The current database dictionary contains
+The historical workbook contains 482 variable IDs. The current database dictionary contains
 558, including all 482 workbook IDs. For those shared IDs, Domain, Layer, Proxy,
 Constructed, Geography, Native frequency, and Final frequency agree with the
 workbook. The same filters also work for the 76 newer variables.

@@ -12,56 +12,31 @@ scripts/build_database_system_overview.mjs
 scripts/build_variable_data_summary.mjs
 scripts/report_authoring/soffice.exe
 
-# Publish named reference documents; exclude previews and temporary QA files.
-outputs/**
-!outputs/README.md
-!outputs/reference_workbooks/
-!outputs/reference_workbooks/README.md
-!outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx
-!outputs/reference_workbooks/housing_database_overview_2026-08-24_base.xlsx
-!outputs/reference_workbooks/housing_finance_versions_comparison_2026-08-24.xlsx
-!outputs/reference_workbooks/housing_variables_source_limited_legacy_251_ids_2026-08-07.xlsx
-!outputs/reference_workbooks/housing_variables_source_limited_2026-08-07.xlsx
-!outputs/reference_workbooks/housing_variables_source_limited_2026-08-10.xlsx
+# Retired presentation folder; generated reports now belong under output/.
+outputs/
 
 # Raw and generated data are reproducible artifacts, not source.
 data/raw/**
-!data/raw/README.md
 !data/raw/**/.gitkeep
 data/archive/deprecated_zori_nsa/*
-!data/archive/deprecated_zori_nsa/README.md
 !data/archive/deprecated_zori_nsa/archive_manifest.csv
 data/interim/**
-!data/interim/README.md
 !data/interim/.gitkeep
 data/clean/**
-!data/clean/README.md
 !data/clean/.gitkeep
 data/benchmark/**
-!data/benchmark/README.md
-!data/benchmark/clean/
-!data/benchmark/clean/README.md
 !data/benchmark/**/.gitkeep
 data/final/**
-!data/final/README.md
 !data/final/.gitkeep
 # Licensed/restricted snapshots stay inside the project workspace but never enter Git.
 data/restricted/**
-!data/restricted/README.md
-!data/restricted/hud_usps/
-!data/restricted/hud_usps/README.md
 !data/restricted/**/.gitkeep
 database/*.duckdb
 database/*.wal
 output/**
 !output/README.md
 !output/exports/
-!output/exports/README.md
 !output/exports/variable_dictionary.csv
-!output/coverage/
-!output/coverage/README.md
-!output/qa/
-!output/qa/README.md
 metadata/pipeline_run_log.csv
 metadata/raw_file_manifest.csv
 metadata/version_a_raw_file_manifest.csv

@@ -19,7 +19,7 @@ resolve any error before continuing.
 
 | Setup step | What you receive |
 |---|---|
-| Clone from GitHub | Programs, configuration, variable definitions, guides, and reference workbooks. |
+| Clone from GitHub | Programs, configuration, variable definitions, and reference guides. |
 | Supply or build a database | Actual observations queried by the browser. |
 
 **GitHub does not include `database/housing.duckdb` or the raw source archives.**
@@ -246,9 +246,8 @@ the data**: obtain an updated compatible snapshot or use the maintainer workflow
 
 This README is the beginner tutorial. Each of the six reference guides below
 has one purpose. Replaced guides and dated narrative reports remain in Git history.
-Each maintained project folder also has a short `README.md` explaining its role,
-key files, and inputs/outputs. Provider/vintage partitions use their storage-layer
-guide; generated caches and installed dependencies are not project modules.
+Each top-level module folder has a short `README.md` explaining its role,
+key files, and inputs/outputs. Nested modules are described in their parent guide.
 
 | Guide | Read it for… |
 |---|---|
@@ -266,11 +265,10 @@ guide; generated caches and installed dependencies are not project modules.
 | `metadata/data_dictionary.csv` | Variable names, IDs, definitions, units, and classifications. |
 | [metadata/](metadata/README.md) | Inventories, coverage, provenance, audit evidence, and frozen model parameters. |
 | [config/](config/README.md) | Sources, variables, geography references, and method settings. |
-| [outputs/](outputs/README.md) / [reference_workbooks/](outputs/reference_workbooks/README.md) | Dated Excel inventories and finance comparisons. |
 | [database/](database/README.md) | Local query database, not included in Git. |
 | [data/](data/README.md) | Storage-layer map for source archives, clean inputs, and final analytical products. |
-| [output/](output/README.md) | Generated CSVs and QA reports, distinct from published reference `outputs/`. |
-| [src/](src/README.md) | Pipeline modules, their responsibilities, and module-level guides. |
+| [output/](output/README.md) | Generated CSVs, coverage, QA reports, and local historical report archives. |
+| [src/](src/README.md) | Pipeline modules and their responsibilities. |
 | [scripts/](scripts/README.md) | Source refresh helpers, audits, browser page, and preserved document tools. |
 | [sql/](sql/README.md) | Database schemas, optional views, and manual structural checks. |
 | [tests/](tests/README.md) | Verification and required local fixtures. |
@@ -278,15 +276,17 @@ guide; generated caches and installed dependencies are not project modules.
 Metro variables and finer-geography alternatives are covered in the
 [data guide](docs/data_inventory_and_limitations.md#metro-variables-and-finer-geography-alternatives).
 The standalone progress report has been absorbed there. Its reusable building and
-QA code is preserved in [report authoring](scripts/report_authoring/README.md).
+QA code is preserved in [report authoring](scripts/README.md#optional-document-tools).
 
-For an Excel inventory, use the [reference overview workbook](outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx).
-It covers the earlier 482-ID inventory; the current dictionary contains 558 IDs.
+For current variable definitions, use the [data dictionary](metadata/data_dictionary.csv),
+which contains 558 IDs. The generated Excel catalog is `metadata/data_catalog.xlsx`
+in a local build.
 [Source coverage](metadata/source_coverage.csv) and the
 [dataset inventory](metadata/analytical_dataset_inventory.csv) describe the
 maintained build. Check your local database for the data you actually have.
 
-The [finance comparison workbook](outputs/reference_workbooks/housing_finance_versions_comparison_2026-08-24.xlsx)
-compares Versions A/B/C. Older workbooks are dated reference snapshots, not extra
-databases: `_base` identifies the overview before added finance guidance, and
-`legacy_251_ids` distinguishes the earlier, smaller August 7 inventory.
+The [housing finance guide](docs/housing_finance_versions.md) compares Versions A/B/C.
+Historical workbooks and previews from the former `outputs/` folder are retained
+locally under `output/archive/legacy_reports/`. The six previously published
+workbooks also remain in Git history. Their useful explanations are consolidated
+in the data and finance guides; current inventories take precedence over those snapshots.
