@@ -13,11 +13,14 @@ not a ready-to-query database.
   for strict source refresh and eligible monthly finance builds, preserving frozen Version A.
 - [run_version_a.py](../run_version_a.py), [run_version_b.py](../run_version_b.py), and
   [run_version_c.py](../run_version_c.py) expose the separate finance pipelines.
+- Direct SQL analysis reads the existing database through DuckDB; follow the
+  [DuckDB SQL guide](../docs/duckdb_sql_guide.md).
 - [run_query.py](../run_query.py) and [run_data_browser.py](../run_data_browser.py)
-  query the existing database; they do not fetch new provider releases.
+  provide optional filtered exports and browser downloads from that database;
+  they do not fetch new provider releases.
 
 The general path is official files → immutable `data/raw/` → `data/clean/`
-observations → `data/final/` tables → local DuckDB → filtered exports. Configuration
+observations → `data/final/` tables → local DuckDB → SQL analysis or optional exports. Configuration
 defines contracts; `metadata/` records provenance, variables, models, and transformations.
 
 ## Module map
@@ -46,7 +49,8 @@ defines contracts; `metadata/` records provenance, variables, models, and transf
 - Unit/temporal enrichment does not rescale values or select aggregation rules. Structural failures stop validation; plausible economic outliers remain review warnings.
 - Licensed HUD USPS archives/derivatives stay access-controlled under `data/restricted/`. The local database may contain restricted records; ordinary public exports reject them.
 
-See the [project README](../README.md), [build and refresh guide](../docs/database_build_and_refresh.md),
-[query/export reference](../docs/query_and_export_commands.md), [data inventory](../docs/data_inventory_and_limitations.md),
+See the [project README](../README.md), [DuckDB SQL guide](../docs/duckdb_sql_guide.md),
+[optional CSV/export reference](../docs/query_and_export_commands.md),
+[build and refresh guide](../docs/database_build_and_refresh.md), [data inventory](../docs/data_inventory_and_limitations.md),
 [source methods](../docs/source_definitions_and_methods.md), [finance versions](../docs/housing_finance_versions.md),
 and [county/ZIP indicator methods](../docs/county_and_zip_housing_indicators.md).

@@ -1,31 +1,38 @@
 # Los Angeles Housing Database
 
-Find housing data for Los Angeles and comparison areas, select a whole dataset
-or one variable, and download a CSV for Excel or analysis. Once set up, the local
-**Data Browser** provides dropdowns and download buttons; everyday use requires
-no SQL or database knowledge.
+Use the local **DuckDB database** to explore Los Angeles housing data, retrieve
+tables or individual series with SQL, and load query results directly into Python
+for modeling and forecasting research. The database includes observations,
+analytical panels, variable definitions, and provenance.
 
 **Start here:** [clone](#1-install-the-tools-and-clone-the-project) →
-[set up Python](#2-set-up-the-project) → [get data](#3-get-a-local-database) →
-[open the browser](#4-open-the-data-browser) → [download CSV](#5-download-your-first-dataset).
-Already set up? Go straight to step 4.
+[install the tools](#2-set-up-the-project) → [get the database](#3-get-a-local-database) →
+[open DuckDB](#4-open-duckdb-and-run-your-first-query) →
+[learn SQL](docs/duckdb_sql_guide.md) → [use results in Python](#6-use-query-results-for-modeling).
+Already set up? Start at step 4.
+
+For readers who prefer spreadsheet files, the
+[CSV browser and export tutorial](docs/query_and_export_commands.md#browser-downloads)
+is an alternative. CSV export is not required for SQL analysis or modeling.
 
 ## Before you start
 
-The numbered walkthrough below is for **Windows**. You will use three windows:
+The numbered walkthrough below is for **Windows**. You will use these interfaces:
 
 | Window | What you do there |
 |---|---|
-| **Windows PowerShell** | Paste the setup and update commands shown below. |
-| **File Explorer** | Find the downloaded project, place the database file, and double-click the launcher. Open it with **Windows key + E**. |
-| **Your web browser**, such as Edge or Chrome | Read this guide, then use the local Data Browser's dropdowns and download buttons. |
+| **Windows PowerShell** (`PS ... >`) | Paste setup commands and start DuckDB or Python programs. |
+| **DuckDB** (`D` prompt, in the same terminal window) | Type SQL to inspect tables and retrieve data after step 4. |
+| **File Explorer** | Find the downloaded project and place the database file. Open it with **Windows key + E**. |
+| **Your web browser**, such as Edge or Chrome | Read this guide; use the separate CSV browser only if you want downloads. |
 
 A *command* is a line of text that tells the computer to do something. A
 *terminal* is the window that accepts commands; this guide uses PowerShell.
 *Cloning* means downloading a working copy of the project from GitHub.
-You do not need to write Python code to use the Data Browser.
+SQL is the language used to ask DuckDB for data. This guide explains where to
+enter it and includes queries you can copy before adapting them.
 
-**How to enter a command:**
+**How to enter a PowerShell command:**
 
 1. Click the Windows **Start** button, type **Windows PowerShell**, and open it.
    A window or terminal tab opens with a line starting with `PS` and ending in `>`.
@@ -38,18 +45,27 @@ You do not need to write Python code to use the Data Browser.
    Installation can print many lines and take several minutes. If it reports an
    error, stop at that step and use [Troubleshooting](#troubleshooting).
 
-Enter these commands in **PowerShell**, not in GitHub's page, your browser's
+**Already have a terminal open?** A prompt such as
+`C:\Users\yourname\Downloads\la_housing_database>` without the initial `PS`
+is **Command Prompt**, a different program. In that window, type `powershell`
+and press Enter. Wait for a prompt starting with `PS`; then use this guide's
+PowerShell commands. The folder stays the same. If you are already inside
+`la_housing_database`, you do not need to enter a second folder with that name.
+
+Enter the `powershell` commands in **PowerShell**, not in GitHub's page, your browser's
 address bar, a Python window showing `>>>`, or an Excel cell. If you accidentally
 opened Python, type `exit()` and press Enter, then open PowerShell as above.
 Opening PowerShell as administrator is not needed for this walkthrough.
-Keep this guide open in your browser while following the steps.
+Keep this guide open in your browser while following the steps. After starting
+DuckDB in step 4, enter `sql` blocks at its `D` prompt instead; the guide marks
+that change explicitly.
 
 For macOS/Linux, use the separate [Terminal commands](#macos-and-linux) below.
 
 | Setup step | What you receive |
 |---|---|
 | Clone from GitHub | Programs, configuration, variable definitions, and reference guides. |
-| Supply or build a database | Actual observations queried by the browser. |
+| Supply or build a database | Actual observations queried directly in DuckDB. |
 
 **GitHub does not include `database/housing.duckdb` or the raw source archives.**
 Cloning and installing Python alone will not provide housing observations.
@@ -177,8 +193,9 @@ in `\la_housing_database>`. If that window is closed, follow
 [Return to the project folder](#return-to-the-project-folder-in-powershell) first.
 
 A Python *environment* is a folder containing the Python program and packages used
-by this project. Its name here is `.venv`. Set it up once for each new local copy.
-Enter the next four commands **separately**, in order.
+by this project, including DuckDB's Python library and its separate SQL command-line
+client. Its name here is `.venv`. Set it up once for each new local copy.
+Follow the next four steps in order, entering each command **separately**.
 
 **A. Create the environment.** Copy this one line into PowerShell and press Enter:
 
@@ -215,8 +232,17 @@ hand. Wait for installation to finish before continuing.
 ```
 
 You should see help text starting with `usage:` and listing commands such as
-`catalog`, `observations`, and `table`. This confirms that the program starts;
-it does not mean housing data has been installed. Continue to step 3.
+`catalog`, `observations`, and `table`. This checks the project's Python packages.
+Also check the DuckDB SQL program in the same PowerShell window:
+
+```powershell
+.\.venv\Scripts\duckdb.exe --version
+```
+
+Expect a DuckDB version number. `requirements.txt` installs the official
+`duckdb-cli` package as well as the Python library; installing `duckdb` alone does
+not provide this executable. Neither check installs housing observations.
+Continue to step 3.
 
 The longer commands select Python from `.venv` directly. No separate environment
 activation or PowerShell execution-policy change is needed. Keep this window open
@@ -261,19 +287,9 @@ Test-Path -LiteralPath '.\database\housing.duckdb'
 ```
 
 Expect `True`. If it says `False`, check the folder and filename in File Explorer;
-do not continue until this check says `True`. Next, run:
-
-```powershell
-.\.venv\Scripts\python.exe run_query.py catalog --variable zori_smoothed_sa
-```
-
-Expect comma-separated column headings followed by a definition row containing
-`zori_smoothed_sa`, printed in PowerShell. This is normal; the command does not
-open Excel or save a file. It checks that the program can read the variable catalog;
-it does not establish complete
-observation coverage. The browser preview in step 5 checks the data you selected.
-If the command reports missing tables or metadata, give that error to the
-maintainer and request a snapshot compatible with your project copy.
+do not continue until this check says `True`. Step 4 opens this exact database,
+and step 5 shows how to inspect its contents. If queries report missing tables or
+metadata, give that error to the maintainer and request a compatible snapshot.
 
 **To build from provider files instead**, follow
 [Database build and refresh](docs/database_build_and_refresh.md). This is a
@@ -282,201 +298,139 @@ and validation; it is not a one-command installation of the full snapshot.
 `--offline` needs existing archives, and the finance layers need frozen benchmark
 inputs. A one-source download does not build a complete working database.
 
-## 4. Open the Data Browser
+## 4. Open DuckDB and run your first query
 
-Complete steps 1–3 first. On later visits, you can start here; you do not need to
-reinstall the packages every time.
+**Where to start:** in **Windows PowerShell**, in the project folder. If you
+closed it, follow [Return to the project folder](#return-to-the-project-folder-in-powershell).
+Complete steps 1–3 first. For an older checkout, rerun step 2's package-install
+command once to add the DuckDB command-line client.
 
-### Open it with the launcher
-
-1. Open **File Explorer** with **Windows key + E**.
-2. Open **Downloads → la_housing_database**, or the location where you cloned it.
-3. Find **Open_Data_Browser.cmd** and double-click it there, on your computer.
-   Windows may hide `.cmd` and show **Open_Data_Browser** as a Windows Command Script.
-   Clicking its filename on GitHub or in a document preview does not run it.
-4. A terminal window should open and stay open. A browser tab titled
-   **LA Housing Data Browser** should appear, with the page heading
-   **Find and download housing data**. Continue to step 5 in that browser tab.
-
-### If double-clicking does not open the page
-
-Open **Windows PowerShell** from Start and
-[return to the project folder](#return-to-the-project-folder-in-powershell).
-Paste this command into PowerShell and press Enter:
+Paste this **PowerShell command** and press Enter:
 
 ```powershell
-.\.venv\Scripts\python.exe run_data_browser.py --open-browser
+.\.venv\Scripts\duckdb.exe -readonly .\database\housing.duckdb
 ```
 
-This starts the same browser program as double-clicking the launcher. If it fails,
-the error remains visible in PowerShell so you can read it or copy it for help.
-If it starts but no browser tab appears, copy the printed address, normally
-`http://127.0.0.1:8765/`. Open Edge or Chrome, paste it into the **address bar at
-the top**, and press Enter. This address refers to your own computer.
+DuckDB opens inside that window and displays a **`D` prompt**. You are now talking
+to DuckDB, so enter SQL rather than PowerShell commands. `-readonly` lets you
+inspect the supplied database without altering its tables. A missing file causes
+an error rather than creating an empty database.
 
-**Keep the terminal window open while using the page.** It is normal for this
-command to keep running without returning to a `PS ... >` prompt. You can minimize
-the window. When finished, close the browser tab, click inside the terminal that
-started the program, and press **Ctrl+C** to stop it. Accept a batch-termination
-prompt if the double-click launcher shows one. Next time, repeat step 4.
+At the **DuckDB `D` prompt**, copy this entire SQL statement, including the final
+semicolon, and press Enter:
 
-The page reads a local snapshot. Opening it does not fetch new provider releases
-or update observations.
+```sql
+SELECT current_database() AS database_name;
+```
 
-## 5. Download your first dataset
+Expect a small table containing `housing`. Now paste this whole SQL block at `D`:
 
-**Where to work:** in the **Data Browser tab** opened in step 4. The next actions
-are clicks on that page; there are no PowerShell commands to enter.
+```sql
+SELECT date::DATE AS month, county_fips, zori
+FROM analytics.county_monthly_panel
+WHERE county_fips = '06037'
+ORDER BY date DESC
+LIMIT 10;
+```
 
-Try this example to download one rent series for postal ZIP 90024. It requires
-that your database contain the postal-ZIP housing panel.
+Expect up to ten LA County rows, with the most recent month first. `zori` is the
+Zillow Observed Rent Index in USD/month; a blank/null cell means the value is
+missing. The panel's `zori` column corresponds to variable ID `zori_smoothed_sa`.
+Your results depend on the installed snapshot. This query displays data directly
+from DuckDB; it does not create a CSV.
 
-1. Under **Select your data**, open the **Dataset** dropdown and choose
-   **Postal ZIP housing — Monthly**. Wait for the filters to finish loading.
-2. Open **Geography type** and choose **postal_zip**. Wait for the choices to update.
-3. Open **Place** and choose **ZIP_90024**.
-4. Open **Variable** and choose the Zillow Observed Rent Index entry ending in
-   **`(zori_smoothed_sa)`**. For the whole dataset, keep **All variables**.
-5. Open **Frequency** and choose **monthly**. Leave the other filters at their
-   **All** choices.
-6. Under **Date range**, optionally set **From** to January 1, 2020, using the date
-   picker. Its displayed format depends on your browser. Leave **Through** blank
-   for all later available dates. Both endpoints are included when provided.
-7. Click **Preview data** and wait for rows to appear under **Data preview**.
-   Check the place, dates, and columns; scroll sideways to see additional columns.
-   The rent column is called `zori`; the definitions file links it to
-   `zori_smoothed_sa`. Read any notes below the preview. If the page says no rows
-   match, clear the date restriction or use **Reset filters** and try again.
-8. Click **Download CSV** and wait for your browser to finish saving the file.
-   Then click **Download variable definitions** to save the matching explanation.
+SQL can span several lines. DuckDB waits until you finish the statement with `;`.
+After the result, another `D` prompt means it is ready for the next query. If a
+paste is incomplete, press **Ctrl+C** to cancel it and paste the complete query.
+Do not paste another launch command at `D`.
 
-The browser saves to its usual Downloads folder or asks you to choose a location.
-In Edge or Chrome, press **Ctrl+J** to open the download list and use **Show in
-folder** (or its folder icon) to locate the files. This example downloads
-`zip-monthly.csv` and `zip-monthly.variables.csv`; repeated downloads may have a
-number added by your browser. Keep both files from the same selection together.
+When you want to return to PowerShell, enter this **DuckDB command**, with no
+semicolon, and press Enter:
 
-A CSV is a plain-text table that Excel and other analysis programs can read.
-The data CSV includes **all matching rows**, not just the 20 preview rows. The
-definitions CSV gives variable IDs, units, temporal types, and descriptions.
-Dates, geography, quality, and provenance fields remain in a single-variable
-export. Missing values stay missing.
+```text
+.quit
+```
 
-**All variables** includes the measures registered in the variable dictionary,
-plus the dataset's retained context fields. Additional unregistered measure
-columns are omitted and named in the preview notes; this is not a raw copy of
-every column in the underlying database table.
+Continue with the full [DuckDB SQL guide](docs/duckdb_sql_guide.md) to explore the
+database, choose variables, check data quality, save queries, and use Python.
+It also explains [DuckDB's graphical table viewer and SQL editor](docs/duckdb_sql_guide.md#10-view-tables-in-duckdbs-graphical-interface).
 
-For all available places, leave **Place** at **All places**. To start a different
-selection, click **Reset filters**; this clears the filters and dates but keeps
-the dataset. Changing **Dataset** also resets the earlier filters. CSV recipients
-do not need to install this project.
+## 5. Find tables, datasets, and variables
 
-## 6. Find other data and use the filters
+Reopen DuckDB using step 4 if you have exited it. At **`D`**, run:
 
-| Dataset choice | Typical use |
-|---|---|
-| LA County housing — Monthly | County prices, rents, housing activity, and derived measures. |
-| LA and comparable counties — Monthly | Separate observations for LA and seven comparison counties. |
-| Postal ZIP housing — Monthly | Housing measures for individual postal ZIPs. |
-| County controls — Annual / Census ZCTA controls — Annual | Annual demographic and housing controls. |
-| State / Metro / Macro controls | Broader indicators at their actual geography and frequency. |
-| Source observations — General layer | Source records with `variable_id` and `value` columns. |
-| Housing finance — Versions A, B, C | Benchmark, retrospective monthly, or information-cutoff finance data. |
-| Homebuying cost scenarios | Modeled costs and assumptions, not observed transactions. |
+```sql
+SELECT table_schema, table_name, table_type
+FROM information_schema.tables
+WHERE table_schema IN ('analytics', 'metadata')
+ORDER BY table_schema, table_name;
+```
 
-Make these choices in the **same Data Browser page**. Choose **Dataset** first,
-wait for its filters to load, and then select the location, variable, and other
-filters you need. After each change, click **Preview data** again before downloading.
+This lists what actually exists in your database. A *schema* is a group of related
+tables; `analytics.county_monthly_panel` means the `county_monthly_panel` table
+inside the `analytics` schema. A *view* is a saved query presented like a table.
+A table's presence does not guarantee non-missing values for every variable/date.
 
-The Dataset menu lists supported products; seeing a name there does not establish
-that its table or observations are installed. The filter choices are read from
-your local database. A dictionary entry does not guarantee populated observations
-for every dataset or place. If selecting a dataset reports a missing table, choose
-another dataset or ask the maintainer for a compatible snapshot containing it.
+The [DuckDB SQL guide](docs/duckdb_sql_guide.md) is the main usage tutorial. Follow it
+in order to learn how to:
 
-| Filter | What it selects |
-|---|---|
-| Variable | One measure and its identifier. |
-| Geography type / Place | A geography class and location. `COUNTY_06037` is LA County. |
-| Frequency | Output cadence, such as monthly or annual. |
-| Domain | Subject group, such as `rental_market`, `construction`, or `labor_market`. |
-| Layer | General, Version A, Version B, or Version C; choose a compatible dataset. |
-| Proxy variable | Yes/No classification indicating a proxy for another concept. |
-| Constructed variable | Yes/No classification indicating a calculation or model. |
-| Units and temporal types | Simplified units, stock/flow and other temporal labels, and native frequency. |
+1. Inspect column names, data types, sample rows, and variable definitions.
+2. Select geography, frequency, Domain, Layer, Proxy, Constructed, units, and temporal type.
+3. Retrieve a whole dataset or one series, with explicit date and location filters.
+4. Check missingness and duplicate keys before joining tables or modeling.
+5. Reuse saved SQL and load its results directly into a Python DataFrame.
 
-For unit or temporal filtering, click the expandable **Units and temporal types**
-heading below the main filters. This reveals **Simplified unit**, **Temporal type**,
-and **Native frequency**. For example, selecting **flow** under Temporal type
-keeps measures classified as flows; it does not calculate new values.
+Read the [data inventory](docs/data_inventory_and_limitations.md) when choosing a
+product, and its source/finance methods before interpreting modeled values.
 
-Filters use the [current variable dictionary](metadata/data_dictionary.csv) and
-combine with **AND**: every selected condition must be satisfied. **All** leaves
-that condition unrestricted. Proxy and Constructed are independent; an unknown
-flag is not the same as No.
+## 6. Use query results for modeling
 
-For example, to find LA County monthly construction proxies:
+You can move data directly from DuckDB into Python, without downloading a CSV.
+The repository includes a small, reproducible example:
 
-1. Choose **LA County housing — Monthly** in Dataset and wait for the filters.
-2. Choose **county** in Geography type, then **COUNTY_06037** in Place.
-3. Leave Variable at **All variables** and choose **monthly** in Frequency.
-4. Choose **construction** in Domain and **General** in Layer.
-5. Choose **Yes** in both Proxy variable and Constructed variable.
-6. Click **Preview data**, review the rows and notes, then download both CSVs.
+- [sql/model_input.sql](sql/model_input.sql) selects LA County monthly rent data.
+- [scripts/load_model_data.py](scripts/load_model_data.py) runs that query against
+  the local database and returns a pandas DataFrame, a table in Python memory.
 
-Postal ZIPs and Census ZCTAs are distinct. County selection does not fill missing
-values from state or national data. Output frequency does not change source
-meaning: Redfin ZIP windows overlap across three months; ACS five-year estimates
-remain survey-period estimates. Stock/flow labels do not automatically resample
-values.
+**Where to run it:** in **PowerShell**, in the project folder. If the window shows
+DuckDB's `D` prompt, enter `.quit` first. Then run:
 
-For an empty preview, remove a filter or choose a compatible dataset. Some derived
-General variables exist only in analysis tables; finance Version C retains multiple
-information cutoffs. For **Source observations — General layer**, selecting all
-variables may include licensed HUD-USPS records and be refused; choose a public
-variable such as `zori_smoothed_sa` instead. Use
-[Query and export commands](docs/query_and_export_commands.md)
-for multiple selected places, saved commands, Parquet output, and SQL.
+```powershell
+.\.venv\Scripts\python.exe scripts/load_model_data.py
+```
 
-## 7. Open the CSV in Excel
+The program prints the result's size and a preview; it does not fit a forecasting
+model, fill missing values, or modify the database. The
+[modeling section of the SQL guide](docs/duckdb_sql_guide.md#8-use-the-query-result-in-python)
+explains how to use the function in your own analysis and change the saved query.
 
-**Where to work:** in the **desktop Excel application**, after the two files finish
-downloading. The following menu names apply to recent Excel for Windows versions.
+For forecasting, historical observation dates alone do not establish what was
+known at a past forecast date. Provider revisions, release dates, finance cutoffs,
+missing months, and model-training periods matter. Read the
+[forecasting guidance](docs/duckdb_sql_guide.md#9-prepare-for-forecasting-without-using-future-information)
+before creating a training sample.
 
-1. Open Excel and choose **Blank workbook**.
-2. Click **Data** on the ribbon, then **From Text/CSV**. Some versions place it
-   under **Get Data → From File → From Text/CSV**.
-3. In the file picker, open the folder used for the download, select the data CSV
-   (for the example, `zip-monthly.csv`), and click **Import**.
-4. In the import preview, select **Do not detect data types** under **Data Type
-   Detection**, if offered. Then choose **Transform Data** to open Power Query.
-5. In Power Query's **Applied Steps** list on the right, remove an automatically
-   added **Changed Type** step if present, using its **X**. This avoids retaining
-   numeric conversions that have already removed leading zeros.
-6. Find identifier columns such as `geo_id`, FIPS, postal ZIP, or ZCTA. Select each
-   column, click the data-type icon beside its heading, and choose **Text**. If a
-   replacement prompt appears, choose **Replace current**. Leave identifiers as
-   text; set date or measurement columns to date/numeric types only as needed.
-7. Click **Home → Close & Load**. The table should appear in the Excel workbook.
-8. Repeat the import for `zip-monthly.variables.csv` to read the variable
-   definitions. Keep both original CSVs; use **File → Save As** to save your Excel
-   work separately as an `.xlsx` workbook.
+## 7. CSV downloads as an alternative
 
-This preserves leading zeros, such as FIPS `06037`. Double-clicking a CSV can
-cause Excel to convert those identifiers to numbers.
-See Microsoft's [CSV import instructions](https://support.microsoft.com/en-us/excel/import-data-from-data-sources-power-query)
-and [type-detection options](https://learn.microsoft.com/en-us/power-query/connectors/text-csv)
-for menu variations. If the file exceeds Excel's worksheet capacity, select fewer
-places or a shorter date range in the Data Browser and download a smaller CSV.
+If you prefer to inspect data in Excel or share permitted tables as files, use the
+[step-by-step CSV browser tutorial](docs/query_and_export_commands.md#browser-downloads).
+It explains where to double-click `Open_Data_Browser.cmd`, how to choose a whole
+dataset or one variable, where the files are saved, and how to import them into
+Excel without losing leading zeros. The same guide covers saved command-line
+exports and their companion variable definitions.
+
+This is an alternative interface to the local database. SQL queries and Python
+modeling do not require a CSV export first. The browser does not fetch new provider
+releases or install a missing database.
 
 ## 8. Update an existing copy
 
 Use this when you already have the project and want the latest programs and
 documentation. You do not need to clone a second copy.
 
-1. Stop the running Data Browser: click its terminal window and press **Ctrl+C**.
-   Closing only the browser tab does not stop the program.
+1. Close any DuckDB SQL session with `.quit`. If you also have the CSV browser
+   running, click its terminal window and press **Ctrl+C**; closing only its browser
+   tab does not stop the program. Close Python sessions connected to the database.
 2. Open **Windows PowerShell** from Start and
    [return to the project folder](#return-to-the-project-folder-in-powershell).
 3. In that PowerShell window, check for local file changes:
@@ -506,14 +460,14 @@ work to force it through.
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Wait for installation to finish without errors, then reopen the launcher using
-step 4. **Updating code does not refresh housing observations.** To update the data,
+Wait for installation to finish without errors, then reopen DuckDB using step 4. **Updating code does not refresh housing observations.** To update the data,
 obtain a newer compatible snapshot or follow the maintainer build workflow.
 
 ## Troubleshooting
 
 | What you see | What to do |
 |---|---|
+| `'Set-Location'`, `'Get-Location'`, `'Test-Path'`, or `'$HousingPython'` is not recognized as a command | You are using Command Prompt. Enter `powershell`, press Enter, and confirm the prompt starts with `PS` before retrying the guide's PowerShell commands. |
 | `git` or `py` is not recognized | Install the tool, reopen PowerShell, and repeat the version check. |
 | `pymanager` is not recognized | This command requires the Python install manager. Complete its installation and reopen PowerShell; if Python 3.11 is already installed, use the version check in step 1 instead. |
 | A prompt showing `>>>` | You opened Python. Enter `exit()` and press Enter, then open Windows PowerShell from Start. |
@@ -523,8 +477,12 @@ obtain a newer compatible snapshot or follow the maintainer build workflow.
 | Python environment is missing | Run step 2 inside the project folder. |
 | Package installation reports an error | Stop before the next step. Check the internet connection and Python version; give the complete error to the maintainer if retrying does not resolve it. |
 | Database not found | Complete step 3; cloning alone does not provide the database. |
-| Launcher closes / nothing appears | Run the Python launch command in step 4 to read the error. |
-| Port already in use | Use the earlier launcher's page or stop that launcher before reopening. |
+| `duckdb.exe` cannot be found | Return to the project folder and rerun step 2's `pip install -r requirements.txt` command. |
+| SQL produces a PowerShell error | Start DuckDB first; paste SQL at its `D` prompt. |
+| DuckDB says a table or column is missing | Use the SQL guide's table/column discovery; confirm the snapshot contains the product. |
+| DuckDB reports a file lock | Close other database sessions and any active build before reconnecting. |
+| CSV launcher closes / nothing appears | Use the PowerShell launch instructions in the [CSV guide](docs/query_and_export_commands.md#browser-downloads). |
+| CSV browser port already in use | Use the earlier launcher's page or stop that launcher before reopening. |
 | Browser cannot reach the database | Keep the launcher running; reopen it if closed. |
 | No matching rows or variables | Reset filters, check coverage, and widen the date range. |
 | Restricted HUD-USPS download refused | Licensed detail is excluded from ordinary exports; select public measures. |
@@ -538,8 +496,8 @@ Keep the original message so the maintainer can identify the cause.
 <details>
 <summary>Open the Terminal walkthrough for macOS/Linux</summary>
 
-Use this section instead of the Windows setup, launcher, and update commands.
-The browser's filters and downloads work the same way as steps 5–6 above.
+Use this section instead of the Windows setup and update commands. The SQL
+statements in step 4 and the DuckDB SQL guide are the same on these platforms.
 
 **Where to type:** on macOS, press **Command+Space**, type **Terminal**, and press
 Return. On Linux, open **Terminal** from your applications menu. Use that window
@@ -621,19 +579,26 @@ step 3's requirements. Back in Terminal, check it:
 .venv/bin/python run_query.py catalog --variable zori_smoothed_sa
 ```
 
-Expect the rent variable's metadata. Once that works, launch the browser from
-the same Terminal:
+Expect the rent variable's metadata. Once that works, open DuckDB from the same
+Terminal:
 
 ```bash
-.venv/bin/python run_data_browser.py --open-browser
+.venv/bin/duckdb -readonly database/housing.duckdb
 ```
 
-Use the browser page described in steps 5–6. If it does not open, paste the printed
-local address into the browser's address bar. Keep Terminal open while using the
-page; press **Ctrl+C** there to stop the program. The Windows `.cmd` launcher is
-not used on macOS/Linux.
+At DuckDB's `D` prompt, use the SQL in step 4 and the
+[DuckDB SQL guide](docs/duckdb_sql_guide.md). Enter `.quit` to return to Terminal.
+For the modeling example, run this at the Terminal prompt:
 
-For later updates, stop the browser, return to the project folder with `cd`, then
+```bash
+.venv/bin/python scripts/load_model_data.py
+```
+
+The CSV browser is an alternative described in the
+[CSV guide](docs/query_and_export_commands.md#browser-downloads). Its Windows
+`.cmd` launcher is not used on macOS/Linux; that guide supplies a Python command.
+
+For later updates, exit DuckDB with `.quit`, return to the project folder with `cd`, then
 run `git status --short`. Continue only if it lists no local changes. Run these
 two commands separately, stopping if either fails:
 
@@ -645,22 +610,23 @@ git pull --ff-only
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-Launch the browser again after a successful update. This updates programs and
+Open DuckDB again after a successful update. This updates programs and
 packages; a newer data snapshot must be obtained or built separately.
 
 </details>
 
 ## Where to find things
 
-This README is the beginner tutorial. Each of the six reference guides below
+This README covers setup and the first SQL query. Each of the seven guides below
 has one purpose. Replaced guides and dated narrative reports remain in Git history.
 Each top-level module folder has a short `README.md` explaining its role,
 key files, and inputs/outputs. Nested modules are described in their parent guide.
 
 | Guide | Read it for… |
 |---|---|
+| [DuckDB SQL guide](docs/duckdb_sql_guide.md) | Primary workflow: view tables, query data, and prepare model inputs. |
 | [Data inventory and limitations](docs/data_inventory_and_limitations.md) | Available layers, coverage records, missing targets, and limitations. |
-| [Query and export commands](docs/query_and_export_commands.md) | Repeatable filters, CSV/Parquet, SQL, and unit/temporal definitions. |
+| [CSV browser and export commands](docs/query_and_export_commands.md) | Alternative downloads, Excel import, repeatable export filters, and metadata meanings. |
 | [Database build and refresh](docs/database_build_and_refresh.md) | Acquisition, rebuilds, updates, provenance, and QA. |
 | [Source definitions and methods](docs/source_definitions_and_methods.md) | Rental availability, insurance, debt, construction, and eviction methods. |
 | [Housing finance versions](docs/housing_finance_versions.md) | Benchmark A, retrospective B, and real-time C. |
@@ -668,17 +634,17 @@ key files, and inputs/outputs. Nested modules are described in their parent guid
 
 | Folder or file | Contents |
 |---|---|
-| `Open_Data_Browser.cmd` | Windows launcher for everyday downloading. |
-| [docs/](docs/README.md) | Index of the six detailed guides above. |
+| `Open_Data_Browser.cmd` | Windows launcher for the alternative CSV browser. |
+| [docs/](docs/README.md) | Index of the seven guides above. |
 | `metadata/data_dictionary.csv` | Variable names, IDs, definitions, units, and classifications. |
 | [metadata/](metadata/README.md) | Inventories, coverage, provenance, audit evidence, and frozen model parameters. |
 | [config/](config/README.md) | Sources, variables, geography references, and method settings. |
-| [database/](database/README.md) | Local query database, not included in Git. |
+| [database/](database/README.md) | Local DuckDB file used for SQL and analysis; not included in Git. |
 | [data/](data/README.md) | Storage-layer map for source archives, clean inputs, and final analytical products. |
 | [output/](output/README.md) | Generated CSVs, coverage, QA reports, and local historical report archives. |
 | [src/](src/README.md) | Pipeline modules and their responsibilities. |
 | [scripts/](scripts/README.md) | Source refresh helpers, audits, browser page, and preserved document tools. |
-| [sql/](sql/README.md) | Database schemas, optional views, and manual structural checks. |
+| [sql/](sql/README.md) | Saved model-input query, database schemas, optional views, and checks. |
 | [tests/](tests/README.md) | Verification and required local fixtures. |
 
 Metro variables and finer-geography alternatives are covered in the

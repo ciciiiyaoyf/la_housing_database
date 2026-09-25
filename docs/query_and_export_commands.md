@@ -1,22 +1,246 @@
-# Query and export commands
+# CSV downloads and metadata exports
 
-For dropdowns and CSV download buttons, start with the
-[beginner tutorial in the README](../README.md). This optional command reference
-supports saved, repeatable queries. Filters use the classifications in the
-[current variable dictionary](../metadata/data_dictionary.csv), originally aligned
-with the **Variable Inventory** sheet of the August 24 overview workbook. This guide
-covers both finding variables and downloading their data. All examples use the local
-database snapshot; they do not download new releases from providers.
+This guide provides two alternatives for downloading CSVs and variable definitions:
+[browser dropdowns](#browser-downloads) or [saved export commands](#1-open-the-project-in-powershell).
+For interactive SQL queries, start with the [DuckDB SQL guide](duckdb_sql_guide.md).
+Complete the [README setup](../README.md#1-install-the-tools-and-clone-the-project),
+including [a compatible local database](../README.md#3-get-a-local-database), first.
+**GitHub does not include the database or raw source archives, and no ready-made
+snapshot download is supplied.** Obtain a permitted compatible snapshot from the
+maintainer, or follow the separate [build guide](database_build_and_refresh.md).
+Offline operation needs data already on your computer; opening the browser or
+running an export does not fetch new provider releases.
 
-The historical workbook contains 482 variable IDs. The current database dictionary contains
-558, including all 482 workbook IDs. For those shared IDs, Domain, Layer, Proxy,
-Constructed, Geography, Native frequency, and Final frequency agree with the
-workbook. The same filters also work for the 76 newer variables.
+Filters use the [current variable dictionary](../metadata/data_dictionary.csv),
+originally aligned with the **Variable Inventory** sheet of the August 24 overview
+workbook. The historical workbook contains 482 variable IDs. The current dictionary
+contains 558, including all 482 workbook IDs. For those shared IDs, Domain, Layer,
+Proxy, Constructed, Geography, Native frequency, and Final frequency agree with the
+workbook. The same filters also work for the 76 newer variables. A definition does
+not guarantee observations in every snapshot, dataset, place, or date range.
+
+## Browser downloads
+
+Choose this route for dropdowns and CSV download buttons. The following Windows
+steps start after the README setup; the browser runs on your own computer.
+
+### Open the Data Browser
+
+Complete [README setup steps 1–3](../README.md#1-install-the-tools-and-clone-the-project)
+first. On later visits, you can start here; you do not need to reinstall the
+packages every time.
+
+#### Open it with the launcher
+
+1. Open **File Explorer** with **Windows key + E**.
+2. Open **Downloads → la_housing_database**, or the location where you cloned it.
+3. Find **Open_Data_Browser.cmd** and double-click it there, on your computer.
+   Windows may hide `.cmd` and show **Open_Data_Browser** as a Windows Command Script.
+   Clicking its filename on GitHub or in a document preview does not run it.
+4. A terminal window should open and stay open. A browser tab titled
+   **LA Housing Data Browser** should appear, with the page heading
+   **Find and download housing data**. Continue to
+   [Download your first dataset](#download-your-first-dataset) in that browser tab.
+
+#### If double-clicking does not open the page
+
+Open **Windows PowerShell** from Start and
+[return to the project folder](../README.md#return-to-the-project-folder-in-powershell).
+Paste this command into PowerShell and press Enter:
+
+```powershell
+.\.venv\Scripts\python.exe run_data_browser.py --open-browser
+```
+
+On macOS/Linux, open **Terminal**, enter the project folder, and run this instead:
+
+```bash
+.venv/bin/python run_data_browser.py --open-browser
+```
+
+This starts the same browser program as double-clicking the launcher. If it fails,
+the error remains visible in PowerShell so you can read it or copy it for help.
+If it starts but no browser tab appears, copy the printed address, normally
+`http://127.0.0.1:8765/`. Open Edge or Chrome, paste it into the **address bar at
+the top**, and press Enter. This address refers to your own computer.
+
+**Keep the terminal window open while using the page.** It is normal for this
+command to keep running without returning to a `PS ... >` prompt. You can minimize
+the window. When finished, close the browser tab, click inside the terminal that
+started the program, and press **Ctrl+C** to stop it. Accept a batch-termination
+prompt if the double-click launcher shows one. Next time, repeat
+[Open the Data Browser](#open-the-data-browser).
+
+The page reads a local snapshot. Opening it does not fetch new provider releases
+or update observations.
+
+### Download your first dataset
+
+**Where to work:** in the **Data Browser tab** opened above. The next actions
+are clicks on that page; there are no PowerShell commands to enter.
+
+Try this example to download one rent series for postal ZIP 90024. It requires
+that your database contain the postal-ZIP housing panel.
+
+1. Under **Select your data**, open the **Dataset** dropdown and choose
+   **Postal ZIP housing — Monthly**. Wait for the filters to finish loading.
+2. Open **Geography type** and choose **postal_zip**. Wait for the choices to update.
+3. Open **Place** and choose **ZIP_90024**.
+4. Open **Variable** and choose the Zillow Observed Rent Index entry ending in
+   **`(zori_smoothed_sa)`**. For the whole dataset, keep **All variables**.
+5. Open **Frequency** and choose **monthly**. Leave the other filters at their
+   **All** choices.
+6. Under **Date range**, optionally set **From** to January 1, 2020, using the date
+   picker. Its displayed format depends on your browser. Leave **Through** blank
+   for all later available dates. Both endpoints are included when provided.
+7. Click **Preview data** and wait for rows to appear under **Data preview**.
+   Check the place, dates, and columns; scroll sideways to see additional columns.
+   The rent column is called `zori`; the definitions file links it to
+   `zori_smoothed_sa`. Read any notes below the preview. If the page says no rows
+   match, clear the date restriction or use **Reset filters** and try again.
+8. Click **Download CSV** and wait for your browser to finish saving the file.
+   Then click **Download variable definitions** to save the matching explanation.
+
+The browser saves to its usual Downloads folder or asks you to choose a location.
+In Edge or Chrome, press **Ctrl+J** to open the download list and use **Show in
+folder** (or its folder icon) to locate the files. This example downloads
+`zip-monthly.csv` and `zip-monthly.variables.csv`; repeated downloads may have a
+number added by your browser. Keep both files from the same selection together.
+
+A CSV is a plain-text table that Excel and other analysis programs can read.
+The data CSV includes **all matching rows**, not just the 20 preview rows. The
+definitions CSV gives variable IDs, units, temporal types, and descriptions.
+Dates, geography, quality, and provenance fields remain in a single-variable
+export. Missing values stay missing.
+
+**All variables** includes the measures registered in the variable dictionary,
+plus the dataset's retained context fields. Additional unregistered measure
+columns are omitted and named in the preview notes; this is not a raw copy of
+every column in the underlying database table.
+
+For all available places, leave **Place** at **All places**. To start a different
+selection, click **Reset filters**; this clears the filters and dates but keeps
+the dataset. Changing **Dataset** also resets the earlier filters. CSV recipients
+do not need to install this project.
+
+### Find other data and use the filters
+
+| Dataset choice | Typical use |
+|---|---|
+| LA County housing — Monthly | County prices, rents, housing activity, and derived measures. |
+| LA and comparable counties — Monthly | Separate observations for LA and seven comparison counties. |
+| Postal ZIP housing — Monthly | Housing measures for individual postal ZIPs. |
+| County controls — Annual / Census ZCTA controls — Annual | Annual demographic and housing controls. |
+| State / Metro / Macro controls | Broader indicators at their actual geography and frequency. |
+| Source observations — General layer | Source records with `variable_id` and `value` columns. |
+| Housing finance — Versions A, B, C | Benchmark, retrospective monthly, or information-cutoff finance data. |
+| Homebuying cost scenarios | Modeled costs and assumptions, not observed transactions. |
+
+Make these choices in the **same Data Browser page**. Choose **Dataset** first,
+wait for its filters to load, and then select the location, variable, and other
+filters you need. After each change, click **Preview data** again before downloading.
+
+The Dataset menu lists supported products; seeing a name there does not establish
+that its table or observations are installed. The filter choices are read from
+your local database. A dictionary entry does not guarantee populated observations
+for every dataset or place. If selecting a dataset reports a missing table, choose
+another dataset or ask the maintainer for a compatible snapshot containing it.
+
+| Filter | What it selects |
+|---|---|
+| Variable | One measure and its identifier. |
+| Geography type / Place | A geography class and location. `COUNTY_06037` is LA County. |
+| Frequency | Output cadence, such as monthly or annual. |
+| Domain | Subject group, such as `rental_market`, `construction`, or `labor_market`. |
+| Layer | General, Version A, Version B, or Version C; choose a compatible dataset. |
+| Proxy variable | Yes/No classification indicating a proxy for another concept. |
+| Constructed variable | Yes/No classification indicating a calculation or model. |
+| Units and temporal types | Simplified units, stock/flow and other temporal labels, and native frequency. |
+
+For unit or temporal filtering, click the expandable **Units and temporal types**
+heading below the main filters. This reveals **Simplified unit**, **Temporal type**,
+and **Native frequency**. For example, selecting **flow** under Temporal type
+keeps measures classified as flows; it does not calculate new values.
+
+Filters use the [current variable dictionary](../metadata/data_dictionary.csv) and
+combine with **AND**: every selected condition must be satisfied. **All** leaves
+that condition unrestricted. Proxy and Constructed are independent; an unknown
+flag is not the same as No.
+
+For example, to find LA County monthly construction proxies:
+
+1. Choose **LA County housing — Monthly** in Dataset and wait for the filters.
+2. Choose **county** in Geography type, then **COUNTY_06037** in Place.
+3. Leave Variable at **All variables** and choose **monthly** in Frequency.
+4. Choose **construction** in Domain and **General** in Layer.
+5. Choose **Yes** in both Proxy variable and Constructed variable.
+6. Click **Preview data**, review the rows and notes, then download both CSVs.
+
+Postal ZIPs and Census ZCTAs are distinct. County selection does not fill missing
+values from state or national data. Output frequency does not change source
+meaning: Redfin ZIP windows overlap across three months; ACS five-year estimates
+remain survey-period estimates. Stock/flow labels do not automatically resample
+values.
+
+For an empty preview, remove a filter or choose a compatible dataset. Some derived
+General variables exist only in analysis tables; finance Version C retains multiple
+information cutoffs. For **Source observations — General layer**, selecting all
+variables may include licensed HUD-USPS records and be refused; choose a public
+variable such as `zori_smoothed_sa` instead. Use
+[the command walkthrough below](#1-open-the-project-in-powershell)
+for multiple selected places, saved commands, and Parquet output. For SQL, use
+the [DuckDB SQL guide](duckdb_sql_guide.md).
+
+### Open the CSV in Excel
+
+**Where to work:** in the **desktop Excel application**, after the two files finish
+downloading. The following menu names apply to recent Excel for Windows versions.
+
+1. Open Excel and choose **Blank workbook**.
+2. Click **Data** on the ribbon, then **From Text/CSV**. Some versions place it
+   under **Get Data → From File → From Text/CSV**.
+3. In the file picker, open the folder used for the download, select the data CSV
+   (for the example, `zip-monthly.csv`), and click **Import**.
+4. In the import preview, select **Do not detect data types** under **Data Type
+   Detection**, if offered. Then choose **Transform Data** to open Power Query.
+5. In Power Query's **Applied Steps** list on the right, remove an automatically
+   added **Changed Type** step if present, using its **X**. This avoids retaining
+   numeric conversions that have already removed leading zeros.
+6. Find identifier columns such as `geo_id`, FIPS, postal ZIP, or ZCTA. Select each
+   column, click the data-type icon beside its heading, and choose **Text**. If a
+   replacement prompt appears, choose **Replace current**. Leave identifiers as
+   text; set date or measurement columns to date/numeric types only as needed.
+7. Click **Home → Close & Load**. The table should appear in the Excel workbook.
+8. Repeat the import for `zip-monthly.variables.csv` to read the variable
+   definitions. Keep both original CSVs; use **File → Save As** to save your Excel
+   work separately as an `.xlsx` workbook.
+
+This preserves leading zeros, such as FIPS `06037`. Double-clicking a CSV can
+cause Excel to convert those identifiers to numbers.
+See Microsoft's [CSV import instructions](https://support.microsoft.com/en-us/excel/import-data-from-data-sources-power-query)
+and [type-detection options](https://learn.microsoft.com/en-us/power-query/connectors/text-csv)
+for menu variations. If the file exceeds Excel's worksheet capacity, select fewer
+places or a shorter date range in the Data Browser and download a smaller CSV.
 
 ## 1. Open the project in PowerShell
 
-Complete the [README setup](../README.md#2-set-up-the-project), including a
-compatible local database, first. These instructions use **Windows PowerShell**
+**Check the window first.** If your prompt looks like
+`C:\Users\yourname\Downloads\la_housing_database>` without `PS` at the start,
+you are in **Command Prompt**. The commands below will not work there.
+Type this in that existing window and press Enter:
+
+```text
+powershell
+```
+
+Wait for `PS C:\Users\yourname\Downloads\la_housing_database>` (with your own
+path). You have switched to PowerShell and kept the same folder. If you are
+already in the project folder, skip the navigation command below; do not append
+another `la_housing_database` folder. Continue with the `Get-Location` checks.
+
+Complete the [README setup](../README.md#2-set-up-the-project), including
+[a compatible local database](../README.md#3-get-a-local-database), first.
+These instructions use **Windows PowerShell**
 on your computer. Type commands there, not into Excel, a GitHub page, the browser
 address bar, or a Python window showing `>>>`.
 
@@ -395,7 +619,7 @@ to PowerShell and check the last error and your current folder with `Get-Locatio
 Command-line exports stay here; the webpage's **Download CSV** button instead
 uses your web browser's configured download location, often Downloads.
 
-Follow the README's [step-by-step Excel import](../README.md#7-open-the-csv-in-excel).
+Follow [Open the CSV in Excel](#open-the-csv-in-excel) above.
 It explains how to disable automatic type detection or remove an inferred type
 step before setting identifier columns to **Text**. For a `table` export, import
 its `.variables.csv` companion the same way. A catalog or `observations` export
@@ -415,6 +639,7 @@ Parquet is an optional analysis format; use CSV for the Excel steps above.
 
 | Message or result | What to do |
 |---|---|
+| `'Set-Location'`, `'Get-Location'`, `'Test-Path'`, or `'$HousingPython'` is not recognized as an internal or external command | This is Command Prompt. Enter `powershell`, press Enter, and wait for a prompt beginning with `PS`. Then continue section 1 from the current project folder. |
 | `Set-Location` cannot find the path | Open the project in File Explorer, copy its actual folder path, and repeat section 1 with that path in quotes. |
 | Python or `run_query.py` cannot be found | Check the project folder and the `Test-Path` results in section 1; finish the README setup if needed. |
 | The expression after `&` is not valid | Your PowerShell session may have lost `$HousingPython`; repeat the assignment in section 1. |
@@ -479,51 +704,16 @@ average-premium variables are derived ratios; annual total BEA personal income
 is a flow; the cross-sectional implied average mortgage balance is a period
 statistic. No numerical data were changed.
 
-## 10. Optional Python/SQL example for analysts
+## 10. Query with SQL
 
-You can skip this section for normal CSV downloads. The block below is
-**Python code containing a SQL query**, not PowerShell commands. Do not paste
-its lines directly at a `PS ...>` prompt. To try it as a saved script:
+Use the [DuckDB SQL guide](duckdb_sql_guide.md) to open the database read-only,
+find tables and columns, write SQL queries, and inspect results. It explains where
+to type each command and how to distinguish PowerShell from the SQL prompt.
+No Python script is needed for that workflow.
 
-1. Open **Notepad** from the Windows Start menu and paste the entire Python block.
-2. Choose **File → Save As**. Navigate to your project folder containing
-   `run_query.py`. Set **Save as type** to **All files**, filename to
-   **query_example.py**, and encoding to **UTF-8**, then save. Ensure the filename
-   is not `query_example.py.txt`.
-3. Return to the project PowerShell window from section 1. Run the command
-   shown after the code block.
-
-```python
-import duckdb
-
-with duckdb.connect("database/housing.duckdb", read_only=True) as connection:
-    data = connection.sql("""
-        SELECT observation_date, geo_id, variable_id, value, unit,
-               unit_simplified, temporal_type, monetary_basis, source_vintage
-        FROM analytics.fact_housing_observation_labeled
-        WHERE variable_id = 'permits_total' AND geo_id = 'COUNTY_06037'
-        ORDER BY observation_date, variable_id
-        LIMIT 20
-    """).df()
-    print(data.to_string(index=False))
-```
-
-Run the saved file with this **PowerShell command**:
-
-```powershell
-& $HousingPython .\query_example.py
-```
-
-Expect up to 20 permit observations printed in the terminal, followed by the
-PowerShell prompt. `Empty DataFrame` means the selected observations are absent
-from this snapshot. This example only reads the database and prints a preview;
-it does not save a CSV. Use sections 5–6 for the checked download workflow.
-
-The other labeled views are `analytics.housing_finance_benchmark_labeled`,
-`analytics.housing_finance_monthly_hist_labeled`, and
-`analytics.housing_finance_monthly_rt_labeled`. Direct SQL access is a research
-interface: the ordinary download tool enforces export restrictions and should be
-used for shareable public CSVs.
+For shareable public CSVs, the browser and commands in this guide enforce the
+ordinary export rules and include the selected variables' classifications.
+Direct SQL is a research interface and does not apply those export restrictions.
 
 For wide datasets, the companion dictionary gives the exact `table_column` to
 `variable_id` mapping. For example, ZIP `homes_sold` maps to the Redfin
@@ -532,7 +722,8 @@ a mixed table does not receive one collective stock/flow type. Scenario mappings
 also contain `row_identifier_column` and `row_identifier_value`.
 
 Use `--temporal-type stock --unit units` with `catalog` to find stock quantities,
-or add the filters to an export command above. `--unit` aliases
-`--unit-simplified`; neither option converts numerical values. See
+or add the filters to an export command above. These are option fragments, not
+standalone commands. `--unit` aliases `--unit-simplified`; neither option converts
+numerical values. See
 [database build and refresh](database_build_and_refresh.md#change-a-source-or-method)
 for updating the explicit classification registry and SQL views.

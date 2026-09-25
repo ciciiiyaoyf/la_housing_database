@@ -2,7 +2,8 @@
 
 This guide is for the person maintaining the source archives and local database.
 For first-time installation, complete the [README setup](../README.md#2-set-up-the-project).
-For everyday CSV downloads, use the [Data Browser instructions](../README.md#4-open-the-data-browser).
+For analysis, start with the [DuckDB SQL guide](duckdb_sql_guide.md).
+For optional CSV downloads, use the [Data Browser instructions](query_and_export_commands.md#browser-downloads).
 The commands here rebuild or update local research products; they are not a
 complete database installation recipe for a fresh clone.
 

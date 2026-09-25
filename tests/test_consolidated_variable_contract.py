@@ -652,6 +652,6 @@ def test_guides_record_the_consolidated_contract_and_refresh_examples() -> None:
     maintenance = (ROOT / "docs/database_build_and_refresh.md").read_text(encoding="utf-8")
     for source_id in REQUIRED_REFRESH_SOURCE_IDS:
         assert (
-            "python run_pipeline.py --stage download --source "
+            "run_pipeline.py --stage download --source "
             f"{source_id} --force-download"
         ) in maintenance

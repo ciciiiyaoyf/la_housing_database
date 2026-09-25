@@ -6,9 +6,11 @@ geographies. The working database is a **local snapshot**, not a live provider
 connection. A successful query reads the accepted local data; it does not prove
 that every source is current or that every requested concept is available.
 
-Start with the [README](../README.md) to set up the project and download a table.
-Use the [query and export commands](query_and_export_commands.md) for reproducible filters,
-units, temporal types, and exports, and [database build and refresh](database_build_and_refresh.md) for builds,
+Start with the [README](../README.md) to set up the project and run your first
+DuckDB query. Use the [DuckDB SQL guide](duckdb_sql_guide.md) for the primary
+analysis workflow. The [CSV browser and export commands](query_and_export_commands.md)
+provide optional downloads and the unit/temporal reference.
+Use [database build and refresh](database_build_and_refresh.md) for builds,
 source refreshes, storage, and validation.
 
 ## Definitions, coverage, and evidence

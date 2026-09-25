@@ -1,11 +1,13 @@
-# Maintenance and audit utilities
+# Data access, maintenance, and audit utilities
 
-Helpers for specific acquisition, verification, and presentation tasks. Run them
-from the project root with the project Python environment; everyday browsing
-starts with `Open_Data_Browser.cmd` in the root folder.
+Use DuckDB directly for viewing, retrieval, and modeling; the Data Browser is a
+backup CSV interface. These scripts support data access, acquisition, verification,
+and presentation. Run them with the project Python environment; the
+[project tutorial](../README.md) explains the main workflow.
 
 | File or folder | Purpose |
 |---|---|
+| [load_model_data.py](load_model_data.py) | Primary DuckDB-to-pandas example: read [saved SQL](../sql/model_input.sql) through a read-only connection, preserving nulls and source values for later modeling. |
 | `refresh_county_analytics.py` | Acquire and strictly clean the county/ZIP indicator inputs. |
 | `refresh_macro_request.py` | Acquire and strictly clean the macro source contracts. |
 | `report_macro_request.py` | Generate per-variable macro coverage and frequency-delivery evidence. |

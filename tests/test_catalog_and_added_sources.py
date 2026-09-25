@@ -1,4 +1,6 @@
 from pathlib import Path
+import re
+import shlex
 
 import duckdb
 import pandas as pd
@@ -6,7 +8,7 @@ from openpyxl import load_workbook
 
 from src.common.config import load_config
 from src.housing_finance_monthly.metadata import PRODUCT_SOURCE_IDS
-from src.pipeline import STAGES
+from src.pipeline import STAGES, parser as pipeline_parser
 from src.reporting.catalog import (
     HUD_USPS_RESTRICTED_TABLES,
     HUD_USPS_VARIABLE_IDS,
@@ -317,12 +319,19 @@ def test_new_panel_parquet_csv_and_duckdb_row_counts_agree():
 def test_maintenance_guide_refresh_commands_match_cli():
     readme = (ROOT / "docs/database_build_and_refresh.md").read_text(encoding="utf-8")
     assert "catalog" in STAGES
-    assert (
-        "python run_pipeline.py --stage download --source "
-        "bls_laus_la_county --force-download"
-    ) in readme
-    assert "python run_pipeline.py --stage catalog" in readme
+    commands = [
+        pipeline_parser().parse_args(shlex.split(line.split("run_pipeline.py ", 1)[1]))
+        for block in re.findall(r"(?ms)^```powershell\n(.*?)^```", readme)
+        for line in block.splitlines()
+        if "run_pipeline.py " in line and "--stage " in line
+    ]
+    assert any(command.stage == "catalog" for command in commands)
+    refresh_sources = {
+        command.source for command in commands
+        if command.stage == "download" and command.force_download
+    }
     for source_id in (
+        "bls_laus_la_county",
         "bls_ces_la_metro",
         "bls_cpi_la_metro",
         "fhfa_hpi_state_purchase_only",
@@ -332,7 +341,4 @@ def test_maintenance_guide_refresh_commands_match_cli():
         "bea_county_personal_income",
         "census_hvs_state_rental_vacancy",
     ):
-        assert (
-            "python run_pipeline.py --stage download --source "
-            f"{source_id} --force-download"
-        ) in readme
+        assert source_id in refresh_sources
