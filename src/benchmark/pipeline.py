@@ -925,7 +925,12 @@ def clean_version_a(
         elif selected_source == HMDA_SOURCE:
             years = _single_release_vintage_range(
                 selected_source,
-                _year_range(root, start_year, end_year),
+                _year_range(
+                    root,
+                    start_year,
+                    end_year,
+                    source_id=HMDA_SOURCE,
+                ),
                 operation="clean",
             )
             outputs.extend(

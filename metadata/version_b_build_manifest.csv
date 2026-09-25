@@ -1,0 +1,11 @@
+database_version,information_cutoff_date,input_role,relative_path,sha256,byte_size,generated_at
+B,,version_a_benchmark,data/final/housing_finance_benchmark.parquet,7cc6dade3036be01d716410e775e59c14304c43fc0184838d0d7e573de4a3965,400775,2026-08-17T21:37:26.745682+00:00
+B,,version_config,config/version_b_monthly_hist.yaml,2acbd114b27ad7e42175d00ad2df9d903f8da0e274b6d8938b104c915b2a9bd5,2843,2026-08-17T21:37:26.745682+00:00
+B,,version_dictionary,config/version_b_variables.yaml,74aae739caa33cd5c753d4382ec8ebbb6845b0ec6c33b5fe1253a6ed5879da5b,32967,2026-08-17T21:37:26.745682+00:00
+B,,transformation_catalog,metadata/version_b_transformation_catalog.csv,8a9b31c3413db225a1039ba197ba15190a759358e9279b638e9d48f52206b7e3,3176,2026-08-17T21:37:26.745682+00:00
+B,,observations,data/final/housing_finance_monthly_hist.parquet,430a17b090955707ab3cbcc31c9f2036797361c74ec0cf95d6bb7e13909155f9,17810555,2026-08-17T21:37:26.745682+00:00
+B,,lineage,data/final/housing_finance_monthly_hist_lineage.parquet,2b7e9753c0cc26795347c46fda7c46a29ba254ff5d33a2150196af6eea16a980,34176990,2026-08-17T21:37:26.745682+00:00
+B,,completion_marker,data/final/housing_finance_monthly_hist.complete.json,d0bac8dc817633c357f329ea21b4f1b2c190a91d67a74851066945d500028e74,572,2026-08-17T21:37:26.745682+00:00
+B,,redfin,data/raw/redfin/redfin_county_monthly_20260702T060828Z_9470b1c6145d.tsv.gz,9470b1c6145dc51721dc717d62ea986a43e1bf2d7fdc57875af2f55e007dd634,241131599,2026-08-17T21:37:26.745682+00:00
+B,,zillow,data/raw/zillow/zillow_county_zhvi_20260702T060824Z_1062760889a6.csv,1062760889a6d168c1d42e57981e8354b245bd446836e0d508400f18515c1ec4,13409954,2026-08-17T21:37:26.745682+00:00
+B,,nmdb,data/raw/version_a/fhfa_nmdb_ca_upb/fhfa_nmdb_ca_upb_2024_20260807T155810Z_50b57f8914ec.csv,50b57f8914ec4bec32a2e6726420243636a58d224c03e611e24b316c61701bc6,39179960,2026-08-17T21:37:26.745682+00:00

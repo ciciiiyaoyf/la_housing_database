@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.common.config import ProjectConfig
+from src.geography.zcta_reference import load_zcta_reference
 
 
 # California's county component codes are the 58 odd values from 001 to 115.
@@ -94,6 +95,29 @@ def build_geography(
             for geo_id in zip_ids
         ]
     )
+    zctas, zcta_reference = load_zcta_reference(config.root)
+    zcta_rows = pd.DataFrame(
+        [
+            {
+                "geo_id": f"ZCTA_{zcta}",
+                "geo_type": "zcta",
+                "geo_name": f"ZCTA5 {zcta}",
+                "state_fips": None,
+                "county_fips": None,
+                "cbsa_code": None,
+                "postal_zip": None,
+                "zcta": zcta,
+                "source": (
+                    "Versioned project ZCTA reference validated against "
+                    f"{zcta_reference['validated_source_id']}"
+                ),
+                "source_region_id": zcta,
+                "valid_from": None,
+                "valid_to": None,
+            }
+            for zcta in zctas
+        ]
+    )
     tract_ids = _fact_geo_ids(fact, "TRACT_")
     tract_rows = pd.DataFrame(
         [
@@ -135,7 +159,7 @@ def build_geography(
         ]
     )
     geography = pd.concat(
-        [geography, county_rows, zip_rows, tract_rows, zip_part_rows],
+        [geography, county_rows, zip_rows, zcta_rows, tract_rows, zip_part_rows],
         ignore_index=True,
     )
     geography = geography.drop_duplicates("geo_id", keep="last")

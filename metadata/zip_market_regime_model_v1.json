@@ -1,0 +1,147 @@
+{
+  "algorithm": "numpy_kmeans_plus_plus_lloyd",
+  "application_start": "2020-03-31",
+  "convergence_tolerance": 1e-10,
+  "feature_columns": [
+    "zhvi_momentum_3m_annualized_log_pct",
+    "zori_momentum_3m_annualized_log_pct",
+    "price_to_rent_ratio_zillow",
+    "zhvi_monthly_log_growth_volatility_24m"
+  ],
+  "iterations_for_selected_fit": 25,
+  "label_assignment_rule": "post-fit center ranking: lowest volatility=stable; highest volatility-minus-price-momentum=cooling; highest rent-minus-price momentum=rent-led; remaining center=high-growth/high-valuation",
+  "max_iterations": 500,
+  "model_fingerprint_sha256": "14001a72adab576d3ab536fa520ffa40598d35ea0e62b7755903a9fa4ba1aeab",
+  "model_version": "zip_market_regime_k4_fixed_2015q2_2019q4_v1",
+  "n_clusters": 4,
+  "n_init": 50,
+  "random_seed": 20260824,
+  "regimes": [
+    {
+      "center_standardized": {
+        "price_to_rent_ratio_zillow": -0.5609142683029047,
+        "zhvi_momentum_3m_annualized_log_pct": -0.1259898200811355,
+        "zhvi_monthly_log_growth_volatility_24m": -0.6781095165270751,
+        "zori_momentum_3m_annualized_log_pct": -0.5885036153778688
+      },
+      "regime_id": 1,
+      "regime_label": "stable/low-volatility",
+      "training_observation_count": 517,
+      "training_raw_mean": {
+        "price_to_rent_ratio_zillow": 28.04193860885765,
+        "zhvi_momentum_3m_annualized_log_pct": 5.486632478759436,
+        "zhvi_monthly_log_growth_volatility_24m": 1.0426801559145353,
+        "zori_momentum_3m_annualized_log_pct": 0.8393381679446364
+      }
+    },
+    {
+      "center_standardized": {
+        "price_to_rent_ratio_zillow": -0.5083435807459643,
+        "zhvi_momentum_3m_annualized_log_pct": 0.3244425580077692,
+        "zhvi_monthly_log_growth_volatility_24m": -0.38233725705367666,
+        "zori_momentum_3m_annualized_log_pct": 1.0259451301253983
+      },
+      "regime_id": 2,
+      "regime_label": "rent-led pressure",
+      "training_observation_count": 306,
+      "training_raw_mean": {
+        "price_to_rent_ratio_zillow": 28.520242046922327,
+        "zhvi_momentum_3m_annualized_log_pct": 12.27150633902916,
+        "zhvi_monthly_log_growth_volatility_24m": 1.1423862191117529,
+        "zori_momentum_3m_annualized_log_pct": 12.07287482183276
+      }
+    },
+    {
+      "center_standardized": {
+        "price_to_rent_ratio_zillow": 0.460308434687131,
+        "zhvi_momentum_3m_annualized_log_pct": -1.3030981216231659,
+        "zhvi_monthly_log_growth_volatility_24m": 0.7523037355271773,
+        "zori_momentum_3m_annualized_log_pct": 0.11465614220660049
+      },
+      "regime_id": 3,
+      "regime_label": "cooling/high-volatility",
+      "training_observation_count": 243,
+      "training_raw_mean": {
+        "price_to_rent_ratio_zillow": 37.33332041437033,
+        "zhvi_momentum_3m_annualized_log_pct": -12.244178480533245,
+        "zhvi_monthly_log_growth_volatility_24m": 1.5248784336076018,
+        "zori_momentum_3m_annualized_log_pct": 5.732011863758939
+      }
+    },
+    {
+      "center_standardized": {
+        "price_to_rent_ratio_zillow": 1.0976673118154419,
+        "zhvi_momentum_3m_annualized_log_pct": 0.9293097295592063,
+        "zhvi_monthly_log_growth_volatility_24m": 0.9367368847691403,
+        "zori_momentum_3m_annualized_log_pct": -0.12350093165860938
+      },
+      "regime_id": 4,
+      "regime_label": "high-growth/high-valuation",
+      "training_observation_count": 304,
+      "training_raw_mean": {
+        "price_to_rent_ratio_zillow": 43.1321972481825,
+        "zhvi_momentum_3m_annualized_log_pct": 21.382635247228155,
+        "zhvi_monthly_log_growth_volatility_24m": 1.5870516180256444,
+        "zori_momentum_3m_annualized_log_pct": 4.074885103866906
+      }
+    }
+  ],
+  "scaler_mean": {
+    "price_to_rent_ratio_zillow": 33.14530011042123,
+    "zhvi_momentum_3m_annualized_log_pct": 7.38442020120389,
+    "zhvi_monthly_log_growth_volatility_24m": 1.271273704308361,
+    "zori_momentum_3m_annualized_log_pct": 4.934220060421285
+  },
+  "scaler_scale": {
+    "price_to_rent_ratio_zillow": 9.098291467971176,
+    "zhvi_momentum_3m_annualized_log_pct": 15.063024308014013,
+    "zhvi_monthly_log_growth_volatility_24m": 0.3371041739165721,
+    "zori_momentum_3m_annualized_log_pct": 6.958125295198716
+  },
+  "schema_version": 1,
+  "source_lineage": [
+    {
+      "checksum_sha256": "028906f93070a2445821a9b0ff04dcf1f2bee95c85b7a1512c9fe1549bbd8ab9",
+      "retrieved_at": "2026-07-02T06:08:24.948130+00:00",
+      "source_filename": "zillow_zip_zhvi_20260702T060824Z_028906f93070.csv",
+      "source_id": "zillow_zip_zhvi",
+      "source_vintage": "2026-07-02"
+    },
+    {
+      "checksum_sha256": "4a5f705963373e891596c7678ec2692d47ed8d9c6990119524ba6ec4db8a9777",
+      "retrieved_at": "2026-07-02T06:08:28.112817+00:00",
+      "source_filename": "zillow_zip_zori_smoothed_sa_20260702T060828Z_4a5f70596337.csv",
+      "source_id": "zillow_zip_zori_smoothed_sa",
+      "source_vintage": "2026-07-02"
+    }
+  ],
+  "standardization_ddof": 0,
+  "training_complete_by_quarter": {
+    "2015-06-30": 21,
+    "2015-09-30": 23,
+    "2015-12-31": 25,
+    "2016-03-31": 27,
+    "2016-06-30": 33,
+    "2016-09-30": 54,
+    "2016-12-31": 56,
+    "2017-03-31": 64,
+    "2017-06-30": 71,
+    "2017-09-30": 81,
+    "2017-12-31": 83,
+    "2018-03-31": 88,
+    "2018-06-30": 96,
+    "2018-09-30": 100,
+    "2018-12-31": 101,
+    "2019-03-31": 105,
+    "2019-06-30": 113,
+    "2019-09-30": 114,
+    "2019-12-31": 115
+  },
+  "training_data_sha256": "d947570502f9a5580078b16a1eae86e1c6c5ed927b0aa9a10471839446fa3659",
+  "training_end": "2019-12-31",
+  "training_inertia": 2909.1911493115563,
+  "training_observation_count": 1370,
+  "training_postal_zip_count": 115,
+  "training_quarter_count": 19,
+  "training_start": "2015-06-30"
+}

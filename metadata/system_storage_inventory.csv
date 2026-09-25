@@ -1,0 +1,9 @@
+storage_layer,path,active,file_count,bytes,contents,outsider_use
+Active analytical database,database/housing.duckdb,True,1,381693952,"Five DuckDB schemas: metadata, raw, clean, analytics, quality",Primary SQL query surface
+Legacy database snapshot,database/housing_before_redfin_zip.duckdb,False,1,12857344,Historical pre-Redfin-ZIP snapshot; not configured or maintained,Do not use for current analysis
+Immutable raw archives,data/raw/,True,1445,4271248491,Original official provider/API payloads with checksums and retrieval vintages,Audit/reproducibility; normally query clean/final instead
+Normalized clean Parquet,data/clean/,True,105,15764272,Source-specific normalized tables; filesystem includes superseded files,Source-level analysis; define active tables from DuckDB/config
+Final analytical Parquet,data/final/,True,26,111979568,"Canonical analytical tables, finance outputs, and lineage",Direct columnar access
+Completion markers,data/final/,True,2,1227,Checksum gates for paired Version B/C observations and lineage,Verify completeness before consuming finance files
+Restricted licensed layer,data/restricted/,True,85,1427028253,Licensed HUD/USPS detailed raw and rebuilt data,Access-controlled; not included in public CSV exports
+CSV exports,output/exports/,True,33,147633840,Modeling-friendly public exports,Simplest non-SQL entry point

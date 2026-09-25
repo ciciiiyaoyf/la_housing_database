@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
+import requests
 
 from src.benchmark.acs import (
     ACSFormatError,
@@ -93,6 +94,29 @@ def _fetched_payload(responses=None):
         retrieved_at=datetime(2026, 7, 25, 15, 30, tzinfo=timezone.utc),
         release_date="2026-01-29",
     )
+
+
+def test_acs_api_failure_does_not_expose_or_chain_key():
+    secret = "unitTestCensusKey1234567890"
+
+    class RejectedSession:
+        def get(self, url, *, params, timeout, headers):
+            del url, timeout, headers
+            raise requests.ConnectionError(
+                f"connection failed for key={params['key']}"
+            )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        fetch_acs_finance_payload(
+            2024,
+            session=RejectedSession(),
+            api_key=secret,
+            retrieved_at=datetime(2026, 7, 25, 15, 30, tzinfo=timezone.utc),
+            release_date="2026-01-29",
+        )
+
+    assert secret not in str(exc_info.value)
+    assert exc_info.value.__cause__ is None
 
 
 def _summary_file_variables(variable_id):

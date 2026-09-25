@@ -44,6 +44,14 @@ def test_source_year_ranges_keep_acs_history_and_guard_pums() -> None:
             clamp_to_source=True,
         )
     ) == list(range(2016, 2025))
+    assert list(
+        _year_range(
+            ROOT,
+            2018,
+            2025,
+            source_id=HMDA_SOURCE,
+        )
+    ) == list(range(2018, 2026))
     with pytest.raises(ValueError, match="2016-2024"):
         _year_range(
             ROOT,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from src.benchmark.build import PMMS_TERM_SCENARIO_OUTPUTS
 from src.benchmark.qa import (
     benchmark_coverage_reports,
     benchmark_qa_results,
@@ -119,6 +120,45 @@ def test_qa_rejects_direct_acs_only_as_incomplete_build() -> None:
         "acs_implied_owner_occupied_home_equity_all_real_2024_benchmark"
         in required
     )
+    assert PMMS_TERM_SCENARIO_OUTPUTS[0][1] in required
+
+
+def test_qa_rejects_broken_pmms_scenario_order_and_equity_identity() -> None:
+    rows = [
+        _row("acs_aggregate_owner_value_mortgaged_benchmark", 1_000.0),
+        _row("acs_aggregate_owner_value_no_mortgage_benchmark", 400.0),
+    ]
+    scenario_debts = (100.0, 200.0, 150.0)
+    for index, (
+        _,
+        debt_variable,
+        mortgaged_equity_variable,
+        all_equity_variable,
+    ) in enumerate(PMMS_TERM_SCENARIO_OUTPUTS):
+        debt = scenario_debts[index]
+        mortgaged_equity = 1_000.0 - debt
+        if index == 0:
+            mortgaged_equity += 1.0
+        rows.extend(
+            [
+                _row(debt_variable, debt),
+                _row(mortgaged_equity_variable, mortgaged_equity),
+                _row(all_equity_variable, mortgaged_equity + 400.0),
+            ]
+        )
+
+    summary, failures = benchmark_qa_results(
+        pd.DataFrame(rows), require_complete_acs_counties=False
+    )
+    indexed = summary.set_index("check_id")
+    assert indexed.loc["pmms_term_scenario_debt_order", "status"] == "fail"
+    assert indexed.loc[
+        "pmms_20y_mortgaged_equity_scenario_identity", "status"
+    ] == "fail"
+    assert failures["check_id"].eq("pmms_term_scenario_debt_order").any()
+    assert failures["check_id"].eq(
+        "pmms_20y_mortgaged_equity_scenario_identity"
+    ).any()
 
 
 def test_qa_checks_published_acs_owner_partitions() -> None:

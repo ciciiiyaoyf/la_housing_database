@@ -1,0 +1,55 @@
+database_version: "B. Retrospective monthly"
+variable_suffix: "_monthly_hist"
+method_version: "version_b_monthly_hist_v1"
+benchmark_input_path: data/final/housing_finance_benchmark.parquet
+benchmark_freeze_manifest_path: metadata/version_a_freeze_manifest.csv
+output_path: data/final/housing_finance_monthly_hist.parquet
+lineage_output_path: data/final/housing_finance_monthly_hist_lineage.parquet
+la_export_path: output/exports/la_version_b_monthly_hist.csv
+qa_summary_path: output/qa/version_b_qa_summary.csv
+qa_failures_path: output/qa/version_b_qa_failures.csv
+build_manifest_path: metadata/version_b_build_manifest.csv
+pipeline_run_log_path: metadata/version_b_pipeline_run_log.csv
+variable_dictionary_path: config/version_b_variables.yaml
+transformation_catalog_path: metadata/version_b_transformation_catalog.csv
+
+month_convention: calendar_month_end
+required_county_count: 58
+primary_county_fips: "06037"
+permit_future_benchmark_endpoints: true
+permit_nowcasts: false
+generated_observations_are_modeled: true
+preserve_missing_rows: true
+
+input_sources:
+  version_a_benchmark:
+    source_id: version_a_housing_finance_benchmark
+    selection: frozen_file_exact_hash
+  redfin_county_monthly:
+    manifest_path: metadata/raw_file_manifest.csv
+    selection: latest_unique_checksum
+    role: county monthly homes-sold and median-sale-price proxy weights
+  zillow_county_zhvi:
+    manifest_path: metadata/raw_file_manifest.csv
+    selection: latest_unique_checksum
+    role: county monthly owner-value stock update
+  fhfa_nmdb_ca_upb:
+    manifest_path: metadata/version_a_raw_file_manifest.csv
+    selection: latest_archived
+    role: all-mortgage California growth indicator only; never a calibration level
+
+methods:
+  payment: repeat Version A ACS/PUMS structural payment in its reference calendar year
+  annual_rates: repeat the Version A HMDA activity-year rate without division
+  canonical_downpayment_flow: preserve null because financed purchase-dollar volume is unavailable
+  downpayment_flow_proxy: distribute annual HMDA dollars by Redfin median sale price times homes sold; force the final month to absorb the rounding residual
+  calibrated_debt_and_equity: preserve null while the exact-universe California calibration control is unavailable
+  raw_debt_composite: scale the NMDB-growth and Redfin county-share path to the Version A composite raw-debt central, low, and high reference levels
+  pmms_debt_sensitivity: scale a California NMDB-growth and county-sales-share indicator to each Version A PMMS term-sensitivity anchor
+  pmms_equity_scenario: update matched ACS owner values with county ZHVI and subtract the matching PMMS debt sensitivity
+
+quality_thresholds:
+  annual_identity_absolute_tolerance: 0.01
+  anchor_relative_tolerance: 1.0e-10
+  accounting_relative_tolerance: 1.0e-10
+  plausible_value_warning_only: true

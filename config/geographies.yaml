@@ -1,4 +1,16 @@
 geographies:
+  - geo_id: METRODIV_31084
+    geo_type: metropolitan_division
+    geo_name: Los Angeles-Long Beach-Glendale, CA Metropolitan Division
+    state_fips: "06"
+    county_fips: null
+    cbsa_code: "31084"
+    postal_zip: null
+    zcta: null
+    source: BLS CES published metropolitan division
+    source_region_id: "31084"
+    valid_from: null
+    valid_to: null
   - geo_id: US
     geo_type: country
     geo_name: United States
@@ -33,6 +45,90 @@ geographies:
     zcta: null
     source: project
     source_region_id: "06037"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06059
+    geo_type: county
+    geo_name: Orange County
+    state_fips: "06"
+    county_fips: "06059"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06059"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06065
+    geo_type: county
+    geo_name: Riverside County
+    state_fips: "06"
+    county_fips: "06065"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06065"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06071
+    geo_type: county
+    geo_name: San Bernardino County
+    state_fips: "06"
+    county_fips: "06071"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06071"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06073
+    geo_type: county
+    geo_name: San Diego County
+    state_fips: "06"
+    county_fips: "06073"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06073"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06067
+    geo_type: county
+    geo_name: Sacramento County
+    state_fips: "06"
+    county_fips: "06067"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06067"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06085
+    geo_type: county
+    geo_name: Santa Clara County
+    state_fips: "06"
+    county_fips: "06085"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06085"
+    valid_from: null
+    valid_to: null
+  - geo_id: COUNTY_06001
+    geo_type: county
+    geo_name: Alameda County
+    state_fips: "06"
+    county_fips: "06001"
+    cbsa_code: null
+    postal_zip: null
+    zcta: null
+    source: project comparable-county contract
+    source_region_id: "06001"
     valid_from: null
     valid_to: null
 crosswalk_version: "2026-07-01"

@@ -177,3 +177,83 @@ def test_redfin_zip_database_parquet_and_csv_exports_agree():
     database["postal_zip"] = database["postal_zip"].astype(str)
     pd.testing.assert_frame_equal(parquet_keys, csv_keys)
     pd.testing.assert_frame_equal(parquet_keys, database)
+
+
+def test_zip_zillow_derived_fields_preserve_exact_calendar_gaps():
+    panel = pd.read_parquet(
+        ROOT / "data" / "final" / "zip_monthly_panel.parquet"
+    ).sort_values(["postal_zip", "date"])
+    valid = panel.loc[panel["zhvi"].gt(0) & panel["zori"].gt(0)].copy()
+    assert not valid.empty
+    pd.testing.assert_series_equal(
+        valid["price_to_rent_ratio_zillow"],
+        valid["zhvi"] / (12.0 * valid["zori"]),
+        check_names=False,
+        check_exact=False,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    pd.testing.assert_series_equal(
+        valid["implied_gross_rent_yield"],
+        12.0 * valid["zori"] / valid["zhvi"],
+        check_names=False,
+        check_exact=False,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    assert (
+        valid["price_to_rent_ratio_zillow"]
+        * valid["implied_gross_rent_yield"]
+    ).sub(1.0).abs().max() < 1e-12
+
+    prior = panel[["date", "postal_zip", "zori"]].copy()
+    prior["date"] = prior["date"] + pd.DateOffset(months=12)
+    prior = prior.rename(columns={"zori": "prior_zori"})
+    aligned = panel.merge(prior, on=["date", "postal_zip"], how="left")
+    expected = aligned["zori"] / aligned["prior_zori"] - 1.0
+    pd.testing.assert_series_equal(
+        aligned["zori_growth_yoy"],
+        expected,
+        check_names=False,
+        check_exact=False,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+
+def test_homebuying_cost_scenario_table_is_complete_and_keyed():
+    scenarios = pd.read_parquet(
+        ROOT / "data" / "final" / "homebuying_cost_scenarios.parquet"
+    )
+    key = [
+        "date",
+        "geo_id",
+        "down_payment_variable_id",
+        "closing_cost_variable_id",
+    ]
+    assert not scenarios.empty
+    assert not scenarios.duplicated(key).any()
+    assert set(scenarios["closing_cost_variable_id"].unique()) == {
+        "closing_cost_saleprice_2pct",
+        "closing_cost_saleprice_3pct",
+        "closing_cost_saleprice_5pct",
+        "closing_cost_loan_3pct",
+        "closing_cost_loan_6pct",
+    }
+    assert scenarios["is_constructed"].all()
+    assert not scenarios["is_observed"].any()
+    assert not scenarios["prepaid_escrow_included"].any()
+    assert (
+        scenarios["down_payment_amount"]
+        + scenarios["closing_cost_amount"]
+        - scenarios["total_cash_to_close_scenario"]
+    ).abs().max() < 1e-8
+
+    zip_rows = scenarios.loc[scenarios["geography_level"].eq("postal_zip")]
+    assert not zip_rows.empty
+    assert zip_rows["price_rolling_window_months"].eq(3).all()
+    with _connect() as connection:
+        database_count = connection.execute(
+            "SELECT count(*) FROM analytics.homebuying_cost_scenarios"
+        ).fetchone()[0]
+    assert database_count == len(scenarios)

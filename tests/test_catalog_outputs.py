@@ -6,17 +6,151 @@ import pandas as pd
 
 from src.common.config import load_config
 from src.reporting.catalog import (
-    ACS_RENTAL_AVAILABILITY_SOURCE_IDS,
-    ACS_RENTAL_AVAILABILITY_VARIABLE_IDS,
     DOCX_VARIABLES,
     HUD_USPS_RESTRICTED_TABLES,
-    HUD_USPS_VARIABLE_IDS,
+    IMPLEMENTATION,
     RENTAL_INVENTORY_STATUS,
+    _proxy_methodology_assumptions,
+    _write_catalog_preserving_monthly_finance_products,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DATABASE_PATH = ROOT / "database" / "housing.duckdb"
+
+
+def test_catalog_regeneration_preserves_completed_monthly_finance_product_fields(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "data_catalog.csv"
+    columns = [
+        "source_id",
+        "provider_vintage",
+        "raw_file_path",
+        "checksum_sha256",
+        "row_count",
+        "notes",
+    ]
+    pd.DataFrame(
+        [
+            {
+                "source_id": "old_general_source",
+                "provider_vintage": "old",
+                "raw_file_path": "old.csv",
+                "checksum_sha256": "1" * 64,
+                "row_count": "1",
+                "notes": "must be regenerated",
+            },
+            {
+                "source_id": "housing_finance_version_c_observations",
+                "provider_vintage": "information_cutoff_date=2026-08-17",
+                "raw_file_path": (
+                    "data/final/housing_finance_monthly_rt/"
+                    "information_cutoff_date=2026-08-17/part.parquet"
+                ),
+                "checksum_sha256": "a" * 64,
+                "row_count": "3364",
+                "notes": "completed cutoff metadata",
+            },
+        ],
+        columns=columns,
+    ).to_csv(path, index=False)
+    generated = pd.DataFrame(
+        [
+            {
+                "source_id": "current_general_source",
+                "provider_vintage": "2026",
+                "raw_file_path": "current.csv",
+                "checksum_sha256": "2" * 64,
+                "row_count": "2",
+                "notes": "regenerated",
+            }
+        ],
+        columns=columns,
+    )
+
+    _write_catalog_preserving_monthly_finance_products(generated, path)
+
+    result = pd.read_csv(path, dtype=str)
+    assert set(result["source_id"]) == {
+        "current_general_source",
+        "housing_finance_version_c_observations",
+    }
+    product = result.loc[
+        result["source_id"].eq("housing_finance_version_c_observations")
+    ].iloc[0]
+    assert product["provider_vintage"] == "information_cutoff_date=2026-08-17"
+    assert product["checksum_sha256"] == "a" * 64
+    assert product["row_count"] == "3364"
+    assert product["notes"] == "completed cutoff metadata"
+
+
+def test_hud_and_irs_catalog_metadata_use_current_source_semantics():
+    hud = IMPLEMENTATION[
+        "Sheltered vs Unsheltered Homelessness (high frequency)"
+    ]
+    assert hud["implemented_source_id"] == "hud_pit_coc_2007_2025"
+    assert "2007-2025" in hud["limitation"]
+    assert "row-level" in hud["limitation"]
+
+    irs = IMPLEMENTATION["Net Immigration / Migration (county)"]
+    assert "2022-2023" in irs["limitation"]
+    assert "methodology break" in irs["limitation"]
+    assert {
+        "irs_soi_county_migration",
+        "census_acs_5year_b05002",
+        "census_acs_5year_b07001",
+        "census_pep_county_population_v2019",
+        "census_pep_county_population_v2025",
+    } == set(irs["implemented_source_id"].split("|"))
+    assert "foreign-born field is a population stock" in irs["limitation"]
+    assert (
+        "moved-from-abroad field is gross current-resident mobility"
+        in irs["limitation"]
+    )
+
+
+def test_noncontrolled_catalog_reports_structural_bounds_and_exact_blocker():
+    item = IMPLEMENTATION[
+        "Rental price increase in non-rent-controlled locations"
+    ]
+    assert item["current_status"] == "Partially implemented"
+    assert {
+        "census_acs_5year_b25032",
+        "census_acs_5year_b25127",
+    } <= set(item["implemented_source_id"].split("|"))
+    assert {
+        "noncontrolled_exposure_share_structural_proxy_lower_bound",
+        "noncontrolled_exposure_share_structural_proxy_upper_bound",
+    } <= set(item["implemented_variable_id"].split("|"))
+    assert "null before 2020" in item["limitation"]
+    assert "not legal eligibility determinations" in item["limitation"]
+    assert "Exact noncontrolled_exposure_share" in item["limitation"]
+    assert "Census ZCTAs are not USPS postal ZIPs" in item["limitation"]
+
+    assumptions = _proxy_methodology_assumptions()
+    method = assumptions.loc[
+        assumptions["methodology_id"].eq(
+            "acs_noncontrolled_structural_exposure_bounds_v1"
+        )
+    ]
+    assert len(method) == 5
+    assert {
+        "noncontrolled_exposure_share_structural_proxy_lower_bound",
+        "noncontrolled_exposure_share_structural_proxy_upper_bound",
+        "noncontrolled_exposure_share",
+    } <= set(method["variable_id"])
+    assert method.loc[
+        method["variable_id"].eq("noncontrolled_exposure_share"),
+        "methodology_status",
+    ].eq("blocked").all()
+    upper = method.loc[
+        method["variable_id"].eq(
+            "noncontrolled_exposure_share_structural_proxy_upper_bound"
+        )
+    ].iloc[0]
+    assert "min(1" in upper["value"]
+    assert "prevents double counting" in upper["rationale"]
 
 
 def test_docx_variable_audit_covers_attached_variable_sheet():
@@ -42,24 +176,9 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
         "Zillow Observed Rent Index / Listings"
     )
     assert rental_inventory["current_status"] == RENTAL_INVENTORY_STATUS
-    assert set(rental_inventory["implemented_source_id"].split("|")) == {
-        *ACS_RENTAL_AVAILABILITY_SOURCE_IDS,
-        "hud_usps_ncwm_quarterly",
-    }
-    assert set(rental_inventory["implemented_variable_id"].split("|")) == set(
-        (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
-    )
-    assert "analytics.fact_housing_observation" in rental_inventory[
-        "implemented_table"
-    ]
-    assert "analytics.county_annual_controls" in rental_inventory[
-        "implemented_table"
-    ]
-    assert all(
-        path in rental_inventory["implemented_table"]
-        for path in HUD_USPS_RESTRICTED_TABLES
-    )
-    assert bool(rental_inventory["panel_or_view_present"])
+    assert pd.isna(rental_inventory["implemented_source_id"])
+    assert pd.isna(rental_inventory["implemented_variable_id"])
+    assert not bool(rental_inventory["panel_or_view_present"])
     assert "not true rental-listing inventory" in rental_inventory["limitation"]
     assert "native-quarterly only" in rental_inventory["limitation"]
     assert "no-stat remains a separate diagnostic" in rental_inventory[
@@ -73,7 +192,7 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     assert "Redfin for-sale active listings are not a valid substitute" in (
         rental_inventory["limitation"]
     )
-    assert "monthly rental-listing series remains missing" in rental_inventory[
+    assert "governing methodology names no approved source" in rental_inventory[
         "limitation"
     ].lower()
 
@@ -82,6 +201,24 @@ def test_docx_variable_audit_covers_attached_variable_sheet():
     ].iloc[0]
     assert permits["expected_source_from_docx"] == "Census BPS (1-unit permits)"
     assert "authorizations, not starts or completions" in permits["limitation"]
+
+    occupied_change = audit.loc[
+        audit["variable_name"].eq("Net Change in Occupied Apartments (quarterly)")
+    ].iloc[0]
+    assert set(occupied_change["implemented_variable_id"].split("|")) == {
+        "net_change_occupied_apartments_annual",
+        "zcta_renter_occupied_units_vintage_change_annual",
+    }
+    assert occupied_change["row_count"] == 14
+    assert occupied_change["start_date"] == "2011-12-31"
+    assert occupied_change["end_date"] == "2024-12-31"
+
+    price_to_income = audit.loc[
+        audit["variable_name"].eq("Price-to-Income Ratio (quarterly/local)")
+    ].iloc[0]
+    assert price_to_income["row_count"] == 15
+    assert price_to_income["start_date"] == "2010-12-31"
+    assert price_to_income["end_date"] == "2024-12-31"
 
 
 def test_data_catalog_shape_and_active_sources_are_complete():
@@ -266,7 +403,7 @@ def test_source_tracker_workbook_is_human_readable():
         if row.get("variable_name") == "Eviction trends (high-frequency, consistent)"
     ]
     assert eviction_rows
-    assert eviction_rows[0]["current_status"] == "Implemented"
+    assert eviction_rows[0]["current_status"] == "Partially implemented"
     assert eviction_rows[0]["implemented_source_id"] == "eviction_lab_county_estimates"
 
     variable_dictionary = sheet_records("Variable Dictionary")
@@ -331,12 +468,24 @@ def test_version_a_finance_is_authoritative_and_b25106_legacy_is_retained():
     mortgage_debt = audit.loc[
         audit["variable_name"].eq("Aggregate Mortgage Debt (outstanding balances)")
     ].iloc[0]
-    assert mortgage_debt["current_status"] == "Proxy implemented"
+    assert mortgage_debt["current_status"] == "Partially implemented"
     assert "census_acs5_finance" in mortgage_debt["implemented_source_id"]
     assert "acs_implied_first_mortgage_balance_cal_benchmark" in mortgage_debt[
         "implemented_variable_id"
     ]
     assert "older B25106" in mortgage_debt["limitation"]
+    assert "raw_pmms_20y_sensitivity" in mortgage_debt[
+        "implemented_variable_id"
+    ]
+
+    home_equity = audit.loc[
+        audit["variable_name"].eq("Aggregate Home Equity")
+    ].iloc[0]
+    assert home_equity["current_status"] == "Partially implemented"
+    assert "home_equity_all_pmms_25y_scenario" in home_equity[
+        "implemented_variable_id"
+    ]
+    assert "uncalibrated scenarios" in home_equity["limitation"]
 
     with duckdb.connect(str(DATABASE_PATH), read_only=True) as connection:
         clean_rows = connection.execute(
@@ -368,8 +517,16 @@ def test_irs_soi_net_migration_is_documented_and_loaded():
         audit["variable_name"].eq("Net Immigration / Migration (county)")
     ].iloc[0]
     assert migration["current_status"] == "Implemented"
-    assert migration["implemented_source_id"] == "irs_soi_county_migration"
+    assert {
+        "irs_soi_county_migration",
+        "census_acs_5year_b05002",
+        "census_acs_5year_b07001",
+        "census_pep_county_population_v2019",
+        "census_pep_county_population_v2025",
+    } == set(migration["implemented_source_id"].split("|"))
     assert "irs_soi_net_migration_exemptions" in migration["implemented_variable_id"]
+    assert "acs_foreign_born_population" in migration["implemented_variable_id"]
+    assert "acs_moved_from_abroad_past_year" in migration["implemented_variable_id"]
 
     with duckdb.connect(str(DATABASE_PATH), read_only=True) as connection:
         clean_coverage = connection.execute(
@@ -397,6 +554,25 @@ def test_irs_soi_net_migration_is_documented_and_loaded():
             )
             """
         ).fetchone()[0]
+        acs_supplement_coverage = connection.execute(
+            """
+            SELECT variable_id,
+                   count(*) AS row_count,
+                   count(value) AS nonnull_count,
+                   min(observation_date) AS first_date,
+                   max(observation_date) AS last_date,
+                   count(DISTINCT geo_id) AS geography_count
+            FROM analytics.fact_housing_observation
+            WHERE variable_id IN (
+                'acs_foreign_born_population',
+                'acs_foreign_born_population_moe',
+                'acs_moved_from_abroad_past_year',
+                'acs_moved_from_abroad_past_year_moe'
+            )
+            GROUP BY variable_id
+            ORDER BY variable_id
+            """
+        ).fetchall()
 
     assert clean_coverage[0].year == 2011
     assert clean_coverage[1].year == 2023
@@ -406,6 +582,35 @@ def test_irs_soi_net_migration_is_documented_and_loaded():
     assert county_coverage[1].year == 2023
     assert county_coverage[2] == 13
     assert duplicate_count == 0
+    assert len(acs_supplement_coverage) == 4
+    for _, row_count, nonnull_count, first_date, last_date, geography_count in (
+        acs_supplement_coverage
+    ):
+        assert row_count == 3851
+        assert nonnull_count > 0
+        assert first_date.year == 2010
+        assert last_date.year == 2024
+        assert geography_count == 275
+
+
+def test_acs_migration_supplement_transformation_lineage_keeps_both_sources():
+    log = pd.read_csv(ROOT / "metadata" / "transformation_log.csv", dtype=str)
+    rows = log.loc[
+        log["source_id"].isin(
+            {
+                "census_acs_5year_b05002",
+                "census_acs_5year_b07001",
+            }
+        )
+        & log["transformation_id"].eq("acs_5year_api_summary_v1")
+    ]
+
+    assert set(rows["source_id"]) == {
+        "census_acs_5year_b05002",
+        "census_acs_5year_b07001",
+    }
+    assert rows["output_rows"].astype(int).eq(7702).all()
+    assert rows["output_file"].str.endswith(".parquet").all()
 
 
 def test_cdc_wonder_natural_population_change_is_loaded_and_allocated():
@@ -453,12 +658,14 @@ def test_eviction_lab_county_estimates_are_documented_and_loaded():
     evictions = audit.loc[
         audit["variable_name"].eq("Eviction trends (high-frequency, consistent)")
     ].iloc[0]
-    assert evictions["current_status"] == "Implemented"
+    assert evictions["current_status"] == "Partially implemented"
     assert evictions["implemented_source_id"] == "eviction_lab_county_estimates"
     assert "eviction_lab_filings_rate_estimate_annual" in evictions[
         "implemented_variable_id"
     ]
-    assert "not cover Los Angeles County" in evictions["limitation"]
+    assert "neither Los Angeles nor any California geography" in evictions[
+        "limitation"
+    ]
 
     with duckdb.connect(str(DATABASE_PATH), read_only=True) as connection:
         clean_coverage = connection.execute(

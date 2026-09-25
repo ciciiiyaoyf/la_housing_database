@@ -1,5 +1,6 @@
 project_name: la_housing_database
 database_path: database/housing.duckdb
+require_variable_metadata: true
 request_timeout_seconds: 120
 download_chunk_bytes: 1048576
 default_start_date: "2000-01-01"
@@ -7,18 +8,139 @@ stale_after_days: 120
 extreme_mom_threshold: 0.25
 extreme_yoy_threshold: 0.60
 market_tightness_min_components: 3
+source_refresh_review_holds:
+  redfin_county_monthly: >-
+    As of September 22, 2026, the configured official legacy county download
+    still ends in May 2026 although Redfin has published newer releases through
+    its redesigned Data Center. The successor download hub returned HTTP 429
+    during acquisition. The user supplied official calendar-month tracker and
+    price-drop CSVs through August 2026. All eight counties have complete inputs,
+    but overlapping price-drop shares average 7.687 percentage points below the
+    legacy series, including a material shift in the frozen reference window.
+    Resolve provider definition and seasonal-adjustment compatibility, implement
+    a tested successor adapter and an explicit versioned normalization decision,
+    then remove this hold. Never splice successor observations into legacy
+    normalized history silently. A successful legacy download is not proof
+    that the newest eligible release has been acquired.
+macro_monthly_delivery:
+  required_frequency: monthly
+  require_complete_contract: true
+  monthly_variable_count: 27
+  monthly_geography_series_count: 39
+  quarterly_gdp_policy: required_quarterly_exception_confirmed_by_user
+  native_daily_weekly_policy: retain_for_provenance_exclude_from_monthly_delivery
+  missing_value_policy: no_interpolation_no_quarterly_repetition_no_geography_broadcast
+comparable_county_analytics:
+  methodology_id: la_comparable_county_analytics_v1
+  target_county_fips:
+    - "06037"
+    - "06059"
+    - "06065"
+    - "06071"
+    - "06073"
+    - "06067"
+    - "06085"
+    - "06001"
+  la_county_fips: "06037"
+  peer_county_fips:
+    - "06059"
+    - "06065"
+    - "06071"
+    - "06073"
+    - "06067"
+    - "06085"
+    - "06001"
+  tightness_components:
+    - months_of_supply
+    - days_on_market
+    - price_drop_share
+  tightness_reference_start: "2012-02-29"
+  tightness_reference_end: "2019-12-31"
+  heat_reference_start: "2012-02-29"
+  heat_reference_end: "2019-12-31"
+  normalization_scope: pooled_eight_counties
+  standard_deviation_ddof: 0
+  require_complete_tightness_components: 3
+  require_complete_peer_count: 7
+  frozen_parameters_path: metadata/comparable_county_reference_parameters_v1.json
+  allow_initial_parameter_fit: false
+  assumption_status: pending_mentor_confirmation
+  assumption_note: >-
+    The source specification requires fixed historical normalization but does
+    not state dates, pooling scope, or SD convention. The initial production
+    choice is the common-source pre-COVID window February 2012 through December
+    2019, pooled over all eight counties with population SD. Price-to-rent
+    change is retained at one- and twelve-month log horizons because the source
+    specification does not select a change horizon.
+zip_market_regimes:
+  methodology_id: la_zip_market_regime_kmeans_v2
+  transition_share_methodology_id: la_zip_regime_current_classified_denominator_v1
+  transition_share_denominator: current_classified_zip_count
+  incomplete_previous_classification_policy: suppress_canonical_share_keep_conditional_diagnostic
+  model_path: metadata/zip_market_regime_model_v2.json
+  allow_initial_model_fit: false
+  training_start: "2015-06-30"
+  training_end: "2019-12-31"
+  classification_start: "2020-03-31"
+  quarter_end_months: [3, 6, 9, 12]
+  cluster_count: 4
+  volatility_window_months: 24
+  random_seed: 20260824
+  n_init: 50
+  max_iterations: 500
+  tolerance: 1.0e-10
+  standard_deviation_ddof: 0
+  feature_order:
+    - zhvi_momentum_3m_annualized_log_pct
+    - zori_momentum_3m_annualized_log_pct
+    - price_to_rent_ratio_zillow
+    - zhvi_monthly_log_growth_volatility_24m
 census_bps:
   archive_start_date: "2000-01-01"
   methodology_change_date: "2022-01-01"
   download_workers: 4
+construction_proxies:
+  completion_methodology_id: bps_5_plus_distributed_completion_lag_v1
+  under_construction_methodology_id: bps_5_plus_stock_flow_pipeline_v1
+  input_variable_id: permits_5_plus_units
+  require_complete_lag_history: true
+  missing_value_policy: propagate_required_source_nulls
+  scenarios:
+    central:
+      completion_variable_id: new_apartments_completed_proxy_central
+      under_construction_variable_id: multifamily_under_construction_proxy_central
+      lag_buckets:
+        - {start_month: 12, end_month: 17, completion_share: 0.20}
+        - {start_month: 18, end_month: 23, completion_share: 0.55}
+        - {start_month: 24, end_month: 30, completion_share: 0.25}
+    slow:
+      completion_variable_id: new_apartments_completed_proxy_slow
+      under_construction_variable_id: multifamily_under_construction_proxy_slow
+      lag_buckets:
+        - {start_month: 18, end_month: 23, completion_share: 0.20}
+        - {start_month: 24, end_month: 29, completion_share: 0.50}
+        - {start_month: 30, end_month: 36, completion_share: 0.30}
 mortgage:
   annual_rate_scale: 100.0
   loan_term_years: 30
   down_payment_scenarios: [0.035, 0.10, 0.20]
   closing_cost_scenarios: [0.02, 0.03, 0.05]
+  closing_cost_loan_scenarios: [0.03, 0.06]
   excluded_costs:
     - property tax
     - homeowners insurance
     - HOA
     - maintenance
     - mortgage insurance
+noncontrolled_rental_exposure:
+  methodology_id: acs_noncontrolled_structural_exposure_bounds_v1
+  source_table_ids: [B25032, B25127]
+  publication_floor: "2020-12-31"
+  output_frequency: annual
+  output_geographies: [county, zcta]
+  zcta_is_postal_zip: false
+  policy_crosswalk_path: config/rent_control_policy_crosswalk.csv
+  policy_crosswalk_status: scaffold_incomplete_not_applied
+  exact_policy_adjustment_enabled: false
+  exact_point_variable_id: noncontrolled_exposure_share
+  exact_point_variable_status: absent_pending_complete_dated_policy_and_exemption_crosswalk

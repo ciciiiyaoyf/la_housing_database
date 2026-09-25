@@ -1,0 +1,876 @@
+schema_version: 1
+database_version: "C. Real-time monthly vintage"
+config_version: housing_finance_version_c_v1
+output_frequency: monthly
+output_id_suffix: _monthly_rt
+contract:
+  description: >-
+    Closed variable dictionary for the strict real-time Version C builder. Every
+    observation is keyed by an as-of cutoff and a deterministic vintage ID, and
+    no transformation may use a source availability date after that cutoff or a
+    future interpolation endpoint.
+  output_statuses:
+    - canonical_modeled_carry
+    - canonical_null
+    - proxy
+    - scenario
+  canonical_null_policy: >-
+    Required canonical targets without a method-compliant real-time input are
+    materialized as explicit nulls. Proxies and sensitivities use separate IDs
+    and never populate a canonical target.
+
+variables:
+  - variable_id: acs_estimated_aggregate_monthly_first_mortgage_pi_monthly_rt
+    display_name: Estimated aggregate monthly first-mortgage P&I - real-time carry
+    benchmark_variable_id: acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    construction_anchor_variable_ids:
+      - acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    unit: USD/month
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_payment_carry_v1
+    methodological_notes: >-
+      Carry the latest eligible Version A payment benchmark as a level. The
+      word monthly is the payment-flow unit; this is not temporal interpolation.
+
+  - variable_id: acs_first_mortgage_pi_per_mortgaged_unit_monthly_rt
+    display_name: First-mortgage P&I per mortgaged unit - real-time carry
+    benchmark_variable_id: acs_first_mortgage_pi_per_mortgaged_unit_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_pi_per_mortgaged_unit_benchmark]
+    unit: USD/unit/month
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_payment_carry_v1
+    methodological_notes: Latest eligible structural per-unit payment control; no interpolation.
+
+  - variable_id: acs_annual_first_mortgage_debt_service_monthly_rt
+    display_name: Annualized first-mortgage debt service - real-time carry
+    benchmark_variable_id: acs_annual_first_mortgage_debt_service_benchmark
+    construction_anchor_variable_ids: [acs_annual_first_mortgage_debt_service_benchmark]
+    unit: USD/year
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_payment_carry_v1
+    methodological_notes: Latest eligible annualized payment-unit control; not divided by twelve.
+
+  - variable_id: acs_mortgage_debt_service_to_income_monthly_rt
+    display_name: Mortgage debt-service-to-income - real-time carry
+    benchmark_variable_id: acs_mortgage_debt_service_to_income_benchmark
+    construction_anchor_variable_ids: [acs_mortgage_debt_service_to_income_benchmark]
+    unit: ratio
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_payment_carry_v1
+    methodological_notes: Latest eligible matched-universe structural DSR control; no interpolation.
+
+  - variable_id: hmda_median_downpayment_rate_monthly_rt
+    display_name: HMDA median down-payment rate - all eligible loans - real-time carry
+    benchmark_variable_id: hmda_median_downpayment_rate_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_monthly_rt
+    display_name: HMDA property-value-weighted down-payment rate - all eligible loans - real-time carry
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_median_downpayment_rate_conventional_monthly_rt
+    display_name: HMDA median down-payment rate - conventional - real-time carry
+    benchmark_variable_id: hmda_median_downpayment_rate_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_conventional_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_conventional_monthly_rt
+    display_name: HMDA property-value-weighted down-payment rate - conventional - real-time carry
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_conventional_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_median_downpayment_rate_fha_monthly_rt
+    display_name: HMDA median down-payment rate - FHA - real-time carry
+    benchmark_variable_id: hmda_median_downpayment_rate_fha_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_fha_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_fha_monthly_rt
+    display_name: HMDA property-value-weighted down-payment rate - FHA - real-time carry
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_fha_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_fha_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_median_downpayment_rate_va_monthly_rt
+    display_name: HMDA median down-payment rate - VA - real-time carry
+    benchmark_variable_id: hmda_median_downpayment_rate_va_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_va_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_va_monthly_rt
+    display_name: HMDA property-value-weighted down-payment rate - VA - real-time carry
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_va_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_va_benchmark]
+    unit: rate
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: populated_when_eligible_anchor_available
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual rate is repeated, not divided by twelve.
+
+  - variable_id: hmda_share_downpayment_below_3pct_monthly_rt
+    display_name: HMDA share below 3% down - all eligible loans - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual threshold share; preserve sample N, coverage, and suppression.
+
+  - variable_id: hmda_share_downpayment_below_5pct_monthly_rt
+    display_name: HMDA share below 5% down - all eligible loans - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual threshold share; preserve sample N, coverage, and suppression.
+
+  - variable_id: hmda_share_downpayment_below_10pct_monthly_rt
+    display_name: HMDA share below 10% down - all eligible loans - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual threshold share; preserve sample N, coverage, and suppression.
+
+  - variable_id: hmda_share_downpayment_below_20pct_monthly_rt
+    display_name: HMDA share below 20% down - all eligible loans - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual threshold share; preserve sample N, coverage, and suppression.
+
+  - variable_id: hmda_share_downpayment_below_3pct_conventional_monthly_rt
+    display_name: HMDA conventional share below 3% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual conventional-loan share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_5pct_conventional_monthly_rt
+    display_name: HMDA conventional share below 5% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual conventional-loan share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_10pct_conventional_monthly_rt
+    display_name: HMDA conventional share below 10% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual conventional-loan share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_20pct_conventional_monthly_rt
+    display_name: HMDA conventional share below 20% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual conventional-loan share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_3pct_fha_monthly_rt
+    display_name: HMDA FHA share below 3% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual FHA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_5pct_fha_monthly_rt
+    display_name: HMDA FHA share below 5% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual FHA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_10pct_fha_monthly_rt
+    display_name: HMDA FHA share below 10% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual FHA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_20pct_fha_monthly_rt
+    display_name: HMDA FHA share below 20% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual FHA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_3pct_va_monthly_rt
+    display_name: HMDA VA share below 3% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual VA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_5pct_va_monthly_rt
+    display_name: HMDA VA share below 5% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual VA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_10pct_va_monthly_rt
+    display_name: HMDA VA share below 10% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual VA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_share_downpayment_below_20pct_va_monthly_rt
+    display_name: HMDA VA share below 20% down - real-time carry
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_carry
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_latest_eligible_annual_share_with_suppression_and_diagnostics
+    transformation_id: version_c_latest_hmda_rate_carry_v1
+    methodological_notes: Latest eligible annual VA share; preserve diagnostics and suppression.
+
+  - variable_id: hmda_aggregate_downpayment_flow_monthly_rt
+    display_name: HMDA aggregate down-payment flow - all eligible loans - canonical real-time target
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_c_hmda_flow_unavailable_v1
+    methodological_notes: >-
+      Explicit null because exact monthly financed purchase-dollar volume is
+      unavailable. The separately labeled Redfin proxy must not fill this row.
+
+  - variable_id: hmda_aggregate_downpayment_flow_conventional_monthly_rt
+    display_name: HMDA aggregate down-payment flow - conventional - canonical real-time target
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_conventional_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_c_hmda_flow_unavailable_v1
+    methodological_notes: >-
+      Explicit null because exact monthly financed purchase-dollar volume is
+      unavailable. The separately labeled Redfin proxy must not fill this row.
+
+  - variable_id: hmda_aggregate_downpayment_flow_fha_monthly_rt
+    display_name: HMDA aggregate down-payment flow - FHA - canonical real-time target
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_fha_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_fha_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_c_hmda_flow_unavailable_v1
+    methodological_notes: >-
+      Explicit null because exact monthly financed purchase-dollar volume is
+      unavailable. The separately labeled Redfin proxy must not fill this row.
+
+  - variable_id: hmda_aggregate_downpayment_flow_va_monthly_rt
+    display_name: HMDA aggregate down-payment flow - VA - canonical real-time target
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_va_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_va_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_c_hmda_flow_unavailable_v1
+    methodological_notes: >-
+      Explicit null because exact monthly financed purchase-dollar volume is
+      unavailable. The separately labeled Redfin proxy must not fill this row.
+
+  - variable_id: hmda_aggregate_downpayment_flow_redfin_sales_value_proxy_monthly_rt
+    display_name: HMDA aggregate down-payment flow - all eligible loans - Redfin sales-value proxy
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_benchmark
+    construction_anchor_variable_ids:
+      - hmda_aggregate_downpayment_flow_benchmark
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: true
+    expected_value_policy: populated_only_with_complete_finalized_year_proxy_weights_and_target_month_weight
+    transformation_id: version_c_redfin_purchase_value_proxy_nowcast_v1
+    methodological_notes: >-
+      Uses homes sold times median sale price only as a purchase-value proxy.
+      It excludes cash/finance mix and never populates the canonical flow ID.
+
+  - variable_id: hmda_aggregate_downpayment_flow_conventional_redfin_sales_value_proxy_monthly_rt
+    display_name: HMDA aggregate down-payment flow - conventional - Redfin sales-value proxy
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_conventional_benchmark
+    construction_anchor_variable_ids:
+      - hmda_aggregate_downpayment_flow_conventional_benchmark
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: true
+    expected_value_policy: populated_only_with_complete_finalized_year_proxy_weights_and_target_month_weight
+    transformation_id: version_c_redfin_purchase_value_proxy_nowcast_v1
+    methodological_notes: >-
+      Uses homes sold times median sale price only as a purchase-value proxy.
+      It excludes cash/finance mix and never populates the canonical flow ID.
+
+  - variable_id: hmda_aggregate_downpayment_flow_fha_redfin_sales_value_proxy_monthly_rt
+    display_name: HMDA aggregate down-payment flow - FHA - Redfin sales-value proxy
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_fha_benchmark
+    construction_anchor_variable_ids:
+      - hmda_aggregate_downpayment_flow_fha_benchmark
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: true
+    expected_value_policy: populated_only_with_complete_finalized_year_proxy_weights_and_target_month_weight
+    transformation_id: version_c_redfin_purchase_value_proxy_nowcast_v1
+    methodological_notes: >-
+      Uses homes sold times median sale price only as a purchase-value proxy.
+      It excludes cash/finance mix and never populates the canonical flow ID.
+
+  - variable_id: hmda_aggregate_downpayment_flow_va_redfin_sales_value_proxy_monthly_rt
+    display_name: HMDA aggregate down-payment flow - VA - Redfin sales-value proxy
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_va_benchmark
+    construction_anchor_variable_ids:
+      - hmda_aggregate_downpayment_flow_va_benchmark
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: true
+    expected_value_policy: populated_only_with_complete_finalized_year_proxy_weights_and_target_month_weight
+    transformation_id: version_c_redfin_purchase_value_proxy_nowcast_v1
+    methodological_notes: >-
+      Uses homes sold times median sale price only as a purchase-value proxy.
+      It excludes cash/finance mix and never populates the canonical flow ID.
+
+  - variable_id: acs_implied_first_mortgage_balance_cal_monthly_rt
+    display_name: California-calibrated implied first-mortgage balance - canonical real-time target
+    benchmark_variable_id: acs_implied_first_mortgage_balance_cal_benchmark
+    construction_anchor_variable_ids: [acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_anchor_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: >-
+      Explicit null while the calibrated stock anchor is unavailable. PMMS
+      origination-rate sensitivities are separate outputs, not substitutes.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_monthly_rt
+    display_name: Implied mortgaged-owner home equity - canonical real-time target
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_benchmark
+    construction_anchor_variable_ids:
+      - acs_implied_owner_occupied_home_equity_mortgaged_benchmark
+      - acs_implied_first_mortgage_balance_cal_benchmark
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: >-
+      Explicit null because canonical mortgaged-owner equity requires canonical
+      calibrated debt; scenario equity remains separately labeled.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_monthly_rt
+    display_name: Implied all-owner home equity - canonical real-time target
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_benchmark
+    construction_anchor_variable_ids:
+      - acs_implied_owner_occupied_home_equity_all_benchmark
+      - acs_implied_first_mortgage_balance_cal_benchmark
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: >-
+      Explicit null because canonical all-owner equity requires canonical
+      calibrated debt; scenario equity remains separately labeled.
+
+  - variable_id: acs_first_mortgage_debt_per_mortgaged_owner_unit_monthly_rt
+    display_name: Calibrated first-mortgage debt per mortgaged owner unit - canonical real-time target
+    benchmark_variable_id: acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark]
+    unit: USD/unit
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: No PMMS sensitivity substitution for the normalized calibrated target.
+
+  - variable_id: acs_first_mortgage_debt_per_owner_unit_monthly_rt
+    display_name: Calibrated first-mortgage debt per owner unit - canonical real-time target
+    benchmark_variable_id: acs_first_mortgage_debt_per_owner_unit_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_per_owner_unit_benchmark]
+    unit: USD/unit
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: No PMMS sensitivity substitution for the normalized calibrated target.
+
+  - variable_id: acs_first_mortgage_debt_per_capita_monthly_rt
+    display_name: Calibrated first-mortgage debt per capita - canonical real-time target
+    benchmark_variable_id: acs_first_mortgage_debt_per_capita_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_per_capita_benchmark]
+    unit: USD/person
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: No PMMS sensitivity substitution for the normalized calibrated target.
+
+  - variable_id: acs_first_mortgage_debt_to_owner_income_monthly_rt
+    display_name: Calibrated first-mortgage debt to owner income - canonical real-time target
+    benchmark_variable_id: acs_first_mortgage_debt_to_owner_income_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_to_owner_income_benchmark]
+    unit: ratio
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: No PMMS sensitivity substitution for the normalized calibrated target.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_per_owner_unit_monthly_rt
+    display_name: Implied all-owner equity per owner unit - canonical real-time target
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark]
+    unit: USD/unit
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: Exact normalized equity remains unavailable with canonical calibrated debt.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_real_2024_monthly_rt
+    display_name: Mortgaged-owner equity in constant 2024 dollars - canonical real-time target
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark]
+    unit: constant_2024_USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: Exact real-dollar equity remains unavailable with canonical calibrated debt.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_real_2024_monthly_rt
+    display_name: All-owner equity in constant 2024 dollars - canonical real-time target
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_real_2024_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_all_real_2024_benchmark]
+    unit: constant_2024_USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: Exact real-dollar equity remains unavailable with canonical calibrated debt.
+
+  - variable_id: acs_aggregate_ltv_mortgaged_monthly_rt
+    display_name: Aggregate mortgaged-owner LTV - canonical real-time target
+    benchmark_variable_id: acs_aggregate_ltv_mortgaged_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_ltv_mortgaged_benchmark]
+    unit: ratio
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: Aggregate stock ratio; never interpreted as mean household LTV.
+
+  - variable_id: acs_equity_rate_mortgaged_monthly_rt
+    display_name: Aggregate mortgaged-owner equity rate - canonical real-time target
+    benchmark_variable_id: acs_equity_rate_mortgaged_benchmark
+    construction_anchor_variable_ids: [acs_equity_rate_mortgaged_benchmark]
+    unit: ratio
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_c_calibrated_target_unavailable_v1
+    methodological_notes: One minus aggregate LTV; unavailable with canonical calibrated debt.
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_monthly_rt
+    display_name: Raw implied first-mortgage balance - PMMS 20-year sensitivity - real time
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark
+    construction_anchor_variable_ids:
+      - acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    indicator_variable_ids: [mortgage_rate_30y_monthly_median]
+    indicator_source_ids: [freddie_mac_pmms]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_payment_and_latest_eligible_pmms_rate_available
+    transformation_id: version_c_stepwise_pmms_rate_debt_sensitivity_v1
+    methodological_notes: >-
+      Capitalizes carried aggregate P&I at the latest eligible PMMS rate with a
+      fixed 20-year annuity factor. PMMS is an origination-rate sensitivity.
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_monthly_rt
+    display_name: Raw implied first-mortgage balance - PMMS 25-year sensitivity - real time
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark
+    construction_anchor_variable_ids:
+      - acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    indicator_variable_ids: [mortgage_rate_30y_monthly_median]
+    indicator_source_ids: [freddie_mac_pmms]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_payment_and_latest_eligible_pmms_rate_available
+    transformation_id: version_c_stepwise_pmms_rate_debt_sensitivity_v1
+    methodological_notes: >-
+      Capitalizes carried aggregate P&I at the latest eligible PMMS rate with a
+      fixed 25-year annuity factor. PMMS is an origination-rate sensitivity.
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_monthly_rt
+    display_name: Raw implied first-mortgage balance - PMMS 30-year sensitivity - real time
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark
+    construction_anchor_variable_ids:
+      - acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    indicator_variable_ids: [mortgage_rate_30y_monthly_median]
+    indicator_source_ids: [freddie_mac_pmms]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_payment_and_latest_eligible_pmms_rate_available
+    transformation_id: version_c_stepwise_pmms_rate_debt_sensitivity_v1
+    methodological_notes: >-
+      Capitalizes carried aggregate P&I at the latest eligible PMMS rate with a
+      fixed 30-year annuity factor. PMMS is an origination-rate sensitivity.
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_monthly_rt
+    display_name: Raw implied first-mortgage balance - composite PMMS envelope - real time
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_benchmark
+    construction_anchor_variable_ids:
+      - acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+      - acs_implied_first_mortgage_balance_raw_benchmark
+    indicator_variable_ids: [mortgage_rate_30y_monthly_median]
+    indicator_source_ids: [freddie_mac_pmms]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_eligible_raw_anchor_payment_bounds_and_pmms_rate_available
+    transformation_id: version_c_composite_pmms_raw_debt_nowcast_sensitivity_v1
+    methodological_notes: >-
+      The latest eligible Version A raw-debt benchmark is a numeric level
+      anchor. Scale central payment at 25 years, low payment at 20 years, and
+      high payment at 30 years separately so all three match their anchor
+      values exactly at the reference month. This remains a PMMS sensitivity
+      and never fills the calibrated canonical debt target.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_monthly_rt
+    display_name: Mortgaged-owner home equity - PMMS 20-year scenario - real time
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_benchmark
+    construction_anchor_variable_ids:
+      - acs_aggregate_owner_value_mortgaged_benchmark
+      - acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_monthly_rt
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_value_hpi_and_scenario_debt_available
+    transformation_id: version_c_hpi_updated_pmms_equity_v1
+    methodological_notes: >-
+      HPI-updated mortgaged-owner value less the matching PMMS 20-year debt
+      sensitivity; never relabeled as canonical calibrated equity.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_monthly_rt
+    display_name: All-owner home equity - PMMS 20-year scenario - real time
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark
+    construction_anchor_variable_ids:
+      - acs_aggregate_owner_value_all_benchmark
+      - acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_monthly_rt
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_value_hpi_and_scenario_debt_available
+    transformation_id: version_c_hpi_updated_pmms_equity_v1
+    methodological_notes: >-
+      HPI-updated all-owner value less the matching PMMS 20-year debt
+      sensitivity; never relabeled as canonical calibrated equity.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_monthly_rt
+    display_name: Mortgaged-owner home equity - PMMS 25-year scenario - real time
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_benchmark
+    construction_anchor_variable_ids:
+      - acs_aggregate_owner_value_mortgaged_benchmark
+      - acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_monthly_rt
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_value_hpi_and_scenario_debt_available
+    transformation_id: version_c_hpi_updated_pmms_equity_v1
+    methodological_notes: >-
+      HPI-updated mortgaged-owner value less the matching PMMS 25-year debt
+      sensitivity; never relabeled as canonical calibrated equity.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_monthly_rt
+    display_name: All-owner home equity - PMMS 25-year scenario - real time
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark
+    construction_anchor_variable_ids:
+      - acs_aggregate_owner_value_all_benchmark
+      - acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_monthly_rt
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_value_hpi_and_scenario_debt_available
+    transformation_id: version_c_hpi_updated_pmms_equity_v1
+    methodological_notes: >-
+      HPI-updated all-owner value less the matching PMMS 25-year debt
+      sensitivity; never relabeled as canonical calibrated equity.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_monthly_rt
+    display_name: Mortgaged-owner home equity - PMMS 30-year scenario - real time
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_benchmark
+    construction_anchor_variable_ids:
+      - acs_aggregate_owner_value_mortgaged_benchmark
+      - acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_monthly_rt
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_value_hpi_and_scenario_debt_available
+    transformation_id: version_c_hpi_updated_pmms_equity_v1
+    methodological_notes: >-
+      HPI-updated mortgaged-owner value less the matching PMMS 30-year debt
+      sensitivity; never relabeled as canonical calibrated equity.
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_monthly_rt
+    display_name: All-owner home equity - PMMS 30-year scenario - real time
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark
+    construction_anchor_variable_ids:
+      - acs_aggregate_owner_value_all_benchmark
+      - acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_monthly_rt
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_value_hpi_and_scenario_debt_available
+    transformation_id: version_c_hpi_updated_pmms_equity_v1
+    methodological_notes: >-
+      HPI-updated all-owner value less the matching PMMS 30-year debt
+      sensitivity; never relabeled as canonical calibrated equity.

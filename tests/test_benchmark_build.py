@@ -6,7 +6,10 @@ import pandas as pd
 import pytest
 
 from src.benchmark.acs import CALIFORNIA_COUNTY_FIPS
-from src.benchmark.build import build_version_a_benchmark
+from src.benchmark.build import (
+    PMMS_TERM_SCENARIO_OUTPUTS,
+    build_version_a_benchmark,
+)
 
 
 def _acs_rows() -> pd.DataFrame:
@@ -445,6 +448,26 @@ def test_pums_and_rate_parameters_require_exact_reference_date() -> None:
         "freddie_mac_pmms",
         regex=False,
     ).any()
+    scenario_variables = {
+        variable_name
+        for _, debt_variable, mortgaged_equity_variable, all_equity_variable in (
+            PMMS_TERM_SCENARIO_OUTPUTS
+        )
+        for variable_name in (
+            debt_variable,
+            mortgaged_equity_variable,
+            all_equity_variable,
+        )
+    }
+    scenarios = result.loc[result["variable_name"].isin(scenario_variables)]
+    assert len(scenarios) == len(CALIFORNIA_COUNTY_FIPS) * 9
+    assert scenarios["value"].isna().all()
+    assert scenarios["quality_flag"].str.contains(
+        "pmms_rate_parameter_unavailable", regex=False
+    ).all()
+    assert not scenarios["source_id"].str.contains(
+        "freddie_mac_pmms", regex=False
+    ).any()
 
 
 def test_null_derived_values_identify_the_missing_input() -> None:
@@ -532,6 +555,106 @@ def test_missing_california_upb_preserves_null_calibrated_debt_and_equity() -> N
         "california_upb_calibration_unavailable"
     ).all()
     assert all(math.isnan(value) for value in unavailable["central_estimate"])
+
+
+def test_pmms_term_debt_and_matching_equity_scenarios_are_explicit() -> None:
+    result = build_version_a_benchmark(
+        _acs_rows(),
+        _pums(),
+        rate_parameters=_rates(),
+    )
+    scenario_variables = {
+        variable_name
+        for _, debt_variable, mortgaged_equity_variable, all_equity_variable in (
+            PMMS_TERM_SCENARIO_OUTPUTS
+        )
+        for variable_name in (
+            debt_variable,
+            mortgaged_equity_variable,
+            all_equity_variable,
+        )
+    }
+    scenario_rows = result.loc[
+        result["variable_name"].isin(scenario_variables)
+    ]
+    assert len(scenario_rows) == len(CALIFORNIA_COUNTY_FIPS) * 9
+    assert scenario_rows["value"].notna().all()
+    assert scenario_rows["quality_flag"].eq(
+        "pmms_origination_rate_sensitivity"
+    ).all()
+    assert scenario_rows["source_id"].str.contains(
+        "freddie_mac_pmms", regex=False
+    ).all()
+    equity_variables = {
+        variable_name
+        for _, _, mortgaged_equity_variable, all_equity_variable in (
+            PMMS_TERM_SCENARIO_OUTPUTS
+        )
+        for variable_name in (
+            mortgaged_equity_variable,
+            all_equity_variable,
+        )
+    }
+    assert scenario_rows.loc[
+        scenario_rows["variable_name"].isin(equity_variables), "notes"
+    ].str.contains("not calibrated equity", case=False, regex=False).all()
+
+    la = result.loc[result["county_fips"].eq("06037")].set_index(
+        "variable_name"
+    )
+    payment = la.loc[
+        "acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark", "value"
+    ]
+    mortgaged_value = la.loc[
+        "acs_aggregate_owner_value_mortgaged_benchmark", "value"
+    ]
+    mortgage_free_value = la.loc[
+        "acs_aggregate_owner_value_no_mortgage_benchmark", "value"
+    ]
+    debts: list[float] = []
+    for (
+        remaining_years,
+        debt_variable,
+        mortgaged_equity_variable,
+        all_equity_variable,
+    ) in PMMS_TERM_SCENARIO_OUTPUTS:
+        debt = la.loc[debt_variable]
+        mortgaged_equity = la.loc[mortgaged_equity_variable]
+        all_equity = la.loc[all_equity_variable]
+        debts.append(float(debt["value"]))
+        assert debt["value"] == pytest.approx(
+            payment * remaining_years * 12.0
+        )
+        assert debt["low_estimate"] <= debt["value"] <= debt["high_estimate"]
+        assert mortgaged_equity["value"] == pytest.approx(
+            mortgaged_value - debt["value"]
+        )
+        assert all_equity["value"] == pytest.approx(
+            mortgaged_equity["value"] + mortgage_free_value
+        )
+        assert mortgaged_equity["low_estimate"] == pytest.approx(
+            la.loc[
+                "acs_aggregate_owner_value_mortgaged_benchmark", "low_estimate"
+            ]
+            - debt["high_estimate"]
+        )
+        assert all_equity["high_estimate"] == pytest.approx(
+            mortgaged_equity["high_estimate"]
+            + la.loc[
+                "acs_aggregate_owner_value_no_mortgage_benchmark",
+                "high_estimate",
+            ]
+        )
+    assert debts == sorted(debts)
+
+    raw = la.loc["acs_implied_first_mortgage_balance_raw_benchmark"]
+    assert raw["value"] == pytest.approx(debts[1])
+    assert raw["low_estimate"] == pytest.approx(
+        la.loc[PMMS_TERM_SCENARIO_OUTPUTS[0][1], "low_estimate"]
+    )
+    assert raw["high_estimate"] == pytest.approx(
+        la.loc[PMMS_TERM_SCENARIO_OUTPUTS[2][1], "high_estimate"]
+    )
 
 
 def test_calibration_rejects_incomplete_california_county_coverage() -> None:

@@ -441,7 +441,7 @@ def fetch_acs_finance_payload(
         raise ValueError("release_date cannot precede the ACS source period end")
 
     client = session or requests.Session()
-    census_key = api_key or os.getenv("CENSUS_API_KEY")
+    census_key = (api_key or os.getenv("CENSUS_API_KEY") or "").strip() or None
     responses: dict[str, Any] = {}
     request_urls: dict[str, str] = {}
     base_url = f"{ACS_API_ROOT}/{year}/{ACS_DATASET}"
@@ -464,10 +464,12 @@ def fetch_acs_finance_payload(
             )
             response.raise_for_status()
             body = response.json()
-        except requests.RequestException as exc:
+        except requests.RequestException:
+            # A requests exception can contain the prepared URL and API key.
+            # Do not chain or stringify it into logs.
             raise RuntimeError(
                 f"ACS API request failed for {year} {table_id}"
-            ) from exc
+            ) from None
         except ValueError as exc:
             raise ACSFormatError(
                 f"ACS API returned invalid JSON for {year} {table_id}"

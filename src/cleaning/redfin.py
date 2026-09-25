@@ -8,6 +8,10 @@ from pathlib import Path
 import pandas as pd
 
 from src.cleaning.common import finalize, metadata_fields, month_end
+from src.geography.comparable_counties import (
+    COMPARABLE_COUNTY_FIPS,
+    comparable_county_fips,
+)
 
 METRICS = {
     "median_sale_price": (("median_sale_price",), "USD"),
@@ -33,6 +37,8 @@ def _normalize(column: str) -> str:
 
 
 def _select_la(path: Path, geography: str) -> pd.DataFrame:
+    """Select eight comparison counties or retain the existing LA ZIP scope."""
+
     pieces: list[pd.DataFrame] = []
     for chunk in pd.read_csv(
         path,
@@ -47,7 +53,10 @@ def _select_la(path: Path, geography: str) -> pd.DataFrame:
             "state_code", chunk.get("state", pd.Series(index=chunk.index, dtype=str))
         ).astype(str)
         if geography == "county":
-            mask = region.str.contains("Los Angeles County", case=False, na=False)
+            county_fips = region.map(comparable_county_fips)
+            mask = county_fips.notna()
+            if "state_code" in chunk or "state" in chunk:
+                mask &= state.str.strip().isin({"CA", "California"})
         else:
             parent = chunk.get(
                 "parent_metro_region",
@@ -63,7 +72,10 @@ def _select_la(path: Path, geography: str) -> pd.DataFrame:
             duration = pd.to_numeric(chunk["period_duration"], errors="coerce")
             mask &= duration.isin({28, 30, 31}) | duration.isna()
         if mask.any():
-            pieces.append(chunk.loc[mask].copy())
+            piece = chunk.loc[mask].copy()
+            if geography == "county":
+                piece["_county_fips"] = county_fips.loc[mask].astype("string")
+            pieces.append(piece)
     if not pieces:
         return pd.DataFrame()
     result = pd.concat(pieces, ignore_index=True)
@@ -92,7 +104,16 @@ def clean_redfin(
     geography = "zip" if "_zip_" in source_id else "county"
     source = _select_la(path, geography)
     if source.empty:
-        raise ValueError(f"No usable Los Angeles rows found in {path.name}")
+        scope = "comparison-county" if geography == "county" else "Los Angeles ZIP"
+        raise ValueError(f"No usable {scope} rows found in {path.name}")
+    if geography == "county":
+        observed_counties = set(source["_county_fips"].dropna().astype(str))
+        missing_counties = sorted(set(COMPARABLE_COUNTY_FIPS) - observed_counties)
+        if missing_counties:
+            raise ValueError(
+                "Redfin source is missing configured comparison counties: "
+                f"{missing_counties}"
+            )
     rows: list[pd.DataFrame] = []
     for variable_id, (aliases, unit) in METRICS.items():
         original = next((alias for alias in aliases if alias in source), None)
@@ -118,7 +139,9 @@ def clean_redfin(
     else:
         long["period_end"] = long["observation_date"]
     if geography == "county":
-        long["geo_id"] = "COUNTY_06037"
+        long["county_fips"] = long["_county_fips"].astype("string")
+        long["state_fips"] = "06"
+        long["geo_id"] = "COUNTY_" + long["county_fips"]
     else:
         postal_zip = (
             long["region"].astype(str).str.extract(r"(\d{5})", expand=False).str.zfill(5)
@@ -131,7 +154,11 @@ def clean_redfin(
         long[key] = value
     if "last_updated" in long:
         long["provider_last_updated"] = long["last_updated"]
-    long["transformation_id"] = f"{source_id}_provider_monthly_v1"
+    long["transformation_id"] = (
+        f"{source_id}_comparable_county_provider_monthly_v1"
+        if geography == "county"
+        else f"{source_id}_provider_monthly_v1"
+    )
     long["is_imputed"] = False
     long["is_interpolated"] = False
     if "is_seasonally_adjusted" in long:

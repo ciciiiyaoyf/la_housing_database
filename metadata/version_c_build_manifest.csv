@@ -1,0 +1,12 @@
+database_version,information_cutoff_date,input_role,relative_path,sha256,byte_size,generated_at
+C,2026-08-17,version_a_benchmark,data/final/housing_finance_benchmark.parquet,7cc6dade3036be01d716410e775e59c14304c43fc0184838d0d7e573de4a3965,400775,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,version_config,config/version_c_monthly_rt.yaml,94a03ce0ab3b8d7bd0102f5aa9a7ae479ca6aa93b4dbfbfea3af7d2d4ee9c277,3159,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,version_dictionary,config/version_c_variables.yaml,ad25ea5f715737a551952d0e74f2f8c12cf66715f794f20decbf876d57f9005f,44812,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,transformation_catalog,metadata/version_c_transformation_catalog.csv,81f706b9b148824ef62d49df7e4027c9d6d8b0a676a8637d2c175b033b074db5,4015,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,observations,data/final/housing_finance_monthly_rt/information_cutoff_date=2026-08-17/part.parquet,9b4774e8ef8262bb6d64d3fb95d38616e961fb579045478bb0dda3b78b9db3f5,13994782,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,lineage,data/final/housing_finance_monthly_rt_lineage/information_cutoff_date=2026-08-17/part.parquet,d400848789e9bf8d701529c91f05c2afce13d1df5c8244d2d97a8ec01a685346,18053562,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,completion_marker,data/final/housing_finance_monthly_rt/information_cutoff_date=2026-08-17/_COMPLETE.json,4950a9b84bfe58eac4a40e930053ef92a817c6f42edbcc0d4199699c60b9bc1d,655,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,redfin,data/raw/redfin/redfin_county_monthly_20260702T060828Z_9470b1c6145d.tsv.gz,9470b1c6145dc51721dc717d62ea986a43e1bf2d7fdc57875af2f55e007dd634,241131599,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,zillow,data/raw/zillow/zillow_county_zhvi_20260702T060824Z_1062760889a6.csv,1062760889a6d168c1d42e57981e8354b245bd446836e0d508400f18515c1ec4,13409954,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,pmms,data/raw/freddie_mac/freddie_mac_pmms_20260702T060854Z_306fa638d774.csv,306fa638d7746a05e407942cf9e307f3bc3f4060934a9e516d85eba1f8e21073,97110,2026-08-17T22:05:25.311976+00:00
+C,2026-08-17,pmms_clean_input,data/clean/freddie_mac_pmms.parquet,a288f6d32f1eb043aad890f11db8316c846d4147efd860d6ee2ba25f224d84b8,155615,2026-08-17T22:05:25.311976+00:00

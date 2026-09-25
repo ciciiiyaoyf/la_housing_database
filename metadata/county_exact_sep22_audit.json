@@ -1,0 +1,543 @@
+{
+  "county_rows": 3520,
+  "zip_rows": 87680,
+  "zip_count": 274,
+  "checks": [
+    {
+      "check": "county:source:zhvi",
+      "rows": 3520,
+      "nonnull": 2560,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:source:zori_smoothed_sa",
+      "rows": 3520,
+      "nonnull": 1116,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:source:months_of_supply",
+      "rows": 3520,
+      "nonnull": 1382,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:source:days_on_market",
+      "rows": 3520,
+      "nonnull": 1382,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:source:price_drop_share",
+      "rows": 3520,
+      "nonnull": 1380,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:source:employment",
+      "rows": 3520,
+      "nonnull": 3505,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:source:unemployment_rate",
+      "rows": 3520,
+      "nonnull": 3505,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:source:zhvi",
+      "rows": 87680,
+      "nonnull": 87240,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:source:zori",
+      "rows": 87680,
+      "nonnull": 18623,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:zhvi_momentum_yoy_log_pct",
+      "rows": 3520,
+      "nonnull": 2464,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:zhvi_momentum_3m_annualized_log_pct",
+      "rows": 3520,
+      "nonnull": 2536,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:zori_momentum_yoy_log_pct",
+      "rows": 3520,
+      "nonnull": 1016,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:zori_momentum_3m_annualized_log_pct",
+      "rows": 3520,
+      "nonnull": 1088,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:price_to_rent_ratio_zillow",
+      "rows": 3520,
+      "nonnull": 1116,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:price_to_rent_ratio_log_change_mom_pct",
+      "rows": 3520,
+      "nonnull": 1106,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:price_to_rent_ratio_log_change_yoy_pct",
+      "rows": 3520,
+      "nonnull": 1016,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:zhvi_momentum_yoy_log_pct",
+      "rows": 87680,
+      "nonnull": 83949,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:zhvi_momentum_3m_annualized_log_pct",
+      "rows": 87680,
+      "nonnull": 86415,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:zori_momentum_yoy_log_pct",
+      "rows": 87680,
+      "nonnull": 15768,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:zori_momentum_3m_annualized_log_pct",
+      "rows": 87680,
+      "nonnull": 17837,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:price_to_rent_ratio_zillow",
+      "rows": 87680,
+      "nonnull": 18623,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:price_to_rent_ratio_log_change_mom_pct",
+      "rows": 87680,
+      "nonnull": 18329,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:price_to_rent_ratio_log_change_yoy_pct",
+      "rows": 87680,
+      "nonnull": 15768,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:laus_employment_momentum_yoy_log_pct",
+      "rows": 3520,
+      "nonnull": 3409,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:months_of_supply_z_fixed",
+      "rows": 3520,
+      "nonnull": 1382,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "frozen_tightness:months_of_supply",
+      "rows": 3,
+      "nonnull": 3,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:days_on_market_z_fixed",
+      "rows": 3520,
+      "nonnull": 1382,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "frozen_tightness:days_on_market",
+      "rows": 3,
+      "nonnull": 3,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 3.552713678800501e-15
+    },
+    {
+      "check": "county:price_drop_share_z_fixed",
+      "rows": 3520,
+      "nonnull": 1380,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "frozen_tightness:price_drop_share",
+      "rows": 3,
+      "nonnull": 3,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:market_tightness_index_3c_fixed",
+      "rows": 3520,
+      "nonnull": 1380,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 4.440892098500626e-16
+    },
+    {
+      "check": "county:market_tightness_components_3c",
+      "rows": 3520,
+      "nonnull": 3520,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:zhvi_momentum_3m_z_fixed_for_heat",
+      "rows": 3520,
+      "nonnull": 2536,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:market_tightness_z_fixed_for_heat",
+      "rows": 3520,
+      "nonnull": 1380,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 8.881784197001252e-16
+    },
+    {
+      "check": "county:county_housing_market_heat_index",
+      "rows": 3520,
+      "nonnull": 1380,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 4.440892098500626e-16
+    },
+    {
+      "check": "county:la_relative_zhvi_momentum_yoy_log_pct",
+      "rows": 3520,
+      "nonnull": 308,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 7.105427357601002e-15
+    },
+    {
+      "check": "county:la_relative_zhvi_momentum_3m_annualized_log_pct",
+      "rows": 3520,
+      "nonnull": 317,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:la_relative_zori_momentum_yoy_log_pct",
+      "rows": 3520,
+      "nonnull": 122,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 2.6645352591003757e-15
+    },
+    {
+      "check": "county:la_relative_zori_momentum_3m_annualized_log_pct",
+      "rows": 3520,
+      "nonnull": 131,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "county:la_relative_market_tightness_index_3c_fixed",
+      "rows": 3520,
+      "nonnull": 171,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 2.220446049250313e-16
+    },
+    {
+      "check": "county:la_relative_price_to_rent_ratio_zillow",
+      "rows": 3520,
+      "nonnull": 137,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 7.105427357601002e-15
+    },
+    {
+      "check": "zip:la_county_price_to_rent_ratio_zillow",
+      "rows": 87680,
+      "nonnull": 38360,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "zip:relative_valuation_pressure_la_zip",
+      "rows": 87680,
+      "nonnull": 18623,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    },
+    {
+      "check": "frozen_heat:archived_price_momentum",
+      "rows": 3,
+      "nonnull": 3,
+      "null_mask_mismatches": 0,
+      "value_mismatches": 0,
+      "max_abs_difference": 0.0
+    }
+  ],
+  "failure_count": 0,
+  "frozen_raw_lineage": [
+    {
+      "source_id": "bls_laus_la_county",
+      "checksum_matches": true
+    },
+    {
+      "source_id": "redfin_county_monthly",
+      "checksum_matches": true
+    },
+    {
+      "source_id": "zillow_county_zhvi",
+      "checksum_matches": true
+    },
+    {
+      "source_id": "zillow_county_zori_smoothed_sa",
+      "checksum_matches": true
+    }
+  ],
+  "source_coverage": [
+    {
+      "source_id": "bls_laus_la_county",
+      "source_vintage": "2026-09-22",
+      "retrieved_at": "2026-09-22T18:27:59.477758+00:00",
+      "first": "1990-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00",
+      "nonnull": 7010
+    },
+    {
+      "source_id": "redfin_county_monthly",
+      "source_vintage": "2026-09-22",
+      "retrieved_at": "2026-09-22T18:27:13.896469+00:00",
+      "first": "2012-01-31 00:00:00",
+      "latest": "2026-05-31 00:00:00",
+      "nonnull": 4144
+    },
+    {
+      "source_id": "zillow_county_zhvi",
+      "source_vintage": "2026-09-22",
+      "retrieved_at": "2026-09-22T18:27:01.634107+00:00",
+      "first": "2000-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00",
+      "nonnull": 2560
+    },
+    {
+      "source_id": "zillow_county_zori_smoothed_sa",
+      "source_vintage": "2026-09-22",
+      "retrieved_at": "2026-09-22T18:27:11.038818+00:00",
+      "first": "2015-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00",
+      "nonnull": 1116
+    }
+  ],
+  "county_coverage": [
+    {
+      "variable": "zhvi",
+      "nonnull": 2560,
+      "first": "2000-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zori_smoothed_sa",
+      "nonnull": 1116,
+      "first": "2015-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "months_of_supply",
+      "nonnull": 1382,
+      "first": "2012-01-31 00:00:00",
+      "latest": "2026-05-31 00:00:00"
+    },
+    {
+      "variable": "days_on_market",
+      "nonnull": 1382,
+      "first": "2012-01-31 00:00:00",
+      "latest": "2026-05-31 00:00:00"
+    },
+    {
+      "variable": "price_drop_share",
+      "nonnull": 1380,
+      "first": "2012-01-31 00:00:00",
+      "latest": "2026-05-31 00:00:00"
+    },
+    {
+      "variable": "employment",
+      "nonnull": 3505,
+      "first": "1990-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "unemployment_rate",
+      "nonnull": 3505,
+      "first": "1990-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zhvi_momentum_yoy_log_pct",
+      "nonnull": 2464,
+      "first": "2001-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zhvi_momentum_3m_annualized_log_pct",
+      "nonnull": 2536,
+      "first": "2000-04-30 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zori_momentum_yoy_log_pct",
+      "nonnull": 1016,
+      "first": "2016-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zori_momentum_3m_annualized_log_pct",
+      "nonnull": 1088,
+      "first": "2015-04-30 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "market_tightness_index_3c_fixed",
+      "nonnull": 1380,
+      "first": "2012-01-31 00:00:00",
+      "latest": "2026-05-31 00:00:00"
+    },
+    {
+      "variable": "price_to_rent_ratio_zillow",
+      "nonnull": 1116,
+      "first": "2015-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "county_housing_market_heat_index",
+      "nonnull": 1380,
+      "first": "2012-01-31 00:00:00",
+      "latest": "2026-05-31 00:00:00"
+    }
+  ],
+  "zip_coverage": [
+    {
+      "variable": "zhvi",
+      "nonnull": 87240,
+      "first": "2000-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zori",
+      "nonnull": 18623,
+      "first": "2015-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zhvi_momentum_yoy_log_pct",
+      "nonnull": 83949,
+      "first": "2001-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zhvi_momentum_3m_annualized_log_pct",
+      "nonnull": 86415,
+      "first": "2000-04-30 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zori_momentum_yoy_log_pct",
+      "nonnull": 15768,
+      "first": "2016-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "zori_momentum_3m_annualized_log_pct",
+      "nonnull": 17837,
+      "first": "2015-04-30 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    },
+    {
+      "variable": "relative_valuation_pressure_la_zip",
+      "nonnull": 18623,
+      "first": "2015-01-31 00:00:00",
+      "latest": "2026-08-31 00:00:00"
+    }
+  ],
+  "provisional_assumption_status": "pending_mentor_confirmation"
+}

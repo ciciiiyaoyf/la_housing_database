@@ -1,6 +1,11 @@
 provider,variable_id,geo_type,first_observation,latest_observation,observation_count,nonnull_count,geography_count,latest_source_vintage
 CDC WONDER / National Center for Health Statistics,cdc_wonder_deaths_annual,county,2007-12-31,2024-12-31,18,18,1,2024
 CDC WONDER / National Center for Health Statistics,cdc_wonder_live_births_annual,county,2007-12-31,2024-12-31,18,18,1,2024
+California Department of Industrial Relations,ca_cpi_u_all_items_annual,state,1955-12-31,2025-12-31,71,71,1,2026
+California Department of Insurance,ca_homeowners_avg_written_premium,state,2008-12-31,2023-12-31,16,16,1,2026-08-07
+California Department of Insurance,ca_homeowners_avg_written_premium_monthly_control,state,2008-01-31,2023-12-31,192,192,1,2026-08-07
+California Department of Insurance,ca_homeowners_written_exposures,state,2008-12-31,2023-12-31,16,16,1,2026-08-07
+California Department of Insurance,ca_homeowners_written_premium,state,2008-12-31,2023-12-31,16,16,1,2026-08-07
 Eviction Lab,eviction_lab_filings_ci_95_lower_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
 Eviction Lab,eviction_lab_filings_ci_95_upper_annual,county,2000-12-31,2018-12-31,19,19,1,2026-07-10
 Eviction Lab,eviction_lab_filings_court_issued_landlord_tenant_flag,county,2002-12-31,2017-12-31,15,15,1,2026-07-10
@@ -18,6 +23,22 @@ Federal Housing Finance Agency,fhfa_hpi_ca_purchase_only_sa,state,1991-03-31,202
 Federal Housing Finance Agency,fhfa_hpi_la_county_all_transactions_nsa_annual,county,1975-12-31,2025-12-31,51,51,1,2026-07-02
 Federal Housing Finance Agency,fhfa_hpi_la_metropolitan_division_purchase_only_nsa,metro_division,1991-03-31,2026-03-31,141,141,1,2026-07-02
 Federal Housing Finance Agency,fhfa_hpi_la_metropolitan_division_purchase_only_sa,metro_division,1991-03-31,2026-03-31,141,141,1,2026-07-02
+Federal Reserve Bank of St. Louis / FRED,us_baa_10y_spread_daily,national,1986-01-02,2026-09-18,10622,10179,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_baa_10y_spread_monthly_average,national,1986-01-31,2026-08-31,488,488,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_baa_10y_spread_monthly_observation_count,national,1986-01-31,2026-08-31,488,488,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_bank_prime_rate_daily,national,1955-08-04,2026-09-18,18557,18129,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_bank_prime_rate_monthly_average,national,1955-08-31,2026-08-31,853,853,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_bank_prime_rate_monthly_observation_count,national,1955-08-31,2026-08-31,853,853,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_federal_funds_rate_monthly,national,1954-07-31,2026-08-31,866,866,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_sofr_daily,national,2018-04-03,2026-09-21,2210,2115,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_sofr_monthly_average,national,2018-04-30,2026-08-31,101,101,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_sofr_monthly_observation_count,national,2018-04-30,2026-08-31,101,101,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_treasury_10y_yield_daily,national,1962-01-02,2026-09-18,16884,16164,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_treasury_10y_yield_monthly_average,national,1962-01-31,2026-08-31,776,776,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_treasury_10y_yield_monthly_observation_count,national,1962-01-31,2026-08-31,776,776,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_treasury_2y_yield_daily,national,1976-06-01,2026-09-18,13124,12572,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_treasury_2y_yield_monthly_average,national,1976-06-30,2026-08-31,603,603,1,2026-09-22
+Federal Reserve Bank of St. Louis / FRED,us_treasury_2y_yield_monthly_observation_count,national,1976-06-30,2026-08-31,603,603,1,2026-09-22
 Freddie Mac,mortgage_rate_30y_month_end,national,1971-04-30,2026-06-30,663,663,1,2026-07-02
 Freddie Mac,mortgage_rate_30y_monthly_average,national,1971-04-30,2026-06-30,663,663,1,2026-07-02
 Freddie Mac,mortgage_rate_30y_monthly_median,national,1971-04-30,2026-06-30,663,663,1,2026-07-02
@@ -56,14 +77,14 @@ Internal Revenue Service,irs_soi_net_migration_returns,county,2011-12-31,2023-12
 Internal Revenue Service,irs_soi_out_migration_agi,county,2011-12-31,2023-12-31,13,13,1,2026-07-10
 Internal Revenue Service,irs_soi_out_migration_exemptions,county,2011-12-31,2023-12-31,13,13,1,2026-07-10
 Internal Revenue Service,irs_soi_out_migration_returns,county,2011-12-31,2023-12-31,13,13,1,2026-07-10
-Redfin Data Center,active_inventory,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,days_on_market,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,homes_sold,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,median_sale_price,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,months_of_supply,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,new_listings,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,pending_sales,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
-Redfin Data Center,price_drop_share,county,2012-01-31,2026-05-31,173,172,1,2026-07-02
+Redfin Data Center,active_inventory,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,days_on_market,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,homes_sold,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,median_sale_price,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,months_of_supply,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,new_listings,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,pending_sales,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
+Redfin Data Center,price_drop_share,county,2012-01-31,2026-05-31,1382,1380,8,2026-09-22
 Redfin Data Center,redfin_zip_active_listings_rolling_3m,postal_zip,2019-06-30,2026-05-31,23009,23008,274,2026-07-02
 Redfin Data Center,redfin_zip_active_listings_yoy_pct_provider_rolling_3m,postal_zip,2019-06-30,2026-05-31,23009,19716,274,2026-07-02
 Redfin Data Center,redfin_zip_homes_sold_rolling_3m,postal_zip,2019-06-30,2026-05-31,23009,22946,274,2026-07-02
@@ -76,102 +97,295 @@ Redfin Data Center,redfin_zip_new_listings_rolling_3m,postal_zip,2019-06-30,2026
 Redfin Data Center,redfin_zip_new_listings_yoy_pct_provider_rolling_3m,postal_zip,2019-06-30,2026-05-31,23009,19668,274,2026-07-02
 Redfin Data Center,redfin_zip_pending_sales_rolling_3m,postal_zip,2019-06-30,2026-05-31,23009,22957,274,2026-07-02
 Redfin Data Center,redfin_zip_pending_sales_yoy_pct_provider_rolling_3m,postal_zip,2019-06-30,2026-05-31,23009,19650,274,2026-07-02
-Redfin Data Center,sale_to_list_ratio,county,2012-01-31,2026-05-31,173,173,1,2026-07-02
+Redfin Data Center,sale_to_list_ratio,county,2012-01-31,2026-05-31,1382,1382,8,2026-09-22
 U.S. Bureau of Economic Analysis,bea_ca_per_capita_personal_income_q_sa,state,1948-03-31,2026-03-31,313,65,1,2026-07-02
 U.S. Bureau of Economic Analysis,bea_ca_personal_income_q_sa,state,1948-03-31,2026-03-31,313,313,1,2026-07-02
+U.S. Bureau of Economic Analysis,bea_ca_real_gdp_qoq_annualized_pct,state,2005-03-31,2026-03-31,85,84,1,2026-09-22
+U.S. Bureau of Economic Analysis,bea_ca_real_gdp_quarterly,state,2005-03-31,2026-03-31,85,85,1,2026-09-22
+U.S. Bureau of Economic Analysis,bea_ca_real_gdp_yoy_pct,state,2005-03-31,2026-03-31,85,81,1,2026-09-22
 U.S. Bureau of Economic Analysis,bea_la_county_per_capita_personal_income_annual,county,1969-12-31,2024-12-31,56,56,1,2026-07-02
 U.S. Bureau of Economic Analysis,bea_la_county_personal_income_annual,county,1969-12-31,2024-12-31,56,56,1,2026-07-02
+U.S. Bureau of Labor Statistics,ces_average_hourly_earnings_total_private_nsa,metro_division,2007-01-31,2026-08-31,236,236,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_average_hourly_earnings_total_private_nsa,state,2007-01-31,2026-08-31,236,236,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_average_hourly_earnings_total_private_nsa_yoy_pct,metro_division,2007-01-31,2026-08-31,236,224,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_average_hourly_earnings_total_private_nsa_yoy_pct,state,2007-01-31,2026-08-31,236,224,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_construction_employment_nsa,metro_division,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_construction_employment_nsa,state,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_construction_employment_nsa_yoy_pct,metro_division,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_construction_employment_nsa_yoy_pct,state,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_financial_activities_employment_nsa,metro_division,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_financial_activities_employment_nsa,state,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_financial_activities_employment_nsa_yoy_pct,metro_division,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_financial_activities_employment_nsa_yoy_pct,state,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_information_employment_nsa,metro_division,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_information_employment_nsa,state,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_information_employment_nsa_yoy_pct,metro_division,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_information_employment_nsa_yoy_pct,state,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_leisure_hospitality_employment_nsa,metro_division,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_leisure_hospitality_employment_nsa,state,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_leisure_hospitality_employment_nsa_yoy_pct,metro_division,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_leisure_hospitality_employment_nsa_yoy_pct,state,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_professional_business_services_employment_nsa,metro_division,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_professional_business_services_employment_nsa,state,1990-01-31,2026-08-31,440,440,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_professional_business_services_employment_nsa_yoy_pct,metro_division,1990-01-31,2026-08-31,440,428,1,2026-09-22
+U.S. Bureau of Labor Statistics,ces_professional_business_services_employment_nsa_yoy_pct,state,1990-01-31,2026-08-31,440,428,1,2026-09-22
 U.S. Bureau of Labor Statistics,ces_total_nonfarm_employment_sa,metro,2005-01-31,2026-05-31,257,257,1,2026-07-02
 U.S. Bureau of Labor Statistics,cpi_u_all_items_la_nsa,metro,1914-12-31,2026-05-31,1095,1094,1,2026-07-02
-U.S. Bureau of Labor Statistics,employment,county,1990-01-31,2026-05-31,437,436,1,2026-07-02
-U.S. Bureau of Labor Statistics,labor_force,county,1990-01-31,2026-05-31,437,436,1,2026-07-02
-U.S. Bureau of Labor Statistics,unemployment,county,1990-01-31,2026-05-31,437,436,1,2026-07-02
-U.S. Bureau of Labor Statistics,unemployment_rate,county,1990-01-31,2026-05-31,437,436,1,2026-07-02
-U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_20_29pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_20_29pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_30pluspct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_30pluspct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_lt20pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_lt20pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_20_29pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_20_29pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_30pluspct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_30pluspct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_lt20pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_lt20pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_20_29pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_20_29pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_30pluspct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_30pluspct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_lt20pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_lt20pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_75kplus_cost_20_29pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_75kplus_cost_20_29pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_75kplus_cost_30pluspct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_75kplus_cost_30pluspct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_75kplus_cost_lt20pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_75kplus_cost_lt20pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_less_20k_cost_20_29pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_less_20k_cost_20_29pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_less_20k_cost_30pluspct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_less_20k_cost_30pluspct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_less_20k_cost_lt20pct,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_less_20k_cost_lt20pct,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_zero_negative_income,county,2024-12-31,2024-12-31,1,1,1,2026-07-10
-U.S. Census Bureau,acs_b25106_owner_zero_negative_income,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-10
-U.S. Census Bureau,acs_for_rent_vacant_units,county,2024-12-31,2024-12-31,1,1,1,2026-08-03
-U.S. Census Bureau,acs_for_rent_vacant_units,zcta,2024-12-31,2024-12-31,274,274,274,2026-08-03
-U.S. Census Bureau,acs_for_rent_vacant_units_moe,county,2024-12-31,2024-12-31,1,1,1,2026-08-03
-U.S. Census Bureau,acs_for_rent_vacant_units_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-08-03
-U.S. Census Bureau,acs_households,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_households,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_households_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_households_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_median_gross_rent,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_median_gross_rent,zcta,2024-12-31,2024-12-31,274,272,274,2026-07-02
-U.S. Census Bureau,acs_median_gross_rent_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_median_gross_rent_moe,zcta,2024-12-31,2024-12-31,274,262,274,2026-07-02
-U.S. Census Bureau,acs_median_home_value,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_median_home_value,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_median_home_value_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_median_home_value_moe,zcta,2024-12-31,2024-12-31,274,259,274,2026-07-02
-U.S. Census Bureau,acs_median_household_income,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_median_household_income,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_median_household_income_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_median_household_income_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_owner_occupied_units,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_owner_occupied_units,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_owner_occupied_units_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_owner_occupied_units_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_owner_units_with_mortgage,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_owner_units_with_mortgage,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_owner_units_with_mortgage_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_owner_units_with_mortgage_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_renter_occupied_units,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_renter_occupied_units,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_renter_occupied_units_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_renter_occupied_units_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_total_housing_units,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_total_housing_units,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_total_housing_units_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_total_housing_units_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_vacant_housing_units,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_vacant_housing_units,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
-U.S. Census Bureau,acs_vacant_housing_units_moe,county,2024-12-31,2024-12-31,1,1,1,2026-07-02
-U.S. Census Bureau,acs_vacant_housing_units_moe,zcta,2024-12-31,2024-12-31,274,274,274,2026-07-02
+U.S. Bureau of Labor Statistics,employment,county,1990-01-31,2026-08-31,3513,3505,8,2026-09-22
+U.S. Bureau of Labor Statistics,labor_force,county,1990-01-31,2026-08-31,3513,3505,8,2026-09-22
+U.S. Bureau of Labor Statistics,unemployment,county,1990-01-31,2026-08-31,3513,3505,8,2026-09-22
+U.S. Bureau of Labor Statistics,unemployment_rate,county,1990-01-31,2026-08-31,3513,3505,8,2026-09-22
+U.S. Census Bureau,acs_b25032_renter_10_to_19_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_10_to_19_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_10_to_19_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_10_to_19_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_attached,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_attached,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_attached_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_attached_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_detached,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_detached,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_detached_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_1_detached_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_20_to_49_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_20_to_49_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_20_to_49_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_20_to_49_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_2_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_2_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_2_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_2_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_3_to_4_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_3_to_4_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_3_to_4_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_3_to_4_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_50_plus_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_50_plus_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_50_plus_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_50_plus_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_5_to_9_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_5_to_9_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_5_to_9_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_5_to_9_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_boat_rv_other,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_boat_rv_other,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_boat_rv_other_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_boat_rv_other_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_mobile_home,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_mobile_home,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_mobile_home_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_mobile_home_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_total,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_total,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_total_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25032_renter_total_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_20_29pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_20_29pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_30pluspct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_30pluspct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_lt20pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_20k_34999_cost_lt20pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_20_29pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_20_29pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_30pluspct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_30pluspct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_lt20pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_35k_49999_cost_lt20pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_20_29pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_20_29pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_30pluspct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_30pluspct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_lt20pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_50k_74999_cost_lt20pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_75kplus_cost_20_29pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_75kplus_cost_20_29pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_75kplus_cost_30pluspct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_75kplus_cost_30pluspct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_75kplus_cost_lt20pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_75kplus_cost_lt20pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_less_20k_cost_20_29pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_less_20k_cost_20_29pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_less_20k_cost_30pluspct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_less_20k_cost_30pluspct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_less_20k_cost_lt20pct,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_less_20k_cost_lt20pct,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_zero_negative_income,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25106_owner_zero_negative_income,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_1_unit,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_1_unit,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_1_unit_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_1_unit_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_20_to_49_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_20_to_49_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_20_to_49_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_20_to_49_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_2_to_4_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_2_to_4_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_2_to_4_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_2_to_4_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_50_plus_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_50_plus_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_50_plus_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_50_plus_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_5_to_19_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_5_to_19_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_5_to_19_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_5_to_19_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_mobile_other,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_mobile_other,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_mobile_other_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_mobile_other_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_total,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_total,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_total_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_cutoff_mixed_total_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_1_unit,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_1_unit,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_1_unit_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_1_unit_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_20_to_49_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_20_to_49_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_20_to_49_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_20_to_49_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_2_to_4_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_2_to_4_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_2_to_4_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_2_to_4_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_50_plus_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_50_plus_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_50_plus_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_50_plus_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_5_to_19_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_5_to_19_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_5_to_19_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_5_to_19_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_mobile_other,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_mobile_other,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_mobile_other_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_mobile_other_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_total,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_total,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_total_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_recent_lower_bound_total_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_total,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_total,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_total_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_b25127_renter_total_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_for_rent_vacant_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_for_rent_vacant_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_for_rent_vacant_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_for_rent_vacant_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_foreign_born_population,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_foreign_born_population,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_foreign_born_population_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_foreign_born_population_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_households,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_households,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_households_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_households_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_median_gross_rent,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_median_gross_rent,zcta,2011-12-31,2024-12-31,3836,3818,274,2026-08-07
+U.S. Census Bureau,acs_median_gross_rent_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_median_gross_rent_moe,zcta,2011-12-31,2024-12-31,3836,3727,274,2026-08-07
+U.S. Census Bureau,acs_median_home_value,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_median_home_value,zcta,2011-12-31,2024-12-31,3836,3831,274,2026-08-07
+U.S. Census Bureau,acs_median_home_value_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_median_home_value_moe,zcta,2011-12-31,2024-12-31,3836,3681,274,2026-08-07
+U.S. Census Bureau,acs_median_household_income,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_median_household_income,zcta,2011-12-31,2024-12-31,3836,3835,274,2026-08-07
+U.S. Census Bureau,acs_median_household_income_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_median_household_income_moe,zcta,2011-12-31,2024-12-31,3836,3835,274,2026-08-07
+U.S. Census Bureau,acs_moved_from_abroad_past_year,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_moved_from_abroad_past_year,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_moved_from_abroad_past_year_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_moved_from_abroad_past_year_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_owner_occupied_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_owner_occupied_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_owner_occupied_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_owner_occupied_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_owner_units_with_mortgage,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_owner_units_with_mortgage,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_owner_units_with_mortgage_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_owner_units_with_mortgage_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_renter_occupied_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_renter_occupied_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_renter_occupied_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_renter_occupied_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_total_housing_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_total_housing_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_total_housing_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_total_housing_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_vacant_housing_units,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_vacant_housing_units,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,acs_vacant_housing_units_moe,county,2010-12-31,2024-12-31,15,15,1,2026-08-07
+U.S. Census Bureau,acs_vacant_housing_units_moe,zcta,2011-12-31,2024-12-31,3836,3836,274,2026-08-07
+U.S. Census Bureau,census_pep_county_housing_units_annual,county,2010-12-31,2025-12-31,16,16,1,2025
+U.S. Census Bureau,census_pep_county_population_annual,county,2010-12-31,2025-12-31,16,16,1,2025
 U.S. Census Bureau,hvs_rental_vacancy_rate_ca,state,2005-03-31,2026-03-31,85,85,1,2026-07-02
 U.S. Census Bureau,hvs_rental_vacancy_rate_ca_moe,state,2005-03-31,2026-03-31,85,85,1,2026-07-02
 U.S. Census Bureau,hvs_rental_vacancy_rate_la_metro,metro,2005-03-31,2026-03-31,85,85,1,2026-07-02
 U.S. Census Bureau,hvs_rental_vacancy_rate_la_metro_moe,metro,2005-03-31,2026-03-31,85,85,1,2026-07-02
-U.S. Census Bureau,permits_1_unit,county,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_1_unit,state,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_2_to_4_units,county,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_2_to_4_units,state,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_5_plus_units,county,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_5_plus_units,state,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_total,county,2000-01-31,2026-05-31,317,317,1,2026-07-02
-U.S. Census Bureau,permits_total,state,2000-01-31,2026-05-31,317,317,1,2026-07-02
-Zillow Research,zhvi,county,2000-01-31,2026-05-31,317,317,1,2026-07-02
-Zillow Research,zhvi,postal_zip,2000-01-31,2026-05-31,86858,86418,274,2026-07-02
-Zillow Research,zori_smoothed_sa,county,2015-01-31,2026-05-31,137,137,1,2026-07-02
-Zillow Research,zori_smoothed_sa,postal_zip,2015-01-31,2026-05-31,33565,17866,245,2026-07-02
+U.S. Census Bureau,permits_1_unit,county,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_1_unit,state,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_1_unit_annual_final,county,1990-12-31,2025-12-31,36,36,1,2026-08-07
+U.S. Census Bureau,permits_2_to_4_units,county,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_2_to_4_units,state,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_5_plus_units,county,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_5_plus_units,state,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_total,county,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,permits_total,state,2000-01-31,2026-06-30,318,318,1,2026-08-07
+U.S. Census Bureau,sipp_ca_aggregate_positive_home_equity_sensitivity,state,2024-12-31,2024-12-31,1,1,1,2026-08-10
+U.S. Census Bureau,sipp_ca_aggregate_primary_residence_debt_sensitivity,state,2024-12-31,2024-12-31,1,1,1,2026-08-10
+U.S. Census Bureau and HUD,ahs_ca_households_with_regular_mortgage,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_households_with_regular_mortgage_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_100000_119999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_100000_119999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_120000_149999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_120000_149999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_150000_199999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_150000_199999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_200000_249999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_200000_249999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_20000_39999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_20000_39999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_250000_299999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_250000_299999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_300000_349999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_300000_349999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_350000_399999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_350000_399999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_400000_499999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_400000_499999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_40000_59999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_40000_59999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_500000_plus_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_500000_plus_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_60000_79999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_60000_79999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_80000_99999_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_80000_99999_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_conditional_mean,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_conditional_mean_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_lt_20000_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_lt_20000_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_median,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_median_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_not_reported_households,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_primary_mortgage_outstanding_principal_not_reported_households_moe,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Census Bureau and HUD,ahs_ca_reported_case_primary_mortgage_outstanding_principal_proxy,state,2023-12-31,2023-12-31,1,1,1,2023
+U.S. Department of Housing and Urban Development,hud_pit_overall_homeless_annual,continuum_of_care,2007-12-31,2025-12-31,7431,6611,413,2026-08-07
+U.S. Department of Housing and Urban Development,hud_pit_overall_homeless_annual,explicit_coc_composite,2007-12-31,2025-12-31,19,13,1,2026-08-07
+U.S. Department of Housing and Urban Development,hud_pit_sheltered_homeless_annual,continuum_of_care,2007-12-31,2025-12-31,7431,7342,413,2026-08-07
+U.S. Department of Housing and Urban Development,hud_pit_sheltered_homeless_annual,explicit_coc_composite,2007-12-31,2025-12-31,19,18,1,2026-08-07
+U.S. Department of Housing and Urban Development,hud_pit_unsheltered_homeless_annual,continuum_of_care,2007-12-31,2025-12-31,7431,6611,413,2026-08-07
+U.S. Department of Housing and Urban Development,hud_pit_unsheltered_homeless_annual,explicit_coc_composite,2007-12-31,2025-12-31,19,13,1,2026-08-07
+U.S. Department of Labor,ca_continued_claims_monthly_average,state,1986-02-28,2026-08-31,487,484,1,2026-09-22
+U.S. Department of Labor,ca_continued_claims_monthly_observation_count,state,1986-02-28,2026-08-31,487,487,1,2026-09-22
+U.S. Department of Labor,ca_continued_claims_weekly,state,1986-02-01,2026-09-05,2114,2114,1,2026-09-22
+U.S. Department of Labor,ca_initial_claims_monthly_average,state,1986-02-28,2026-08-31,487,484,1,2026-09-22
+U.S. Department of Labor,ca_initial_claims_monthly_observation_count,state,1986-02-28,2026-08-31,487,487,1,2026-09-22
+U.S. Department of Labor,ca_initial_claims_weekly,state,1986-02-08,2026-09-12,2114,2114,1,2026-09-22
+Zillow Research,zhvi,county,2000-01-31,2026-08-31,2560,2560,8,2026-09-22
+Zillow Research,zhvi,postal_zip,2000-01-31,2026-08-31,87680,87240,274,2026-09-22
+Zillow Research,zori_smoothed_sa,county,2015-01-31,2026-08-31,1120,1116,8,2026-09-22
+Zillow Research,zori_smoothed_sa,postal_zip,2015-01-31,2026-08-31,35840,18623,256,2026-09-22

@@ -2,10 +2,27 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
-.codex-venv/
 venv/
 .env
 *.log
+node_modules/
+tmp/
+# Optional historical report-authoring scripts depend on a local private bundle.
+scripts/build_database_system_overview.mjs
+scripts/build_variable_data_summary.mjs
+
+# Publish final reference documents, excluding previews and temporary QA tools.
+outputs/**
+!outputs/database_system_overview_20260824/
+!outputs/database_system_overview_20260824/LA_Housing_Database_Outsider_Overview.xlsx
+!outputs/abc_variable_comparison_20260824/
+!outputs/abc_variable_comparison_20260824/Version_A_B_C_Variable_Parallel_Comparison.xlsx
+!outputs/01a00953-b044-7c23-92e2-b58c4ff42a9d/
+!outputs/01a00953-b044-7c23-92e2-b58c4ff42a9d/LA_Housing_Database_Outsider_Overview.xlsx
+!outputs/019fc5e2-f04c-7f71-8fa8-836e424589c3/
+!outputs/019fc5e2-f04c-7f71-8fa8-836e424589c3/LA_CA_Housing_Data_Summary_Source_Limited*.xlsx
+!outputs/mentor_reports/
+!outputs/mentor_reports/MSA_Variables_and_More_Granular_Alternatives_Report.docx
 
 # Raw and generated data are reproducible artifacts, not source.
 data/raw/**
@@ -25,9 +42,9 @@ data/restricted/**
 !data/restricted/**/.gitkeep
 database/*.duckdb
 database/*.wal
-output/qa/*.csv
-output/coverage/*.csv
-output/exports/*.csv
+output/**
+!output/exports/
+!output/exports/variable_dictionary.csv
 metadata/pipeline_run_log.csv
 metadata/raw_file_manifest.csv
 metadata/version_a_raw_file_manifest.csv

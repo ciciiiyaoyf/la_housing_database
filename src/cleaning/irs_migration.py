@@ -10,6 +10,10 @@ from src.cleaning.common import finalize, metadata_fields
 
 LA_COUNTY_FIPS = ("06", "037")
 TOTAL_MIGRATION_COUNTERPART = ("96", "000")
+IRS_ENHANCED_MATCHING_BREAK_PERIOD = "2022-2023"
+IRS_ENHANCED_MATCHING_BREAK_FLAG = (
+    "provider_methodology_break_2022_2023_enhanced_matching_new_series"
+)
 
 VARIABLES = {
     "in_returns": ("irs_soi_in_migration_returns", "tax_returns"),
@@ -30,6 +34,13 @@ def _zfill3(series: pd.Series) -> pd.Series:
 
 def _zfill2(series: pd.Series) -> pd.Series:
     return series.astype(str).str.strip().str.replace(r"\.0$", "", regex=True).str.zfill(2)
+
+
+def _quality_flag(period: str) -> str:
+    flags = [f"filing_year_pair_{period}"]
+    if period == IRS_ENHANCED_MATCHING_BREAK_PERIOD:
+        flags.append(IRS_ENHANCED_MATCHING_BREAK_FLAG)
+    return ";".join(flags)
 
 
 def _standardize_columns(frame: pd.DataFrame) -> pd.DataFrame:
@@ -198,11 +209,11 @@ def clean_irs_soi_county_migration(
             "provider": "Internal Revenue Service",
             "native_frequency": "annual",
             "final_frequency": "annual",
-            "transformation_id": "irs_soi_county_migration_net_v1",
+            "transformation_id": "irs_soi_county_migration_net_v2",
             "is_imputed": False,
             "is_interpolated": False,
             "is_seasonally_adjusted": False,
-            "quality_flag": f"filing_year_pair_{period}",
+            "quality_flag": _quality_flag(period),
         }
         base.update(metadata_fields(metadata_by_period[period]))
         values = {

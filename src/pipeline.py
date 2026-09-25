@@ -15,21 +15,25 @@ from src.database import build_database, sync_source_metadata
 from src.harmonization import build_analytical_outputs
 from src.ingestion.discover import discover_sources
 from src.ingestion.download import download_sources
+from src.ingestion.refresh import (
+    refresh_latest_sources,
+    verify_refreshed_clean_outputs,
+)
 from src.reporting import build_catalog_outputs, export_outputs
+from src.reporting.variable_metadata import refresh_variable_metadata
 from src.validation import run_qa
 
-STAGES = (
+PIPELINE_STAGES = (
     "discover",
     "download",
     "clean",
     "harmonize",
     "build-database",
-    "catalog",
     "validate",
     "catalog",
     "export",
-    "all",
 )
+STAGES = (*PIPELINE_STAGES, "variable-metadata", "all", "refresh")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -53,24 +57,48 @@ def parser() -> argparse.ArgumentParser:
     return command
 
 
-def _run_stage(stage: str, arguments: argparse.Namespace) -> None:
+def _run_stage(
+    stage: str,
+    arguments: argparse.Namespace,
+    *,
+    refresh_latest: bool = False,
+) -> None:
     config = load_config()
     if stage == "discover":
         discover_sources(config, arguments.source, arguments.offline)
     elif stage == "download":
-        completed, _ = download_sources(
-            config,
-            arguments.source,
-            arguments.force_download,
-            arguments.offline,
-            arguments.start_date,
-            arguments.end_date,
-            arguments.local_file,
-        )
+        if refresh_latest:
+            completed, _, _ = refresh_latest_sources(
+                config,
+                source_filter=arguments.source,
+                start_date=arguments.start_date,
+                end_date=arguments.end_date,
+                local_file=arguments.local_file,
+            )
+        else:
+            completed, _ = download_sources(
+                config,
+                arguments.source,
+                arguments.force_download,
+                arguments.offline,
+                arguments.start_date,
+                arguments.end_date,
+                arguments.local_file,
+            )
         if completed:
             sync_source_metadata(config)
     elif stage == "clean":
-        clean_sources(config, arguments.source, arguments.vintage)
+        clean_sources(
+            config,
+            arguments.source,
+            arguments.vintage,
+            strict=refresh_latest,
+        )
+        if refresh_latest:
+            verify_refreshed_clean_outputs(
+                config,
+                source_filter=arguments.source,
+            )
     elif stage == "harmonize":
         build_analytical_outputs(config, arguments.start_date, arguments.end_date)
     elif stage == "build-database":
@@ -81,23 +109,35 @@ def _run_stage(stage: str, arguments: argparse.Namespace) -> None:
         build_catalog_outputs(config)
     elif stage == "export":
         export_outputs(config)
+    elif stage == "variable-metadata":
+        refresh_variable_metadata(config)
     else:
         raise ValueError(stage)
 
 
 def main(argv: list[str] | None = None) -> int:
-    arguments = parser().parse_args(argv)
+    command = parser()
+    arguments = command.parse_args(argv)
+    if arguments.stage == "refresh" and arguments.offline:
+        command.error("--stage refresh requires online source verification")
+    if arguments.stage == "refresh" and arguments.vintage:
+        command.error("--stage refresh does not accept --vintage")
     config = load_config()
     ensure_directories(config.root)
     logger = configure_logging(config.root, arguments.log_level)
-    stages = STAGES[:-1] if arguments.stage == "all" else (arguments.stage,)
+    stages = (
+        PIPELINE_STAGES
+        if arguments.stage in {"all", "refresh"}
+        else (arguments.stage,)
+    )
+    refresh_latest = arguments.stage == "refresh"
     run_started = datetime.now(timezone.utc)
     status = "succeeded"
     error = ""
     try:
         for stage in stages:
             logger.info("Starting stage: %s", stage)
-            _run_stage(stage, arguments)
+            _run_stage(stage, arguments, refresh_latest=refresh_latest)
     except Exception as exc:
         status = "failed"
         error = f"{type(exc).__name__}: {exc}"
@@ -116,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
                     "vintage": arguments.vintage,
                     "offline": arguments.offline,
                     "force_download": arguments.force_download,
+                    "refresh_latest": refresh_latest,
                     "status": status,
                     "error": error,
                 }

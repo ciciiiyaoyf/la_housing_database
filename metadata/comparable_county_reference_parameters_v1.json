@@ -1,0 +1,116 @@
+{
+  "artifact_version": 1,
+  "assumption_note": "The source specification requires fixed historical normalization but does not state dates, pooling scope, or SD convention. The initial production choice is the common-source pre-COVID window February 2012 through December 2019, pooled over all eight counties with population SD. Price-to-rent change is retained at one- and twelve-month log horizons because the source specification does not select a change horizon.",
+  "assumption_status": "pending_mentor_confirmation",
+  "created_at": "2026-09-05T06:49:48.817174+00:00",
+  "heat": {
+    "components": [
+      "home_price_momentum_3m_annualized",
+      "market_tightness_index"
+    ],
+    "ddof": 0,
+    "feature": "county_housing_market_heat_index",
+    "method": "fixed_reference_pooled_population_zscore_v1",
+    "reference_end": "2019-12-31T00:00:00",
+    "reference_start": "2012-02-29T00:00:00",
+    "scope": "pooled",
+    "statistics": {
+      "home_price_momentum_3m_annualized": {
+        "mean": 8.762223130836404,
+        "observation_count": 760,
+        "population_sd": 9.658018860218048
+      },
+      "market_tightness_index": {
+        "mean": -0.0011545911760540307,
+        "observation_count": 758,
+        "population_sd": 0.7013451766737835
+      }
+    }
+  },
+  "source_lineage": [
+    {
+      "checksum_sha256": "95a58d1d70c581f1e3cc633cd30436545bb6164500066a60739f8a858c2e9f69",
+      "retrieved_at": "2026-09-05T06:48:19.566726+00:00",
+      "source_filename": "bls_laus_la_county_20260905T064819Z_95a58d1d70c5.json",
+      "source_id": "bls_laus_la_county",
+      "source_vintage": "2026-09-05"
+    },
+    {
+      "checksum_sha256": "9470b1c6145dc51721dc717d62ea986a43e1bf2d7fdc57875af2f55e007dd634",
+      "retrieved_at": "2026-07-02T06:08:28.631433+00:00",
+      "source_filename": "redfin_county_monthly_20260702T060828Z_9470b1c6145d.tsv.gz",
+      "source_id": "redfin_county_monthly",
+      "source_vintage": "2026-07-02"
+    },
+    {
+      "checksum_sha256": "1062760889a6d168c1d42e57981e8354b245bd446836e0d508400f18515c1ec4",
+      "retrieved_at": "2026-07-02T06:08:24.329432+00:00",
+      "source_filename": "zillow_county_zhvi_20260702T060824Z_1062760889a6.csv",
+      "source_id": "zillow_county_zhvi",
+      "source_vintage": "2026-07-02"
+    },
+    {
+      "checksum_sha256": "5ee2e1799bab96ecccfb154cdc0e2b8206b19f898f4a92bcf5e94e608867efb2",
+      "retrieved_at": "2026-07-02T06:08:27.830341+00:00",
+      "source_filename": "zillow_county_zori_smoothed_sa_20260702T060827Z_5ee2e1799bab.csv",
+      "source_id": "zillow_county_zori_smoothed_sa",
+      "source_vintage": "2026-07-02"
+    }
+  ],
+  "specification": {
+    "heat_reference_end": "2019-12-31",
+    "heat_reference_start": "2012-02-29",
+    "methodology_id": "la_comparable_county_analytics_v1",
+    "normalization_scope": "pooled_eight_counties",
+    "standard_deviation_ddof": 0,
+    "target_county_fips": [
+      "06037",
+      "06059",
+      "06065",
+      "06071",
+      "06073",
+      "06067",
+      "06085",
+      "06001"
+    ],
+    "tightness_components": [
+      "months_of_supply",
+      "days_on_market",
+      "price_drop_share"
+    ],
+    "tightness_reference_end": "2019-12-31",
+    "tightness_reference_start": "2012-02-29"
+  },
+  "status": "frozen_production_parameters",
+  "tightness": {
+    "components": [
+      "months_of_supply",
+      "days_on_market",
+      "price_drop_share"
+    ],
+    "ddof": 0,
+    "feature": "market_tightness_index",
+    "method": "fixed_reference_pooled_population_zscore_v1",
+    "orientation": "negative",
+    "reference_end": "2019-12-31T00:00:00",
+    "reference_start": "2012-02-29T00:00:00",
+    "scope": "pooled",
+    "statistics": {
+      "days_on_market": {
+        "mean": 33.9078947368421,
+        "observation_count": 760,
+        "population_sd": 16.375268283522583
+      },
+      "months_of_supply": {
+        "mean": 2.3752631578947367,
+        "observation_count": 760,
+        "population_sd": 0.9579960906471857
+      },
+      "price_drop_share": {
+        "mean": 0.21084901195856198,
+        "observation_count": 758,
+        "population_sd": 0.060906668018714846
+      }
+    }
+  }
+}

@@ -131,6 +131,27 @@ REAL_EQUITY_OUTPUTS: tuple[tuple[str, str], ...] = (
     ),
 )
 
+PMMS_TERM_SCENARIO_OUTPUTS: tuple[tuple[int, str, str, str], ...] = (
+    (
+        20,
+        "acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark",
+        "acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_benchmark",
+        "acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark",
+    ),
+    (
+        25,
+        "acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark",
+        "acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_benchmark",
+        "acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark",
+    ),
+    (
+        30,
+        "acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark",
+        "acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_benchmark",
+        "acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark",
+    ),
+)
+
 
 def _as_timestamp(value: Any) -> pd.Timestamp:
     parsed = pd.to_datetime(value, errors="coerce")
@@ -1023,6 +1044,9 @@ def build_version_a_benchmark(
 
     constructed: list[dict[str, Any]] = []
     debt_rows: list[dict[str, Any]] = []
+    scenario_debt_by_key: dict[
+        tuple[str, str, pd.Timestamp, int], dict[str, Any]
+    ] = {}
     group_key = ["county_fips", "benchmark_vintage", "reference_date"]
     for (_, benchmark_vintage, reference_raw), group in acs_rows.groupby(
         group_key, sort=True, dropna=False
@@ -1267,6 +1291,66 @@ def build_version_a_benchmark(
         )
         rate = _lookup_rate(rates, str(benchmark_vintage), reference_date)
         aggregate_pi = payment["aggregate_monthly_pi"]
+        scenario_terms = tuple(
+            remaining_years
+            for remaining_years, _, _, _ in PMMS_TERM_SCENARIO_OUTPUTS
+        )
+        scenario_source_ids = source_ids.copy()
+        scenario_source_files = source_files.copy()
+        scenario_source_vintages = source_vintages.copy()
+        scenario_retrieved = retrieved.copy()
+        scenario_checksums = checksums.copy()
+        scenario_release_dates = release_dates.copy()
+        if rate is not None and _finite(rate.get("value")):
+            scenario_rate_geography = str(
+                rate.get("parameter_geography", "US")
+            )
+            scenario_debts = implied_debt_scenarios(
+                aggregate_pi,
+                _number(rate.get("value")),
+                scenario_terms,
+            )
+            scenario_debt_lows = implied_debt_scenarios(
+                payment_low,
+                _number(rate.get("value")),
+                scenario_terms,
+            )
+            scenario_debt_highs = implied_debt_scenarios(
+                payment_high,
+                _number(rate.get("value")),
+                scenario_terms,
+            )
+            scenario_quality = "pmms_origination_rate_sensitivity"
+            scenario_source_id = rate.get("source_id", "freddie_mac_pmms")
+            scenario_source_ids.append(scenario_source_id)
+            scenario_source_files.append(rate.get("source_filename"))
+            scenario_source_vintages.append(rate.get("source_vintage"))
+            scenario_retrieved.append(rate.get("retrieved_at"))
+            scenario_checksums.append(rate.get("checksum_sha256"))
+            if not pd.isna(rate.get("release_date")):
+                scenario_release_dates[str(scenario_source_id)] = rate.get(
+                    "release_date"
+                )
+            if not _finite(aggregate_pi):
+                scenario_quality = "aggregate_first_mortgage_pi_unavailable"
+        else:
+            scenario_rate_geography = "unavailable"
+            scenario_debts = {
+                float(remaining_years): math.nan
+                for remaining_years in scenario_terms
+            }
+            scenario_debt_lows = scenario_debts.copy()
+            scenario_debt_highs = scenario_debts.copy()
+            scenario_quality = _pipe(
+                [
+                    (
+                        "aggregate_first_mortgage_pi_unavailable"
+                        if not _finite(aggregate_pi)
+                        else None
+                    ),
+                    "pmms_rate_parameter_unavailable",
+                ]
+            )
         if not distribution.empty:
             raw_debt = implied_debt_from_distribution(
                 aggregate_pi,
@@ -1334,24 +1418,9 @@ def build_version_a_benchmark(
             if not pd.isna(distribution_release):
                 release_dates[distribution_source_id] = distribution_release
         elif rate is not None and _finite(rate.get("value")):
-            scenarios = implied_debt_scenarios(
-                aggregate_pi,
-                _number(rate.get("value")),
-                (20, 25, 30),
-            )
-            low_scenarios = implied_debt_scenarios(
-                payment_low,
-                _number(rate.get("value")),
-                (20,),
-            )
-            high_scenarios = implied_debt_scenarios(
-                payment_high,
-                _number(rate.get("value")),
-                (30,),
-            )
-            debt_low = low_scenarios[20.0]
-            raw_debt = scenarios[25.0]
-            debt_high = high_scenarios[30.0]
+            debt_low = scenario_debt_lows[20.0]
+            raw_debt = scenario_debts[25.0]
+            debt_high = scenario_debt_highs[30.0]
             debt_method = "PMMS exact-reference-month 20/25/30-year sensitivity"
             debt_geography = str(rate.get("parameter_geography", "US"))
             debt_quality = "pmms_origination_rate_sensitivity"
@@ -1411,6 +1480,56 @@ def build_version_a_benchmark(
         )
         constructed.append(raw_row)
         debt_rows.append(raw_row)
+        for (
+            remaining_years,
+            debt_variable,
+            _,
+            _,
+        ) in PMMS_TERM_SCENARIO_OUTPUTS:
+            scenario_row = _derived_base(
+                acs_group=group,
+                variable_name=debt_variable,
+                unit="USD",
+                value=scenario_debts[float(remaining_years)],
+                low=scenario_debt_lows[float(remaining_years)],
+                high=scenario_debt_highs[float(remaining_years)],
+                construction_method=(
+                    "PMMS exact-reference-month fixed-rate-equivalent "
+                    f"first-mortgage debt with {remaining_years}-year "
+                    "remaining term"
+                ),
+                parameter_geography=(
+                    f"{pums_geography}|{scenario_rate_geography}"
+                ),
+                sample_n=None if pums is None else pums.get("sample_n"),
+                coverage_rate=(
+                    None if pums is None else pums.get("coverage_rate")
+                ),
+                quality_flag=scenario_quality,
+                notes=(
+                    "Explicit uncalibrated remaining-term sensitivity. The "
+                    "central estimate capitalizes central aggregate P&I; its "
+                    "bounds capitalize the ACS/PUMS payment bounds at the same "
+                    f"{remaining_years}-year term. PMMS is an origination-rate "
+                    "sensitivity, not an outstanding-stock coupon, and this "
+                    "row is never substituted for calibrated debt."
+                ),
+                source_ids=scenario_source_ids,
+                source_files=scenario_source_files,
+                source_vintages=scenario_source_vintages,
+                retrieved=scenario_retrieved,
+                checksums=scenario_checksums,
+                release_dates=scenario_release_dates,
+                transformation_id="version_a_pmms_term_scenario_debt_v1",
+            )
+            constructed.append(scenario_row)
+            scenario_key = (
+                county_fips,
+                str(benchmark_vintage),
+                reference_date.normalize(),
+                remaining_years,
+            )
+            scenario_debt_by_key[scenario_key] = scenario_row
 
     debt_frame = pd.DataFrame(debt_rows)
     calibrated_by_key: dict[
@@ -1601,6 +1720,177 @@ def build_version_a_benchmark(
         value_free_high = _estimate(
             values, ACS_NO_MORTGAGE_VALUE, "high_estimate"
         )
+        for (
+            remaining_years,
+            _,
+            mortgaged_equity_variable,
+            all_owner_equity_variable,
+        ) in PMMS_TERM_SCENARIO_OUTPUTS:
+            scenario_key = (*key, remaining_years)
+            scenario_debt_row = scenario_debt_by_key.get(scenario_key)
+            if scenario_debt_row is None:
+                raise ValueError(
+                    "expected one PMMS term-scenario debt row for "
+                    f"{county_fips} / {benchmark_vintage} / "
+                    f"{remaining_years} years"
+                )
+            scenario_debt = _number(scenario_debt_row.get("value"))
+            scenario_debt_low = _number(
+                scenario_debt_row.get("low_estimate")
+            )
+            scenario_debt_high = _number(
+                scenario_debt_row.get("high_estimate")
+            )
+            scenario_debt_quality = str(
+                scenario_debt_row.get("quality_flag")
+            )
+            scenario_equity_mortgaged = (
+                value_mort - scenario_debt
+                if _finite(value_mort) and _finite(scenario_debt)
+                else math.nan
+            )
+            scenario_equity_mortgaged_low = (
+                value_mort_low - scenario_debt_high
+                if _finite(value_mort_low) and _finite(scenario_debt_high)
+                else math.nan
+            )
+            scenario_equity_mortgaged_high = (
+                value_mort_high - scenario_debt_low
+                if _finite(value_mort_high) and _finite(scenario_debt_low)
+                else math.nan
+            )
+            scenario_mortgaged_quality_parts: list[Any] = []
+            if not _finite(scenario_equity_mortgaged):
+                if not _finite(scenario_debt):
+                    scenario_mortgaged_quality_parts.append(
+                        scenario_debt_quality
+                    )
+                if not _finite(value_mort):
+                    scenario_mortgaged_quality_parts.append(
+                        "acs_mortgaged_owner_value_unavailable"
+                    )
+            scenario_mortgaged_quality = (
+                _pipe(scenario_mortgaged_quality_parts)
+                if scenario_mortgaged_quality_parts
+                else scenario_debt_quality
+            )
+
+            scenario_equity_all = (
+                scenario_equity_mortgaged + value_free
+                if _finite(scenario_equity_mortgaged)
+                and _finite(value_free)
+                else math.nan
+            )
+            scenario_equity_all_low = (
+                scenario_equity_mortgaged_low + value_free_low
+                if _finite(scenario_equity_mortgaged_low)
+                and _finite(value_free_low)
+                else math.nan
+            )
+            scenario_equity_all_high = (
+                scenario_equity_mortgaged_high + value_free_high
+                if _finite(scenario_equity_mortgaged_high)
+                and _finite(value_free_high)
+                else math.nan
+            )
+            scenario_all_quality_parts: list[Any] = []
+            if not _finite(scenario_equity_all):
+                if not _finite(scenario_equity_mortgaged):
+                    scenario_all_quality_parts.append(
+                        scenario_mortgaged_quality
+                    )
+                if not _finite(value_free):
+                    scenario_all_quality_parts.append(
+                        "acs_mortgage_free_owner_value_unavailable"
+                    )
+            scenario_all_quality = (
+                _pipe(scenario_all_quality_parts)
+                if scenario_all_quality_parts
+                else scenario_debt_quality
+            )
+
+            scenario_source_ids = [scenario_debt_row.get("source_id")]
+            scenario_source_files = [
+                scenario_debt_row.get("source_filename")
+            ]
+            scenario_source_vintages = [
+                scenario_debt_row.get("source_vintage")
+            ]
+            scenario_retrieved = [scenario_debt_row.get("retrieved_at")]
+            scenario_checksums = [
+                scenario_debt_row.get("checksum_sha256")
+            ]
+            scenario_release_dates = _release_date_mapping(
+                scenario_debt_row.get("source_release_dates")
+            )
+            scenario_outputs = (
+                (
+                    mortgaged_equity_variable,
+                    scenario_equity_mortgaged,
+                    scenario_equity_mortgaged_low,
+                    scenario_equity_mortgaged_high,
+                    scenario_mortgaged_quality,
+                    (
+                        "Owner-occupied housing units with a mortgage, "
+                        "contract to purchase, or similar debt"
+                    ),
+                ),
+                (
+                    all_owner_equity_variable,
+                    scenario_equity_all,
+                    scenario_equity_all_low,
+                    scenario_equity_all_high,
+                    scenario_all_quality,
+                    "All owner-occupied housing units",
+                ),
+            )
+            for (
+                scenario_variable,
+                scenario_value,
+                scenario_low,
+                scenario_high,
+                scenario_quality,
+                scenario_universe,
+            ) in scenario_outputs:
+                constructed.append(
+                    _derived_base(
+                        acs_group=group,
+                        variable_name=scenario_variable,
+                        unit="USD",
+                        value=scenario_value,
+                        low=scenario_low,
+                        high=scenario_high,
+                        construction_method=(
+                            "Published ACS aggregate owner value less explicit "
+                            f"uncalibrated {remaining_years}-year PMMS "
+                            "first-mortgage debt sensitivity"
+                        ),
+                        parameter_geography=str(
+                            scenario_debt_row.get("parameter_geography")
+                        ),
+                        sample_n=scenario_debt_row.get("sample_n"),
+                        coverage_rate=scenario_debt_row.get("coverage_rate"),
+                        quality_flag=scenario_quality,
+                        notes=(
+                            "Explicit scenario equity, not calibrated equity. "
+                            "Mortgaged-owner equity subtracts the matching "
+                            f"{remaining_years}-year PMMS debt sensitivity from "
+                            "published mortgaged-owner value; all-owner equity "
+                            "then adds published mortgage-free owner value in "
+                            "full."
+                        ),
+                        universe_definition=scenario_universe,
+                        source_ids=scenario_source_ids,
+                        source_files=scenario_source_files,
+                        source_vintages=scenario_source_vintages,
+                        retrieved=scenario_retrieved,
+                        checksums=scenario_checksums,
+                        release_dates=scenario_release_dates,
+                        transformation_id=(
+                            "version_a_pmms_term_scenario_equity_v1"
+                        ),
+                    )
+                )
         debt = calibrated["value"]
         debt_low = calibrated["low"]
         debt_high = calibrated["high"]
@@ -2037,6 +2327,7 @@ def build_version_a_benchmark(
 
 
 __all__ = [
+    "PMMS_TERM_SCENARIO_OUTPUTS",
     "build_version_a_benchmark",
     "pmms_reference_rate_parameters",
 ]

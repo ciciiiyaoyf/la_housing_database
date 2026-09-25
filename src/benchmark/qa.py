@@ -10,10 +10,22 @@ import numpy as np
 import pandas as pd
 
 from src.benchmark.acs import CALIFORNIA_COUNTY_FIPS
+from src.benchmark.build import PMMS_TERM_SCENARIO_OUTPUTS
 from src.benchmark.schema import benchmark_contract_errors, normalize_benchmark
 
 CALIFORNIA_COUNTY_COUNT = 58
 ACS_AGGREGATE_PARTITION_ROUNDING_TOLERANCE = 100.0
+PMMS_TERM_SCENARIO_VARIABLES = tuple(
+    variable_name
+    for _, debt_variable, mortgaged_equity_variable, all_equity_variable in (
+        PMMS_TERM_SCENARIO_OUTPUTS
+    )
+    for variable_name in (
+        debt_variable,
+        mortgaged_equity_variable,
+        all_equity_variable,
+    )
+)
 
 REQUIRED_DIRECT_ACS_VARIABLES = (
     "acs_total_population_benchmark",
@@ -47,6 +59,7 @@ REQUIRED_DERIVED_VARIABLES = (
     "acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark",
     "acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark",
     "acs_implied_owner_occupied_home_equity_all_real_2024_benchmark",
+    *PMMS_TERM_SCENARIO_VARIABLES,
 )
 
 
@@ -170,6 +183,32 @@ def _required_output_failures(
         merged["_merge"].eq("left_only"),
         [*keys, "required_variable"],
     ]
+
+
+def _pmms_term_scenario_order_failures(frame: pd.DataFrame) -> pd.DataFrame:
+    keys = ["county_fips", "benchmark_vintage", "reference_date"]
+    debt_variables = [item[1] for item in PMMS_TERM_SCENARIO_OUTPUTS]
+    selected = frame.loc[
+        frame["variable_name"].isin(debt_variables),
+        [*keys, "variable_name", "value"],
+    ]
+    if selected.empty:
+        return pd.DataFrame(columns=[*keys, *debt_variables])
+    duplicate = selected.duplicated([*keys, "variable_name"], keep=False)
+    if duplicate.any():
+        return selected.loc[duplicate].copy()
+    wide = selected.pivot(index=keys, columns="variable_name", values="value")
+    if not set(debt_variables).issubset(wide.columns):
+        return pd.DataFrame(columns=[*keys, *debt_variables])
+    complete = wide[debt_variables].notna().all(axis=1)
+    if not complete.any():
+        return pd.DataFrame(columns=[*keys, *debt_variables])
+    work = wide.loc[complete]
+    failed = ~(
+        work[debt_variables[0]].le(work[debt_variables[1]])
+        & work[debt_variables[1]].le(work[debt_variables[2]])
+    )
+    return work.loc[failed, debt_variables].reset_index()
 
 
 def benchmark_qa_results(
@@ -362,6 +401,17 @@ def benchmark_qa_results(
             "Every county/ACS-vintage must retain every core Version A "
             "derived row; unavailable inputs produce flagged nulls rather "
             "than omitted variables."
+        ),
+    )
+
+    check(
+        "pmms_term_scenario_debt_order",
+        "error",
+        _pmms_term_scenario_order_failures(work),
+        (
+            "For a common payment and PMMS rate, uncalibrated implied debt "
+            "must be nondecreasing across the 20-, 25-, and 30-year "
+            "remaining-term sensitivities."
         ),
     )
 
@@ -571,7 +621,55 @@ def benchmark_qa_results(
             "Equity per owner unit must use all-owner equity and all owner-occupied units.",
         ),
     )
-    for check_id, result_variable, inputs, calculation, detail in identities:
+    scenario_identities: list[tuple[str, str, tuple[str, ...], Any, str]] = []
+    for (
+        remaining_years,
+        debt_variable,
+        mortgaged_equity_variable,
+        all_equity_variable,
+    ) in PMMS_TERM_SCENARIO_OUTPUTS:
+        scenario_identities.extend(
+            [
+                (
+                    f"pmms_{remaining_years}y_mortgaged_equity_scenario_identity",
+                    mortgaged_equity_variable,
+                    (
+                        "acs_aggregate_owner_value_mortgaged_benchmark",
+                        debt_variable,
+                    ),
+                    lambda wide, debt_name=debt_variable: wide[
+                        "acs_aggregate_owner_value_mortgaged_benchmark"
+                    ]
+                    - wide[debt_name],
+                    (
+                        f"The {remaining_years}-year mortgaged-owner scenario "
+                        "equity must equal published matched owner value less "
+                        "the matching uncalibrated PMMS debt sensitivity."
+                    ),
+                ),
+                (
+                    f"pmms_{remaining_years}y_all_owner_equity_scenario_identity",
+                    all_equity_variable,
+                    (
+                        mortgaged_equity_variable,
+                        "acs_aggregate_owner_value_no_mortgage_benchmark",
+                    ),
+                    lambda wide, mortgaged_name=mortgaged_equity_variable: wide[
+                        mortgaged_name
+                    ]
+                    + wide["acs_aggregate_owner_value_no_mortgage_benchmark"],
+                    (
+                        f"The {remaining_years}-year all-owner scenario equity "
+                        "must add published mortgage-free owner value to the "
+                        "matching mortgaged-owner scenario equity."
+                    ),
+                ),
+            ]
+        )
+    for check_id, result_variable, inputs, calculation, detail in (
+        *identities,
+        *scenario_identities,
+    ):
         check(
             check_id,
             "error",

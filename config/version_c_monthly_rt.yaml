@@ -1,0 +1,60 @@
+database_version: "C. Real-time monthly vintage"
+variable_suffix: "_monthly_rt"
+method_version: "version_c_monthly_rt_v1"
+benchmark_input_path: data/final/housing_finance_benchmark.parquet
+benchmark_freeze_manifest_path: metadata/version_a_freeze_manifest.csv
+output_root: data/final/housing_finance_monthly_rt
+lineage_output_root: data/final/housing_finance_monthly_rt_lineage
+la_export_template: output/exports/la_version_c_monthly_rt_{information_cutoff_date}.csv
+qa_summary_path: output/qa/version_c_qa_summary.csv
+qa_failures_path: output/qa/version_c_qa_failures.csv
+build_manifest_path: metadata/version_c_build_manifest.csv
+pipeline_run_log_path: metadata/version_c_pipeline_run_log.csv
+variable_dictionary_path: config/version_c_variables.yaml
+transformation_catalog_path: metadata/version_c_transformation_catalog.csv
+
+month_convention: calendar_month_end
+required_county_count: 58
+primary_county_fips: "06037"
+information_cutoff_required: true
+permit_future_benchmark_endpoints: false
+require_input_release_or_retrieval_date: true
+snapshot_selection: latest_archived_snapshot_available_by_cutoff
+append_only_vintages: true
+permit_interpolation: false
+preserve_missing_rows: true
+
+availability_policy:
+  priority: [provider_release_date, provider_last_updated, retrieved_at]
+  derived_row: maximum_across_all_inputs
+  missing_provider_release: use_retrieved_at_without_backdating
+
+input_sources:
+  version_a_benchmark:
+    source_id: version_a_housing_finance_benchmark
+    selection: latest_anchor_available_by_cutoff
+  redfin_county_monthly:
+    manifest_path: metadata/raw_file_manifest.csv
+    selection: latest_archived_snapshot_available_by_cutoff
+  zillow_county_zhvi:
+    manifest_path: metadata/raw_file_manifest.csv
+    selection: latest_archived_snapshot_available_by_cutoff
+  freddie_mac_pmms:
+    manifest_path: metadata/raw_file_manifest.csv
+    selection: latest_archived_snapshot_available_by_cutoff
+    role: explicitly labeled origination-rate debt sensitivity only
+
+methods:
+  payment: carry the latest eligible ACS/PUMS structural payment forward; never construct it from modeled debt
+  annual_rates: carry the latest eligible HMDA rate without division
+  canonical_downpayment_flow: preserve null because financed purchase-dollar volume is unavailable
+  downpayment_flow_proxy: finalized-year exact Redfin proxy distribution and later-month nowcast only where a proxy weight is archived
+  calibrated_debt_and_equity: preserve null while the exact-universe California calibration control is unavailable
+  raw_debt_composite: form a separately labeled 20/25/30-year PMMS sensitivity envelope and rescale it exactly to the latest eligible Version A raw-debt low, central, and high reference levels
+  pmms_debt_sensitivity: capitalize the carried payment with the latest eligible PMMS rate under explicit 20/25/30-year origination-rate sensitivity labels
+  pmms_equity_scenario: update the eligible ACS owner-value anchor with the eligible ZHVI snapshot and subtract matching scenario debt
+
+quality_thresholds:
+  annual_identity_absolute_tolerance: 0.01
+  accounting_relative_tolerance: 1.0e-10
+  plausible_value_warning_only: true

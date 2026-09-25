@@ -22,6 +22,7 @@ DIRECTORIES = (
     "data/raw/census_bps",
     "data/raw/census_hvs",
     "data/raw/census_acs",
+    "data/raw/census_ahs",
     "data/raw/fhfa",
     "data/raw/bea",
     "data/raw/geography",
@@ -72,7 +73,10 @@ def is_bps_ascii_payload(path: Path) -> bool:
         with path.open("r", encoding="utf-8-sig") as handle:
             first = handle.readline()
             second = handle.readline()
-        return first.startswith("Survey,") and second.startswith("Date,")
+        return (
+            first.split(",", 1)[0].strip() == "Survey"
+            and second.split(",", 1)[0].strip() == "Date"
+        )
     except (OSError, UnicodeError):
         return False
 

@@ -11,6 +11,15 @@ import pandas as pd
 
 from src.benchmark.acquisition import MANIFEST_COLUMNS
 from src.common.config import ProjectConfig
+from src.common.variable_metadata import enrich_variable_metadata
+from src.database.variable_metadata import register_variable_metadata_views
+from src.database.housing_finance import (
+    VERSION_B_LINEAGE,
+    VERSION_B_OBSERVATIONS,
+    VERSION_C_LINEAGE,
+    VERSION_C_OBSERVATIONS,
+    register_housing_finance_versions,
+)
 
 
 UNION_CLEAN_TABLES = {
@@ -241,6 +250,14 @@ def _create_analytical_views(connection: duckdb.DuckDBPyConnection) -> None:
         "zori_growth_mom",
         "zori_growth_yoy",
         "permits_5_plus_units",
+        "new_apartments_completed_proxy_central",
+        "new_apartments_completed_proxy_slow",
+        "multifamily_under_construction_proxy_central",
+        "multifamily_under_construction_proxy_slow",
+        "new_apartments_completed_proxy_central_quality_flag",
+        "new_apartments_completed_proxy_slow_quality_flag",
+        "multifamily_under_construction_proxy_central_quality_flag",
+        "multifamily_under_construction_proxy_slow_quality_flag",
         "price_to_rent_ratio",
         "source_coverage_count",
         "panel_quality_flag",
@@ -397,10 +414,18 @@ def build_database(
     for schema in ("metadata", "raw", "clean", "analytics", "quality"):
         connection.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
     connection.execute((config.root / "sql" / "create_schema.sql").read_text())
+    global_dictionary_path = config.root / "metadata" / "data_dictionary.csv"
+    variable_dictionary_frame = (
+        pd.read_csv(global_dictionary_path)
+        if global_dictionary_path.is_file()
+        else pd.DataFrame(config.variables)
+    )
+    if (config.root / "config" / "variable_metadata.csv").exists():
+        variable_dictionary_frame = enrich_variable_metadata(variable_dictionary_frame, config.root)
     frames = {
         "source_registry_frame": _source_registry(config),
         "version_a_manifest_frame": _version_a_manifest(config),
-        "variable_dictionary_frame": pd.DataFrame(config.variables),
+        "variable_dictionary_frame": variable_dictionary_frame,
         "geography_frame": pd.read_parquet(
             config.root / "data" / "clean" / "geography.parquet"
         ),
@@ -422,12 +447,44 @@ def build_database(
         "analytics.fact_housing_observation": "fact_housing_observation.parquet",
         "analytics.county_monthly_panel": "county_monthly_panel.parquet",
         "analytics.zip_monthly_panel": "zip_monthly_panel.parquet",
+        "analytics.homebuying_cost_scenarios": "homebuying_cost_scenarios.parquet",
         "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
+        "analytics.state_monthly_controls": "state_monthly_controls.parquet",
         "analytics.state_quarterly_panel": "state_quarterly_panel.parquet",
+        "analytics.state_annual_controls": "state_annual_controls.parquet",
         "analytics.metro_quarterly_panel": "metro_quarterly_panel.parquet",
         "analytics.metro_quarterly_controls": "metro_quarterly_controls.parquet",
         "analytics.county_annual_controls": "county_annual_controls.parquet",
+        "analytics.zcta_annual_controls": "zcta_annual_controls.parquet",
+        "analytics.coc_annual_controls": "coc_annual_controls.parquet",
         "analytics.county_quarterly_controls": "county_quarterly_controls.parquet",
+    }
+    optional_parquet_tables = {
+        "analytics.macro_financial_monthly": "macro_financial_monthly.parquet",
+        "analytics.comparable_county_monthly_analytics": (
+            "comparable_county_monthly_analytics.parquet"
+        ),
+        "analytics.zip_market_regime_quarterly": (
+            "zip_market_regime_quarterly.parquet"
+        ),
+        "analytics.la_zip_market_regime_summary_quarterly": (
+            "la_zip_market_regime_summary_quarterly.parquet"
+        ),
+        "analytics.la_zip_market_regime_transitions_quarterly": (
+            "la_zip_market_regime_transitions_quarterly.parquet"
+        ),
+    }
+    final_dir = config.root / "data" / "final"
+    parquet_tables.update(
+        {
+            table: filename
+            for table, filename in optional_parquet_tables.items()
+            if (final_dir / filename).exists()
+        }
+    )
+    comparable_views = {
+        "county_housing_market_heat_monthly",
+        "la_relative_market_performance_monthly",
     }
     expected_analytics_names = {
         table.split(".", 1)[1] for table in parquet_tables
@@ -436,7 +493,11 @@ def build_database(
         "renter_market_monthly",
         "overall_market_monthly",
         "macro_controls_monthly",
-    }
+    } | (
+        comparable_views
+        if "analytics.comparable_county_monthly_analytics" in parquet_tables
+        else set()
+    )
     stale_analytics_objects = connection.execute(
         """
         SELECT table_name, table_type
@@ -452,7 +513,6 @@ def build_database(
             connection.execute(f'DROP VIEW IF EXISTS analytics."{safe_name}"')
         else:
             connection.execute(f'DROP TABLE IF EXISTS analytics."{safe_name}"')
-    final_dir = config.root / "data" / "final"
     for table, filename in parquet_tables.items():
         path = (final_dir / filename).as_posix().replace("'", "''")
         connection.execute(
@@ -513,6 +573,42 @@ def build_database(
         "SELECT * FROM metadata.source_registry WHERE source_filename IS NOT NULL"
     )
     _create_analytical_views(connection)
+    if "analytics.comparable_county_monthly_analytics" in parquet_tables:
+        connection.execute(
+            """
+            CREATE OR REPLACE VIEW analytics.county_housing_market_heat_monthly AS
+            SELECT
+                date,
+                county_fips,
+                county_name,
+                zhvi_momentum_3m_annualized_log_pct,
+                market_tightness_index_3c_fixed,
+                county_housing_market_heat_index,
+                county_housing_market_heat_rank,
+                county_housing_market_heat_count,
+                latest_source_vintage,
+                normalization_assumption_status
+            FROM analytics.comparable_county_monthly_analytics
+            """
+        )
+        connection.execute(
+            """
+            CREATE OR REPLACE VIEW analytics.la_relative_market_performance_monthly AS
+            SELECT
+                date,
+                county_fips,
+                la_relative_zhvi_momentum_yoy_log_pct,
+                la_relative_zhvi_momentum_3m_annualized_log_pct,
+                la_relative_zori_momentum_yoy_log_pct,
+                la_relative_zori_momentum_3m_annualized_log_pct,
+                la_relative_market_tightness_index_3c_fixed,
+                la_relative_price_to_rent_ratio_zillow,
+                la_relative_required_peer_count,
+                latest_source_vintage
+            FROM analytics.comparable_county_monthly_analytics
+            WHERE county_fips = '06037'
+            """
+        )
     connection.execute(
         "CREATE OR REPLACE TABLE raw.version_a_file_manifest AS "
         "SELECT * FROM version_a_manifest_frame"
@@ -532,10 +628,24 @@ def build_database(
         parquet_tables[
             "analytics.housing_finance_benchmark"
         ] = "housing_finance_benchmark.parquet"
+    monthly_finance_files = register_housing_finance_versions(
+        connection,
+        config.root,
+    )
     connection.execute(
         "CREATE OR REPLACE TABLE quality.qa_summary "
         "(check_id VARCHAR, severity VARCHAR, status VARCHAR, failure_count BIGINT, detail VARCHAR)"
     )
+    raw_completeness_path = (
+        config.root / "output" / "qa" / "raw_repository_completeness.csv"
+    )
+    if raw_completeness_path.exists():
+        raw_completeness = pd.read_csv(raw_completeness_path, dtype=str)
+        connection.register("raw_repository_completeness_frame", raw_completeness)
+        connection.execute(
+            "CREATE OR REPLACE TABLE quality.raw_repository_completeness AS "
+            "SELECT * FROM raw_repository_completeness_frame"
+        )
     connection.execute(
         """
         CREATE OR REPLACE VIEW analytics.homeowner_market_monthly AS
@@ -569,9 +679,19 @@ def build_database(
             zori_growth_mom,
             zori_growth_yoy,
             price_to_rent_ratio,
+            price_to_rent_ratio_zillow,
+            implied_gross_rent_yield,
             mortgage_payment_to_rent_10pct_down,
             mortgage_payment_to_rent_20pct_down,
-            permits_5_plus_units
+            permits_5_plus_units,
+            new_apartments_completed_proxy_central,
+            new_apartments_completed_proxy_slow,
+            multifamily_under_construction_proxy_central,
+            multifamily_under_construction_proxy_slow,
+            new_apartments_completed_proxy_central_quality_flag,
+            new_apartments_completed_proxy_slow_quality_flag,
+            multifamily_under_construction_proxy_central_quality_flag,
+            multifamily_under_construction_proxy_slow_quality_flag
         FROM analytics.county_monthly_panel
         """
     )
@@ -582,6 +702,8 @@ def build_database(
             date,
             county_fips,
             price_to_rent_ratio,
+            price_to_rent_ratio_zillow,
+            implied_gross_rent_yield,
             inventory_to_sales_ratio,
             sales_to_inventory_ratio,
             market_tightness_index,
@@ -616,9 +738,25 @@ def build_database(
         table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
         for table in parquet_tables
     }
+    monthly_finance_tables = {
+        VERSION_B_OBSERVATIONS: "version_b_observation_files",
+        VERSION_B_LINEAGE: "version_b_lineage_files",
+        VERSION_C_OBSERVATIONS: "version_c_observation_files",
+        VERSION_C_LINEAGE: "version_c_lineage_files",
+    }
+    counts.update(
+        {
+            table: connection.execute(
+                f"SELECT count(*) FROM {table}"
+            ).fetchone()[0]
+            for table, file_count_key in monthly_finance_tables.items()
+            if monthly_finance_files[file_count_key]
+        }
+    )
     counts["raw.version_a_file_manifest"] = connection.execute(
         "SELECT count(*) FROM raw.version_a_file_manifest"
     ).fetchone()[0]
+    register_variable_metadata_views(connection)
     connection.close()
     logger.info("Built %s with %s", database_path, counts)
     return counts

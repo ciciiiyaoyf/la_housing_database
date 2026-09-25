@@ -76,6 +76,9 @@ def test_database_contains_only_active_sa_zori_contract():
             "zori_smoothed_sa": True,
             "zori_growth_mom": False,
             "zori_growth_yoy": False,
+            "zori_momentum_yoy_log_pct": False,
+            "zori_momentum_3m_annualized_log_pct": False,
+            "zori_momentum_3m_annualized_log_pct_z_fixed": False,
         }
 
 
@@ -98,8 +101,10 @@ def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
             FROM clean.zillow_county_zori_smoothed_sa AS clean
             LEFT JOIN analytics.county_monthly_panel AS panel
               ON panel.date = clean.observation_date
-            WHERE panel.date IS NULL
+            WHERE clean.geo_id = 'COUNTY_06037'
+              AND (panel.date IS NULL
                OR panel.zori IS DISTINCT FROM clean.value
+              )
             """
         ).fetchone()[0]
         zip_mismatches = connection.execute(
@@ -117,7 +122,8 @@ def test_panels_expose_only_semantic_zori_and_match_sa_clean_tables():
         assert zip_mismatches == 0
 
         clean_county_count = connection.execute(
-            "SELECT count(*) FROM clean.zillow_county_zori_smoothed_sa WHERE value IS NOT NULL"
+            "SELECT count(*) FROM clean.zillow_county_zori_smoothed_sa "
+            "WHERE geo_id = 'COUNTY_06037' AND value IS NOT NULL"
         ).fetchone()[0]
         panel_county_count = connection.execute(
             "SELECT count(*) FROM analytics.county_monthly_panel WHERE zori IS NOT NULL"
@@ -171,6 +177,8 @@ def test_zori_keys_coverage_and_derived_features_are_valid():
             """
             SELECT date, zori, zhvi, zori_growth_mom, zori_growth_yoy,
                    price_to_rent_ratio,
+                   price_to_rent_ratio_zillow,
+                   implied_gross_rent_yield,
                    mortgage_payment_10pct_down,
                    mortgage_payment_to_rent_10pct_down,
                    mortgage_payment_20pct_down,
@@ -184,6 +192,12 @@ def test_zori_keys_coverage_and_derived_features_are_valid():
         "zori_growth_mom": panel["zori"].pct_change(1, fill_method=None),
         "zori_growth_yoy": panel["zori"].pct_change(12, fill_method=None),
         "price_to_rent_ratio": panel["zhvi"] / (12.0 * panel["zori"]),
+        "price_to_rent_ratio_zillow": (
+            panel["zhvi"] / (12.0 * panel["zori"])
+        ),
+        "implied_gross_rent_yield": (
+            12.0 * panel["zori"] / panel["zhvi"]
+        ),
         "mortgage_payment_to_rent_10pct_down": (
             panel["mortgage_payment_10pct_down"] / panel["zori"]
         ),

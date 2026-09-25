@@ -3,15 +3,14 @@ import json
 import pytest
 
 from src.common.config import SourceConfig
+from src.geography.comparable_counties import (
+    COMPARABLE_LAUS_SERIES_IDS,
+    PRIMARY_LAUS_SERIES_IDS,
+)
 from src.ingestion.download import _download_bls
 
 
-SERIES_IDS = (
-    "LAUCN060370000000003",
-    "LAUCN060370000000004",
-    "LAUCN060370000000005",
-    "LAUCN060370000000006",
-)
+SERIES_IDS = PRIMARY_LAUS_SERIES_IDS
 
 
 class _Response:
@@ -30,7 +29,8 @@ class _Session:
         self.body = body
 
     def post(self, *args, **kwargs):
-        return _Response(self.body)
+        body = self.body(kwargs["json"]) if callable(self.body) else self.body
+        return _Response(body)
 
 
 def _source():
@@ -47,7 +47,7 @@ def _source():
     )
 
 
-def _series(series_ids=SERIES_IDS):
+def _series(series_ids=COMPARABLE_LAUS_SERIES_IDS):
     return [
         {
             "seriesID": series_id,
@@ -67,10 +67,12 @@ def _series(series_ids=SERIES_IDS):
 def test_bls_download_records_request_and_latest_observation(
     tmp_path, monkeypatch
 ):
-    body = {
-        "status": "REQUEST_SUCCEEDED",
-        "Results": {"series": _series()},
-    }
+    def body(request_payload):
+        return {
+            "status": "REQUEST_SUCCEEDED",
+            "Results": {"series": _series(tuple(request_payload["seriesid"]))},
+        }
+
     monkeypatch.setattr(
         "src.ingestion.download.requests.Session",
         lambda: _Session(body),
@@ -82,12 +84,18 @@ def test_bls_download_records_request_and_latest_observation(
     payload = json.loads(output.read_text())
 
     assert payload["source_url"].startswith("https://api.bls.gov/")
-    assert payload["series_ids"] == list(SERIES_IDS)
-    assert payload["requests"][0]["seriesid"] == list(SERIES_IDS)
+    assert payload["series_ids"] == list(COMPARABLE_LAUS_SERIES_IDS)
+    assert len(payload["requests"]) == 2
+    assert max(len(request["seriesid"]) for request in payload["requests"]) == 25
+    assert [
+        series_id
+        for request in payload["requests"]
+        for series_id in request["seriesid"]
+    ] == list(COMPARABLE_LAUS_SERIES_IDS)
     assert metadata["request_start_year"] == "2025"
     assert metadata["request_end_year"] == "2025"
     assert metadata["response_latest_observation"] == "2025-01-31"
-    assert metadata["response_observation_count"] == "4"
+    assert metadata["response_observation_count"] == "32"
 
 
 def test_bls_download_rejects_missing_series(tmp_path, monkeypatch):
@@ -111,24 +119,27 @@ def test_bls_download_rejects_missing_series(tmp_path, monkeypatch):
 def test_bls_download_preserves_published_missing_values(
     tmp_path, monkeypatch
 ):
-    series = _series()
-    series[0]["data"].append(
-        {
-            "year": "2025",
-            "period": "M10",
-            "value": "-",
-            "footnotes": [
+    def body(request_payload):
+        series = _series(tuple(request_payload["seriesid"]))
+        if request_payload["seriesid"][0] == COMPARABLE_LAUS_SERIES_IDS[0]:
+            series[0]["data"].append(
                 {
-                    "code": "X",
-                    "text": "Data unavailable",
+                    "year": "2025",
+                    "period": "M10",
+                    "value": "-",
+                    "footnotes": [
+                        {
+                            "code": "X",
+                            "text": "Data unavailable",
+                        }
+                    ],
                 }
-            ],
+            )
+        return {
+            "status": "REQUEST_SUCCEEDED",
+            "Results": {"series": series},
         }
-    )
-    body = {
-        "status": "REQUEST_SUCCEEDED",
-        "Results": {"series": series},
-    }
+
     monkeypatch.setattr(
         "src.ingestion.download.requests.Session",
         lambda: _Session(body),
@@ -142,4 +153,4 @@ def test_bls_download_preserves_published_missing_values(
     assert payload["responses"][0]["Results"]["series"][0]["data"][1][
         "value"
     ] == "-"
-    assert metadata["response_observation_count"] == "4"
+    assert metadata["response_observation_count"] == "32"

@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from src.common.variable_metadata import enrich_variable_metadata
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -35,6 +37,8 @@ class SourceConfig:
     expected_columns: tuple[str, ...] = ()
     series_ids: tuple[str, ...] = ()
     rolling_window_months: int | None = None
+    provider_vintage: str = ""
+    provider_release_date: str = ""
     methodology_notes: str = ""
     license_or_use_notes: str = ""
     revision_notes: str = ""
@@ -167,18 +171,21 @@ def load_config(root: Path = ROOT) -> ProjectConfig:
     ids = [source.source_id for source in sources]
     if len(ids) != len(set(ids)):
         raise ValueError("source_id values must be unique")
+    variables = [
+        _classified_variable(item)
+        for item in [*variable_doc["variables"], *version_a_variable_doc["variables"]]
+    ]
+    metadata_path = root / "config" / "variable_metadata.csv"
+    if metadata_path.exists() or pipeline_doc.get("require_variable_metadata", False):
+        import pandas as pd
+
+        variables = enrich_variable_metadata(pd.DataFrame(variables), root).to_dict("records")
     return ProjectConfig(
         root=root,
         verified_at=str(source_doc["verified_at"]),
         sources=sources,
         pipeline=pipeline_doc,
-        variables=tuple(
-            _classified_variable(item)
-            for item in [
-                *variable_doc["variables"],
-                *version_a_variable_doc["variables"],
-            ]
-        ),
+        variables=tuple(variables),
         geographies=tuple(geography_doc["geographies"]),
         crosswalk_version=str(geography_doc["crosswalk_version"]),
     )

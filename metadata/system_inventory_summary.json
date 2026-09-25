@@ -1,0 +1,20 @@
+{
+  "active_physical_analytical_databases": 1,
+  "provider_source_datasets": 69,
+  "configured_versioned_variables": 558,
+  "general_variables": 375,
+  "version_a_variables": 67,
+  "version_b_variables": 58,
+  "version_c_variables": 58,
+  "analytics_base_tables": 22,
+  "analytics_views": 15,
+  "final_parquet_files": 26,
+  "estimate_or_constructed_variable_rows": 277,
+  "gap_inventory_rows": 10,
+  "latest_refresh_report_rows": 1,
+  "generated_from": {
+    "database": "database/housing.duckdb",
+    "catalog": "metadata/data_catalog.csv",
+    "dictionary": "metadata/data_dictionary.csv"
+  }
+}

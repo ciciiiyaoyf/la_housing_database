@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+from uuid import uuid4
 
 import duckdb
 import pandas as pd
@@ -14,7 +16,14 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 import yaml
 
+from src.cleaning.ahs_table_creator import SOURCE_ID as AHS_TABLE_CREATOR_SOURCE_ID
+from src.cleaning.sipp import SOURCE_IDS as SIPP_SOURCE_IDS
 from src.common.config import ProjectConfig, SourceConfig
+from src.housing_finance_monthly.metadata import (
+    PRODUCT_SOURCE_IDS,
+    register_monthly_finance_contracts,
+)
+from src.reporting.system_inventory import build_system_inventory
 
 
 HUD_USPS_SOURCE_ID = "hud_usps_ncwm_quarterly"
@@ -39,10 +48,7 @@ ACS_RENTAL_AVAILABILITY_VARIABLE_IDS = (
     "acs_for_rent_vacant_units_moe",
     "acs_rental_availability_rate",
 )
-RENTAL_INVENTORY_STATUS = (
-    "Partially implemented – ACS annual availability and HUD/USPS quarterly "
-    "proxies; monthly listings unavailable"
-)
+RENTAL_INVENTORY_STATUS = "Not implemented"
 HUD_USPS_SOURCE_MANIFEST_PATH = "metadata/hud_usps_source_manifest.csv"
 HUD_USPS_HISTORICAL_QUARANTINE_MANIFEST_PATH = (
     "metadata/hud_usps_quarantine_manifest.csv"
@@ -131,25 +137,25 @@ DOCX_VARIABLES = [
         "Rental price increase in non-rent-controlled locations",
         sheet_variable_name="Rental price increase in non–rent-controlled locations",
         why_hard="Public rent indices do not flag rent-control status",
-        best_public_workaround="Use Zillow ZORI and exclude geographies by construction-year share (post-1995 / post-2005 proxy) or interact with policy exposure.",
+        best_public_workaround="Use Zillow ZORI with the methodology-listed ACS B25032/B25127 renter structure and year-built inputs. Preserve lower/upper structural exposure bounds because published ACS bins cannot recover an exact rolling 15-year cutoff; construct an exact point exposure only after a complete dated property-level policy and exemption crosswalk is available.",
     ),
     _req(
         "Difficult Variables",
         "Eviction trends (high-frequency, consistent)",
         why_hard="County coverage uneven; time consistency varies",
-        best_public_workaround="Eviction Lab ETS where available; otherwise annual filings with interpolation.",
+        best_public_workaround="Use Eviction Lab ETS only where the official release contains the geography; otherwise retain official annual modeled estimates at native annual frequency without interpolation.",
     ),
     _req(
         "Difficult Variables",
         "New Apartments Completed (county time series)",
         why_hard="Clean completions data not consistently public at county level",
-        best_public_workaround="Proxy with lagged multifamily permits (5+) using completion lag structure; lags uncertain.",
+        best_public_workaround="Use separately labeled Central and Slow distributed-lag scenarios from 5+ unit permits, with the approved bucket weights and complete-lag missingness rules.",
     ),
     _req(
         "Difficult Variables",
         "Multifamily Under Construction",
         why_hard="No public stock measure at county/state level",
-        best_public_workaround="Build pipeline stock: cumulative MF permits minus assumed completions over rolling window.",
+        best_public_workaround="Build separately labeled Central and Slow stock-flow scenarios from current permits, scenario completions, and every surviving pre-output permit cohort; never initialize the opening stock to zero.",
     ),
     _req(
         "Difficult Variables",
@@ -234,37 +240,53 @@ def _impl(
 
 IMPLEMENTATION = {
     "Aggregate Home Equity": _impl(
-        "Proxy implemented",
-        "census_acs5_finance|census_acs5_pums_housing_ca|census_tract_to_puma_2010|census_tract_to_puma_2020|fhfa_nmdb_joint_distribution|fhfa_nmdb_ca_upb|freddie_mac_pmms|bls_cpi_u_us_city_average",
-        "acs_implied_owner_occupied_home_equity_mortgaged_benchmark|acs_implied_owner_occupied_home_equity_all_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark|acs_implied_owner_occupied_home_equity_all_real_2024_benchmark",
-        "analytics.housing_finance_benchmark",
-        "acs_implied_owner_occupied_home_equity_all_benchmark",
-        "proxy",
-        "Version A is authoritative: published ACS matched-universe owner values less exact-date California-calibrated first-mortgage debt, with mortgage-free value added in full for the all-owner measure. Calibrated debt and equity remain null when an exact-date, universe-compatible California NMDB UPB control is unavailable. The older B25106 midpoint proxy remains only as a labeled legacy modeled scenario.",
+        "Partially implemented",
+        "census_acs5_finance|census_acs5_pums_housing_ca|census_tract_to_puma_2010|census_tract_to_puma_2020|fhfa_nmdb_joint_distribution|fhfa_nmdb_ca_upb|freddie_mac_pmms|bls_cpi_u_us_city_average|census_sipp_2025_state_wealth_2024",
+        "acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_benchmark|acs_implied_owner_occupied_home_equity_all_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark|acs_implied_owner_occupied_home_equity_all_real_2024_benchmark|sipp_ca_aggregate_positive_home_equity_sensitivity",
+        "analytics.housing_finance_benchmark|analytics.state_annual_controls",
+        "acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark|sipp_ca_aggregate_positive_home_equity_sensitivity",
+        "scenario sensitivity|published-table sensitivity|schema only",
+        "The methodology-authorized raw PMMS 20/25/30-year debt sensitivities produce matching mortgaged-owner and all-owner equity scenarios for all 58 California counties. They are explicit uncalibrated scenarios. The official 2025 SIPP state wealth table now also produces one separately labeled 2024 California positive-home-equity sensitivity of $4,913,341,020,000 from rounded published inputs. It is conditional on positive equity, truncates the conditional mean to net worth below the 99th percentile, and has no valid covariance-based aggregate standard error. It is not the preferred matched-universe county equity target. The calibrated nominal and real equity targets remain null until an exact-date, owner-occupied first-lien California UPB control is available. The older B25106 midpoint proxy remains only as a separately labeled legacy modeled scenario.",
     ),
     "Aggregate Mortgage Debt (outstanding balances)": _impl(
-        "Proxy implemented",
-        "census_acs5_finance|census_acs5_pums_housing_ca|census_tract_to_puma_2010|census_tract_to_puma_2020|fhfa_nmdb_joint_distribution|fhfa_nmdb_ca_upb|freddie_mac_pmms",
-        "acs_implied_first_mortgage_balance_raw_benchmark|acs_implied_first_mortgage_balance_cal_benchmark|acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark|acs_first_mortgage_debt_per_owner_unit_benchmark|acs_first_mortgage_debt_per_capita_benchmark|acs_first_mortgage_debt_to_owner_income_benchmark",
-        "analytics.housing_finance_benchmark",
-        "acs_implied_first_mortgage_balance_cal_benchmark",
-        "proxy",
-        "Version A is authoritative: direct ACS B25089/B25081 levels, weighted PUMS first-mortgage P&I parameters, an exact-date joint NMDB rate-term distribution, and a compatible California UPB control. PMMS is only a labeled sensitivity fallback. Calibrated values remain null without the compatible control. The older B25106 midpoint/80%/25-year proxy is legacy.",
+        "Partially implemented",
+        "census_acs5_finance|census_acs5_pums_housing_ca|census_tract_to_puma_2010|census_tract_to_puma_2020|fhfa_nmdb_joint_distribution|fhfa_nmdb_ca_upb|freddie_mac_pmms|census_sipp_2025_state_debt_2024|census_ahs_2023_ca_table14a",
+        "acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark|acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark|acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark|acs_implied_first_mortgage_balance_raw_benchmark|acs_implied_first_mortgage_balance_cal_benchmark|acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark|acs_first_mortgage_debt_per_owner_unit_benchmark|acs_first_mortgage_debt_per_capita_benchmark|acs_first_mortgage_debt_to_owner_income_benchmark|sipp_ca_aggregate_primary_residence_debt_sensitivity|ahs_ca_reported_case_primary_mortgage_outstanding_principal_proxy",
+        "analytics.housing_finance_benchmark|analytics.state_annual_controls",
+        "acs_implied_first_mortgage_balance_cal_benchmark|sipp_ca_aggregate_primary_residence_debt_sensitivity|ahs_ca_reported_case_primary_mortgage_outstanding_principal_proxy",
+        "scenario sensitivity|published-table sensitivity|reported-case public proxy|schema only",
+        "Version A publishes explicit raw PMMS 20/25/30-year debt sensitivities for all 58 California counties while retaining the composite raw envelope. The official 2025 SIPP state debt table adds a broader 2024 California Home Debt sensitivity of $1,627,458,504,000. The official 2023 California AHS Table 14A adds a reported-case primary-mortgage proxy of $1,413,679,720,000 from 3,381,200 reported-bin households times the $418,100 conditional mean. AHS excludes 1,203,800 regular-mortgage households with no reported balance (26.2540 percent), does not make a missing-at-random extrapolation, may not match legal first-lien status, and has no covariance-based aggregate uncertainty measure. Neither public sensitivity matches the current Version A target universe and 2022-07-01 reference date exactly. Calibrated debt and normalized ratios remain null; the older B25106 proxy remains a separate legacy construction.",
     ),
     "Monthly Mortgage Payment": _impl("Scenario implemented", "", "mortgage_payment_3_5pct_down|mortgage_payment_10pct_down|mortgage_payment_20pct_down", "analytics.county_monthly_panel", "mortgage_payment_3_5pct_down|mortgage_payment_10pct_down|mortgage_payment_20pct_down", "scenario assumption", "Principal-and-interest scenarios only; excludes taxes, insurance, HOA, maintenance, and PMI."),
     "Homebuying Costs - Downpayment": _impl("Scenario implemented", "", "down_payment_3_5pct|down_payment_10pct|down_payment_20pct", "analytics.county_monthly_panel", "down_payment_3_5pct|down_payment_10pct|down_payment_20pct", "scenario assumption", "Scenario percentages of Redfin county median sale price."),
     "Homebuying Costs - Closing Costs": _impl("Scenario implemented", "", "closing_cost_2pct|closing_cost_3pct|closing_cost_5pct", "analytics.county_monthly_panel", "closing_cost_2pct|closing_cost_3pct|closing_cost_5pct", "scenario assumption", "Scenario percentages of Redfin county median sale price; not observed closing-cost data."),
-    "Homebuying Costs - Property Insurance": _impl("Not implemented", "", "", "", "", "deferred", "The sheet specifies a CA state NAIC series; NAIC/state homeowners-insurance data is not loaded yet."),
-    "Rental price increase in non-rent-controlled locations": _impl("Not implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "proxy input", "ZORI is loaded, but the sheet workaround also requires construction-year/rent-control exposure filters that are not implemented."),
-    "Eviction trends (high-frequency, consistent)": _impl("Implemented", "eviction_lab_county_estimates", "eviction_lab_filings_estimate_annual|eviction_lab_filings_rate_estimate_annual|eviction_lab_households_threatened_estimate_annual|eviction_lab_households_threatened_rate_estimate_annual", "analytics.fact_housing_observation|analytics.county_annual_controls", "eviction_lab_filings_rate_estimate_annual|eviction_lab_households_threatened_rate_estimate_annual", "modeled", "Eviction Lab ETS does not cover Los Angeles County, and the official observed/validated county analysis files do not contain LA County rows. The implemented source is the official Eviction Lab annual county modeled estimates for 2000-2018, with source observation flags and 95% credible interval bounds preserved. Do not treat as monthly/high-frequency ETS or direct local court filings."),
-    "New Apartments Completed (county time series)": _impl("Proxy input only", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "proxy input", "The sheet workaround is lagged multifamily permits with an explicit completion-lag structure; permits are loaded, but no completion proxy is calculated."),
-    "Multifamily Under Construction": _impl("Proxy input only", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "proxy input", "The sheet workaround is cumulative MF permits minus assumed completions over a rolling window; permit inputs are loaded, but the stock pipeline calculation is not implemented."),
-    "Single-Family Rental Construction": _impl("Proxy input only", "census_bps_county|census_bps_state", "permits_1_unit", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_1_unit", "proxy input", "The sheet workaround needs SFR permits combined with investor/rental-growth tract logic; only 1-unit permits are loaded."),
-    "Net Change in Occupied Apartments (quarterly)": _impl("Partially implemented", "census_acs_5year_b25003", "acs_renter_occupied_units", "analytics.county_annual_controls|analytics.fact_housing_observation", "acs_renter_occupied_units", "observed", "ACS annual 5-year renter-occupied units are available; quarterly net change is not created."),
-    "Price-to-Income Ratio (quarterly/local)": _impl("Partially implemented", "census_acs_5year_b19013|census_acs_5year_b25077", "county_annual_price_to_income_acs", "analytics.county_annual_controls", "county_annual_price_to_income_acs", "constructed", "Annual ACS ratio is implemented; quarterly/local alternatives are deferred."),
+    "Homebuying Costs - Property Insurance": _impl("Implemented", "ca_doi_residential_property_part_i|ca_dir_california_cpi", "ca_homeowners_written_premium|ca_homeowners_written_exposures|ca_homeowners_avg_written_premium|ca_cpi_u_all_items_annual|ca_homeowners_avg_written_premium_real|ca_homeowners_avg_written_premium_yoy|ca_homeowners_avg_written_premium_monthly_control", "analytics.fact_housing_observation|analytics.state_annual_controls|analytics.state_monthly_controls", "ca_homeowners_avg_written_premium|ca_cpi_u_all_items_annual|ca_homeowners_avg_written_premium_real|ca_homeowners_avg_written_premium_monthly_control", "observed annual|constructed annual|carried annual control", "Official California DOI Homeowners Multi-Peril annual average premium is deflated with official California DIR annual CPI-U as nominal_premium_year * CPI_2023 / CPI_year. The 16 real values cover 2008-2023 and the 2023 real value equals nominal by construction. CPI and real premium remain annual. The separately authorized nominal calendar-year monthly control is flagged carried_annual_control and mixed_frequency_control with is_interpolated=false; it is neither observed monthly nor Los Angeles County insurance."),
+    "Rental price increase in non-rent-controlled locations": _impl(
+        "Partially implemented",
+        "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa|census_acs_5year_b25032|census_acs_5year_b25127",
+        "zori_smoothed_sa|acs_renter_occupied_1_unit_share|acs_renter_occupied_2_to_4_units_share|acs_renter_occupied_5_plus_units_share|acs_renter_occupied_mobile_other_share|acs_renter_recent_construction_share_lower_bound|acs_renter_recent_construction_share_upper_bound|noncontrolled_exposure_share_structural_proxy_lower_bound|noncontrolled_exposure_share_structural_proxy_upper_bound|exposure_adjusted_noncontrolled_rent_growth_structural_proxy_lower_bound|exposure_adjusted_noncontrolled_rent_growth_structural_proxy_upper_bound",
+        "analytics.county_monthly_panel|analytics.zip_monthly_panel|analytics.county_annual_controls|analytics.zcta_annual_controls",
+        "noncontrolled_exposure_share_structural_proxy_lower_bound|noncontrolled_exposure_share_structural_proxy_upper_bound|exposure_adjusted_noncontrolled_rent_growth_structural_proxy_lower_bound|exposure_adjusted_noncontrolled_rent_growth_structural_proxy_upper_bound",
+        "observed rent index|constructed structural proxy bounds|annual exposure-scaled sensitivity",
+        "The methodology-listed official ACS B25032/B25127 inputs and eight same-vintage annual structure/age/exposure constructions are implemented at county and Census-ZCTA geography; the structural exposure bounds are null before 2020 and are not legal eligibility determinations. Five 2020-2024 annual Los Angeles County sensitivities multiply the exact December county ZORI year-over-year change by the same-ending-year structural lower and upper exposure bounds without monthly carry-forward. These are not observed rent growth inside legally noncontrolled units. Exact noncontrolled_exposure_share and exact exposure-adjusted growth remain unavailable until a complete dated property-level policy/exemption crosswalk exists. The official-source scaffold is not applied, and Census ZCTAs are not USPS postal ZIPs.",
+    ),
+    "Eviction trends (high-frequency, consistent)": _impl("Partially implemented", "eviction_lab_county_estimates", "eviction_lab_filings_estimate_annual|eviction_lab_filings_rate_estimate_annual|eviction_lab_households_threatened_estimate_annual|eviction_lab_households_threatened_rate_estimate_annual", "analytics.fact_housing_observation|analytics.county_annual_controls", "eviction_lab_filings_rate_estimate_annual|eviction_lab_households_threatened_rate_estimate_annual", "modeled annual", "The official ETS Version 3.0 release was checked on 2026-08-16 and contains neither Los Angeles nor any California geography; the official observed/validated county analysis files also contain no LA County rows. The implementation therefore retains official Eviction Lab annual county modeled estimates for 2000-2018, with source-observation flags and 95% credible interval bounds preserved. No annual value is interpolated or expanded to monthly frequency, and the series is not direct local court filing data."),
+    "New Apartments Completed (county time series)": _impl("Proxy implemented", "census_bps_county", "new_apartments_completed_proxy_central|new_apartments_completed_proxy_slow", "analytics.county_monthly_panel|analytics.renter_market_monthly", "new_apartments_completed_proxy_central|new_apartments_completed_proxy_slow", "modeled Central and Slow scenarios", "Central distributes 20% of each 5+ permit cohort equally over lags 12-17, 55% over lags 18-23, and 25% over lags 24-30; Slow distributes 20% over lags 18-23, 50% over lags 24-29, and 30% over lags 30-36. Central has 288 and Slow 282 non-null LA County months. Every required lag must be present, missing permits are never zero-filled, and there is no unsuffixed best estimate. These are panel-derived scenario fields exposed in the county panel and renter view; they are intentionally not materialized as native rows in analytics.fact_housing_observation."),
+    "Multifamily Under Construction": _impl("Proxy implemented", "census_bps_county", "multifamily_under_construction_proxy_central|multifamily_under_construction_proxy_slow", "analytics.county_monthly_panel|analytics.renter_market_monthly", "multifamily_under_construction_proxy_central|multifamily_under_construction_proxy_slow", "modeled Central and Slow scenarios", "Each scenario follows prior stock + current 5+ permits - scenario completions. Opening stock includes every permit cohort with positive uncompleted weight in a complete 30-month Central or 36-month Slow active window rather than starting at zero. Central has 289 and Slow 283 non-null LA County months; missing active-window inputs propagate to null and no unsuffixed best estimate is emitted. These are panel-derived scenario fields exposed in the county panel and renter view; they are intentionally not materialized as native rows in analytics.fact_housing_observation."),
+    "Single-Family Rental Construction": _impl("Not implemented", "census_bps_county|census_bps_state", "permits_1_unit", "analytics.fact_housing_observation|analytics.county_monthly_panel", "", "closed / not pursued", "The approved decision keeps this target closed. Generic one-unit permits do not identify rental tenure or investor intent, and the repository does not invent an investor/rental-growth tract classifier. Reopen only if a qualifying official public source and explicit method are approved."),
+    "Net Change in Occupied Apartments (quarterly)": _impl("Partially implemented", "census_acs_5year_b25003", "net_change_occupied_apartments_annual|zcta_renter_occupied_units_vintage_change_annual", "analytics.county_annual_controls|analytics.zcta_annual_controls", "net_change_occupied_apartments_annual", "proxy", "Fourteen consecutive-vintage annual county differences are implemented for 2011-2024, and 3,562 exact-ZCTA differences are implemented for 2012-2024. Both are panel-only constructions from direct acs_renter_occupied_units inputs and are not fact observations. Adjacent ACS five-year estimates overlap for four survey years, so neither result is a one-year flow; no quarterly timing is created, and Census ZCTAs are not postal ZIPs."),
+    "Price-to-Income Ratio (quarterly/local)": _impl("Partially implemented", "census_acs_5year_b19013|census_acs_5year_b25077", "county_annual_price_to_income_acs|zcta_annual_price_to_income_acs", "analytics.county_annual_controls|analytics.zcta_annual_controls", "county_annual_price_to_income_acs", "constructed", "Fifteen annual LA County ACS ratios are implemented for 2010-2024. Matched-vintage ratios are also implemented for the 274 configured Census ZCTAs for 2011-2024, with six source-null ZCTA-vintages preserved and 3,830 non-null ratios. Both ratios are panel-only constructions rather than fact observations. No quarterly timing is invented, and Census ZCTAs are not postal ZIPs."),
     "Natural Population Change (quarterly)": _impl("Implemented with quarterly allocation", "cdc_wonder_natality_county|cdc_wonder_ucd_1999_2020_la_county|cdc_wonder_ucd_2018_2024_county", "cdc_wonder_live_births_annual|cdc_wonder_deaths_annual|natural_population_change_annual|natural_population_change_quarterly_allocated", "analytics.fact_housing_observation|analytics.county_annual_controls|analytics.county_quarterly_controls", "natural_population_change_quarterly_allocated", "proxy", "Annual CDC WONDER births and deaths are loaded as observed annual county facts; annual natural population change is births minus deaths. The quarterly series evenly allocates the annual total to four quarters and is flagged as imputed/interpolated timing, not observed quarterly vital events."),
-    "Net Immigration / Migration (county)": _impl("Implemented", "irs_soi_county_migration", "irs_soi_net_migration_exemptions|irs_soi_net_migration_returns|irs_soi_net_migration_agi", "analytics.county_annual_controls|analytics.fact_housing_observation", "irs_soi_net_migration_exemptions", "constructed", "Annual IRS SOI in-migration minus out-migration is implemented. Exemptions approximate people and are the preferred public proxy; returns approximate tax filing units; AGI captures income composition. This is migration based on tax return address changes, not complete immigration."),
-    "Sheltered vs Unsheltered Homelessness (high frequency)": _impl("Not implemented", "", "", "", "", "deferred", "The sheet workaround specifies annual HUD PIT; HUD PIT/CoC data is not loaded."),
+    "Net Immigration / Migration (county)": _impl(
+        "Implemented",
+        "irs_soi_county_migration|census_pep_county_population_v2019|census_pep_county_population_v2025|census_acs_5year_b05002|census_acs_5year_b07001",
+        "irs_soi_net_migration_exemptions|irs_soi_net_migration_returns|irs_soi_net_migration_agi|census_pep_county_population_annual|net_exemption_rate|acs_foreign_born_population|acs_foreign_born_population_moe|acs_moved_from_abroad_past_year|acs_moved_from_abroad_past_year_moe",
+        "analytics.county_annual_controls|analytics.zcta_annual_controls|analytics.fact_housing_observation",
+        "irs_soi_net_migration_exemptions|census_pep_county_population_annual|net_exemption_rate|acs_foreign_born_population|acs_moved_from_abroad_past_year",
+        "constructed IRS net values|observed ACS survey supplements",
+        "Annual IRS SOI in-migration minus out-migration is implemented, with exemptions as the preferred tax-return people proxy and returns/AGI retained as companions. net_exemption_rate divides each interval's net exemptions by official Census PEP resident population for that same ending year and multiplies by 1,000; it never uses prior-year or ACS population and remains annual. The methodology recommends ACS foreign-born and residence-one-year-ago county supplements and lists the Census ACS source family; after user approval, those concepts are operationalized with official B05002 and B07001. The foreign-born field is a population stock and the moved-from-abroad field is gross current-resident mobility; both remain separate annual five-year survey estimates with their published 90-percent margins of error. Neither is net migration or a replacement for IRS SOI; five-year vintages overlap and are not expanded to monthly frequency. Census-ZCTA rows are a separately labeled repository extension, never postal ZIPs. The IRS 2022-2023 interval remains explicitly flagged as the provider's enhanced-matching/new-series methodology break.",
+    ),
+    "Sheltered vs Unsheltered Homelessness (high frequency)": _impl("Partially implemented", "hud_pit_coc_2007_2025", "hud_pit_overall_homeless_annual|hud_pit_sheltered_homeless_annual|hud_pit_unsheltered_homeless_annual", "analytics.fact_housing_observation|analytics.coc_annual_controls", "hud_pit_overall_homeless_annual|hud_pit_sheltered_homeless_annual|hud_pit_unsheltered_homeless_annual", "observed annual control", "The official HUD PIT annual 2007-2025 CoC source and explicit CA-600/606/607/612 project composite are implemented. The source is annual point-in-time only, the composite is not Los Angeles County, and row-level sheltered-only, partial-unsheltered, and no-count records remain analytically incomplete. Explicit geography-year rows remain in CoC annual controls even when all three analytical values are null; the requested high-frequency target is still unavailable."),
     "Home Price Index": _impl("Implemented", "fhfa_hpi_state_purchase_only|fhfa_hpi_metro_purchase_only|fhfa_hpi_county_annual", "fhfa_hpi_ca_purchase_only_nsa|fhfa_hpi_ca_purchase_only_sa|fhfa_hpi_la_metropolitan_division_purchase_only_nsa|fhfa_hpi_la_metropolitan_division_purchase_only_sa|fhfa_hpi_la_county_all_transactions_nsa_annual", "analytics.state_quarterly_panel|analytics.metro_quarterly_controls|analytics.county_annual_controls|analytics.fact_housing_observation", "fhfa_hpi_ca_purchase_only_nsa|fhfa_hpi_la_county_all_transactions_nsa_annual", "observed", "Aligned with the sheet's FHFA HPI source. Zillow ZHVI remains available separately but is not counted here as the sheet HPI source."),
     "Median Sale Price (SF & all homes)": _impl("Implemented", "redfin_county_monthly|redfin_zip_monthly", "median_sale_price|redfin_zip_median_sale_price_nsa_rolling_3m", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "median_sale_price", "observed", "ZIP Redfin values are overlapping rolling-three-month NSA Key Metrics."),
     "Existing Homes for Sale (Inventory)": _impl("Implemented", "redfin_county_monthly", "active_inventory", "analytics.county_monthly_panel", "active_inventory", "observed", "Aligned with the sheet's Redfin Data Center stock measure at county level. Redfin ZIP active listings are retained separately but not used to satisfy this inventory row."),
@@ -272,26 +294,16 @@ IMPLEMENTATION = {
     "New Listings": _impl("Implemented", "redfin_county_monthly|redfin_zip_monthly", "new_listings|redfin_zip_new_listings_rolling_3m", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "new_listings", "observed", "ZIP methodology is overlapping rolling-three-month."),
     "Homes Sold / Sales Volume": _impl("Implemented", "redfin_county_monthly|redfin_zip_monthly", "homes_sold|redfin_zip_homes_sold_rolling_3m", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "homes_sold", "observed", "ZIP methodology is overlapping rolling-three-month."),
     "Mortgage Rates (30Y FRM)": _impl("Implemented", "freddie_mac_pmms", "mortgage_rate_30y_weekly|mortgage_rate_30y_monthly_average|mortgage_rate_30y_monthly_median|mortgage_rate_30y_month_end|mortgage_rate_30y_observation_count", "analytics.fact_housing_observation|analytics.county_monthly_panel", "mortgage_rate_30y_monthly_average", "observed|constructed", "National PMMS, not LA-specific."),
-    "Single-Family Housing Starts (permits)": _impl("Proxy implemented", "census_bps_county|census_bps_state", "permits_1_unit", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_1_unit", "proxy", "Census BPS permits are authorizations, not starts or completions."),
+    "Single-Family Housing Starts (permits)": _impl("Proxy implemented", "census_bps_county|census_bps_state|census_bps_county_annual_final|census_pep_county_housing_units_v2019|census_pep_county_housing_units_v2025", "permits_1_unit|permits_1_unit_annual_final|census_pep_county_housing_units_annual|permits_1_unit_per_1000_housing_units", "analytics.fact_housing_observation|analytics.county_monthly_panel|analytics.county_annual_controls", "permits_1_unit|permits_1_unit_per_1000_housing_units", "authorization proxy|constructed annual rate", "Census BPS permits are authorizations, not starts or completions. The annual normalized rate divides final annual one-unit permits by the same-year Census PEP July 1 housing-unit estimate and multiplies by 1,000. It is retained annually and never constructed from monthly permits or an ACS/lagged denominator."),
     "Market Rent Index (ZORI)": _impl("Implemented", "zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "zori_smoothed_sa", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "zori", "observed", "Active ZORI is smoothed, seasonally adjusted, all homes plus multifamily."),
     "Rent Growth (YoY / MoM)": _impl("Implemented", "", "zori_growth_mom|zori_growth_yoy", "analytics.county_monthly_panel", "zori_growth_mom|zori_growth_yoy", "constructed", "Calculated from seasonally adjusted ZORI with initial missing months preserved."),
     "Rental Inventory": _impl(
         RENTAL_INVENTORY_STATUS,
-        "|".join((*ACS_RENTAL_AVAILABILITY_SOURCE_IDS, HUD_USPS_SOURCE_ID)),
-        "|".join(
-            (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
-        ),
-        "|".join(
-            (
-                "analytics.fact_housing_observation",
-                "analytics.county_annual_controls",
-                *HUD_USPS_RESTRICTED_TABLES,
-            )
-        ),
-        "|".join(
-            (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
-        ),
-        "separate annual and quarterly proxies",
+        "",
+        "",
+        "",
+        "",
+        "unavailable target",
         "The annual ACS rental-availability proxy is for-rent vacant units "
         "divided by renter-occupied plus for-rent vacant units, using matched "
         "B25003 and B25004 estimates. Component 90% margins of error are "
@@ -308,21 +320,22 @@ IMPLEMENTATION = {
         "remain access-controlled under the HUD-USPS sublicense. This is not "
         "true rental-listing inventory; ZORI is not inventory (it is a rent "
         "index), and Redfin for-sale active listings are not a valid substitute. "
-        "The monthly rental-listing series remains missing at documented source "
-        "and license acquisition. "
+        "The governing methodology names no approved source for the true monthly "
+        "rental-listing series, so the blocker is a methodology/source-identification "
+        "decision rather than a credential or coding step. "
         "The former derived package file was deleted; its historical "
         "quarantine manifest is superseded and is not an active input.",
     ),
     "Rental Vacancy (HVS / CPS)": _impl("Implemented", "census_hvs_state_rental_vacancy|census_hvs_metro_rental_vacancy_2005_2014|census_hvs_metro_rental_vacancy_2015_2025|census_hvs_metro_rental_vacancy_2026", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "analytics.state_quarterly_panel|analytics.metro_quarterly_controls", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "observed", "State/metro quarterly only; not LA County."),
     "Multifamily Permits (5+ units)": _impl("Implemented", "census_bps_county|census_bps_state", "permits_5_plus_units", "analytics.fact_housing_observation|analytics.county_monthly_panel", "permits_5_plus_units", "observed", "Supply-pipeline authorization measure; not starts or completions."),
-    "Price-to-Rent Ratio": _impl("Partially implemented - alternate source", "zillow_county_zhvi|zillow_county_zori_smoothed_sa", "price_to_rent_ratio", "analytics.county_monthly_panel", "price_to_rent_ratio", "constructed", "The active monthly panel ratio uses ZHVI/ZORI. The sheet specifies FHFA/ZORI; that version needs an explicit FHFA index-to-rent construction choice and is not yet implemented."),
-    "Housing Turnover": _impl("Partially implemented", "redfin_county_monthly", "sales_to_inventory_ratio|inventory_to_sales_ratio", "analytics.county_monthly_panel", "sales_to_inventory_ratio|inventory_to_sales_ratio", "constructed", "Sales/inventory liquidity is implemented; sales/housing-stock turnover is deferred."),
+    "Price-to-Rent Ratio": _impl("Implemented", "zillow_county_zhvi|zillow_zip_zhvi|zillow_county_zori_smoothed_sa|zillow_zip_zori_smoothed_sa", "price_to_rent_ratio_zillow|price_to_rent_ratio|implied_gross_rent_yield", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "price_to_rent_ratio_zillow|implied_gross_rent_yield", "constructed", "The latest methodology governs: matched-month positive Zillow ZHVI divided by active smoothed-seasonally-adjusted ZORI is the canonical county and postal-ZIP ratio. The inverse gross-yield measure remains explicitly labeled gross."),
+    "Housing Turnover": _impl("Implemented", "redfin_county_monthly", "sales_to_inventory_ratio|inventory_to_sales_ratio", "analytics.county_monthly_panel", "sales_to_inventory_ratio|inventory_to_sales_ratio", "constructed", "The listed Redfin sales-to-inventory and inventory-to-sales liquidity proxies are implemented. They are not true sales divided by total housing stock and retain that qualification."),
     "Market Time (Days on Market)": _impl("Implemented", "redfin_county_monthly|redfin_zip_monthly", "days_on_market|redfin_zip_median_days_on_market_rolling_3m", "analytics.county_monthly_panel|analytics.zip_monthly_panel", "days_on_market|median_days_on_market", "observed", "ZIP methodology is overlapping rolling-three-month."),
     "Share of Homes with Price Drops": _impl("Implemented", "redfin_county_monthly", "price_drop_share", "analytics.county_monthly_panel", "price_drop_share", "observed", "Aligned with the sheet's Redfin Data Center monthly source at county level."),
     "Payroll Employment": _impl("Implemented", "bls_ces_la_metro", "ces_total_nonfarm_employment_sa", "analytics.metro_monthly_controls", "ces_total_nonfarm_employment_sa", "observed", "LA metro series, not county."),
     "Unemployment Rate": _impl("Implemented", "bls_laus_la_county", "unemployment_rate", "analytics.county_monthly_panel", "unemployment_rate", "observed", "LA County LAUS NSA."),
     "Labor Force": _impl("Implemented", "bls_laus_la_county", "labor_force|employment|unemployment", "analytics.county_monthly_panel", "labor_force", "observed", "LA County LAUS NSA."),
-    "Personal Income (proxy)": _impl("Partially implemented", "bea_state_personal_income|bea_county_personal_income", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "analytics.state_quarterly_panel|analytics.county_annual_controls", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "observed", "Aligned with BEA as the sheet source. State quarterly is loaded; county is annual because county quarterly personal income is limited/noisier as noted in the sheet."),
+    "Personal Income (proxy)": _impl("Implemented", "bea_state_personal_income|bea_county_personal_income", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "analytics.state_quarterly_panel|analytics.county_annual_controls", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "observed", "Aligned with BEA as the listed source. California quarterly and Los Angeles County annual series are loaded at their native frequencies; the county annual values are never relabeled as observed quarterly data."),
     "CPI / Inflation": _impl("Implemented", "bls_cpi_la_metro", "cpi_u_all_items_la_nsa", "analytics.metro_monthly_controls", "cpi_u_all_items_la_nsa", "observed", "LA metro CPI-U, not county."),
 }
 
@@ -521,7 +534,8 @@ def _version_a_catalog_records(config: ProjectConfig) -> list[dict[str, object]]
             "python -m src.benchmark.pipeline --stage download --source "
             f"{source_id}"
             + (
-                " --local-file PATH_TO_OFFICIAL_FILE --release-date YYYY-MM-DD"
+                " --start-year YYYY --local-file PATH_TO_OFFICIAL_FILE"
+                " --release-date YYYY-MM-DD"
                 if manual
                 else " --force-download"
             )
@@ -595,7 +609,11 @@ PANEL_PATHS = {
     "analytics.metro_monthly_controls": "metro_monthly_controls.parquet",
     "analytics.metro_quarterly_controls": "metro_quarterly_controls.parquet",
     "analytics.county_annual_controls": "county_annual_controls.parquet",
+    "analytics.zcta_annual_controls": "zcta_annual_controls.parquet",
     "analytics.county_quarterly_controls": "county_quarterly_controls.parquet",
+    "analytics.state_annual_controls": "state_annual_controls.parquet",
+    "analytics.state_monthly_controls": "state_monthly_controls.parquet",
+    "analytics.coc_annual_controls": "coc_annual_controls.parquet",
 }
 
 
@@ -623,7 +641,13 @@ def _fact_stats(fact: pd.DataFrame, variable_ids: str) -> dict[str, object]:
     }
 
 
-def _panel_stats(config: ProjectConfig, tables: str, columns: str) -> dict[str, object]:
+def _panel_stats(
+    config: ProjectConfig,
+    tables: str,
+    columns: str,
+    *,
+    non_null_only: bool = False,
+) -> dict[str, object]:
     table_names = [item for item in str(tables).split("|") if item in PANEL_PATHS]
     column_names = [item for item in str(columns).split("|") if item]
     parts: list[pd.DataFrame] = []
@@ -634,7 +658,14 @@ def _panel_stats(config: ProjectConfig, tables: str, columns: str) -> dict[str, 
         present = [column for column in column_names if column in panel.columns]
         if not present:
             continue
-        date_col = "observation_date" if "observation_date" in panel.columns else None
+        date_col = next(
+            (
+                candidate
+                for candidate in ("observation_date", "date")
+                if candidate in panel.columns
+            ),
+            None,
+        )
         if date_col is None:
             continue
         melted = panel[[date_col, *present]].melt(
@@ -647,6 +678,15 @@ def _panel_stats(config: ProjectConfig, tables: str, columns: str) -> dict[str, 
     if not parts:
         return {"start_date": None, "end_date": None, "row_count": 0, "missingness_summary": ""}
     work = pd.concat(parts, ignore_index=True)
+    if non_null_only:
+        work = work.loc[work["value"].notna()].copy()
+        if work.empty:
+            return {
+                "start_date": None,
+                "end_date": None,
+                "row_count": 0,
+                "missingness_summary": "",
+            }
     missing = int(work["value"].isna().sum())
     return {
         "start_date": work["observation_date"].min(),
@@ -712,6 +752,26 @@ def _benchmark_stats(
 
 
 def _best_stats(config: ProjectConfig, fact: pd.DataFrame, implementation: dict[str, str]) -> dict[str, object]:
+    non_fact_derived_columns = {
+        "net_change_occupied_apartments_annual",
+        "county_annual_price_to_income_acs",
+        "zcta_annual_price_to_income_acs",
+        "zcta_renter_occupied_units_vintage_change_annual",
+        "noncontrolled_exposure_share_structural_proxy_lower_bound",
+        "noncontrolled_exposure_share_structural_proxy_upper_bound",
+    }
+    implementation_columns = {
+        item
+        for item in str(implementation["implemented_column"]).split("|")
+        if item
+    }
+    if implementation_columns & non_fact_derived_columns:
+        return _panel_stats(
+            config,
+            implementation["implemented_table"],
+            implementation["implemented_column"],
+            non_null_only=True,
+        )
     stats = _fact_stats(fact, implementation["implemented_variable_id"])
     if stats["row_count"]:
         return stats
@@ -726,6 +786,7 @@ def _best_stats(config: ProjectConfig, fact: pd.DataFrame, implementation: dict[
         config,
         implementation["implemented_table"],
         implementation["implemented_column"],
+        non_null_only=True,
     )
 
 
@@ -995,7 +1056,13 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
             "BLOCKED: resolve the source's documented provenance or access "
             "issue before running its download workflow."
             if lifecycle_status == "Quarantined"
-            else f"python run_pipeline.py --stage download --source {source.source_id} --force-download"
+            else (
+                f"python run_pipeline.py --stage download --source "
+                f"{source.source_id} --force-download"
+                if source.auto_download
+                else f"python run_pipeline.py --stage download --source "
+                f"{source.source_id} --local-file PATH_TO_OFFICIAL_FILE"
+            )
         )
         catalog_file_row = manifest_row
         raw_path = _raw_path(config, catalog_file_row)
@@ -1020,6 +1087,10 @@ def _data_catalog(config: ProjectConfig, fact: pd.DataFrame) -> pd.DataFrame:
                     else
                     "constructed proxy (quarantined)"
                     if lifecycle_status == "Quarantined"
+                    else "constructed published-table sensitivity"
+                    if source.source_id in SIPP_SOURCE_IDS
+                    else "observed published estimates|constructed reported-case proxy"
+                    if source.source_id == AHS_TABLE_CREATOR_SOURCE_ID
                     else "observed"
                 ),
                 "manual_download_required": not source.auto_download,
@@ -1224,11 +1295,95 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
             "rationale": "The value and debt universes remain matched. No Zillow level, median-times-count construction, or B25106 payment-bin balance substitutes for the Version A benchmark.",
         },
         {
+            "methodology_id": "sipp_ca_primary_residence_debt_sensitivity_v1",
+            "variable_id": "sipp_ca_aggregate_primary_residence_debt_sensitivity",
+            "assumption": "Published-table state sensitivity formula",
+            "value": "California households (14,420 thousand) * published Home Debt holding share (32.6 percent) * published conditional mean Home Debt ($346,200) = $1,627,458,504,000 for 2024.",
+            "rationale": "This 2025 SIPP public table product is separately labeled because the inputs are rounded, the conditional mean is limited to households with total debt below the 99th percentile, and Home Debt is broader than the exact owner-occupied closed-end first-lien calibration universe. No county allocation or covariance-based aggregate standard error is created.",
+        },
+        {
+            "methodology_id": "sipp_ca_positive_home_equity_sensitivity_v1",
+            "variable_id": "sipp_ca_aggregate_positive_home_equity_sensitivity",
+            "assumption": "Published-table state sensitivity formula",
+            "value": "California households (14,420 thousand) * published Equity in Own Home holding share (51.0 percent) * published conditional mean Equity in Own Home ($668,100) = $4,913,341,020,000 for 2024.",
+            "rationale": "This 2025 SIPP public table product is separately labeled because it covers positive-equity holders, uses rounded inputs, and the conditional mean is limited to households with net worth below the 99th percentile. It is not a matched-universe county equity benchmark, and no covariance-based aggregate standard error is created.",
+        },
+        {
+            "methodology_id": "ahs_table14a_reported_case_outstanding_principal_proxy_v1",
+            "variable_id": "ahs_ca_reported_case_primary_mortgage_outstanding_principal_proxy",
+            "assumption": "AHS reported-case public calibration proxy",
+            "value": "Sum of fourteen published 2023 California reported outstanding-principal-bin household estimates (3,381.2 thousand) * 1,000 * published conditional mean outstanding principal ($418,100) = $1,413,679,720,000.",
+            "rationale": "The Four Variable Data Status Report authorizes AHS as the primary public proxy. The construction excludes 1,203.8 thousand regular-mortgage households with unreported balances, does not assign them the reported-case mean, and emits no all-household extrapolation or covariance-based aggregate uncertainty. AHS primary mortgage may not equal legal first lien, and the 2023 statewide proxy does not silently populate county targets calibrated to the current Version A universe and 2022-07-01 reference date.",
+        },
+        {
             "methodology_id": "acs_rental_availability_proxy_v1",
             "variable_id": "acs_rental_availability_rate",
             "assumption": "Matched annual ACS rental-availability proxy",
-            "value": "For the 2024 ACS five-year vintage, B25004 for-rent vacant units / (B25003 renter-occupied units + B25004 for-rent vacant units). Both component 90% margins of error are retained; the rate is suppressed when either component MOE is greater than or equal to its estimate. The annual value is not interpolated or expanded to monthly frequency.",
+            "value": "For each matched 2010-2024 ACS five-year county vintage, B25004 for-rent vacant units / (B25003 renter-occupied units + B25004 for-rent vacant units). Both component 90% margins of error are retained; the rate is suppressed when either component MOE is greater than or equal to its estimate. Annual values are not interpolated or expanded to monthly frequency.",
             "rationale": "This preserves a transparent annual rental-availability proxy with matched ACS universes and explicit reliability screening. It is not an active rental-listing stock, and it remains separate from the quarterly HUD-USPS all-residential proxy.",
+        },
+        {
+            "methodology_id": "acs_noncontrolled_structural_exposure_bounds_v1",
+            "variable_id": "acs_renter_occupied_1_unit_share|acs_renter_occupied_2_to_4_units_share|acs_renter_occupied_5_plus_units_share|acs_renter_occupied_mobile_other_share",
+            "assumption": "Same-vintage B25032 renter structure shares",
+            "value": "Divide the mutually exclusive B25032 renter-occupied structure groups by the same-vintage B25032 renter total. Combine detached and attached for one unit; combine two and three-to-four for two-to-four; combine all published five-plus cells; combine mobile home and boat-RV-other.",
+            "rationale": "These are transparent annual descriptive structure shares at county or Census-ZCTA geography. They do not by themselves classify rent-control coverage, and they are never interpolated or expanded to months.",
+        },
+        {
+            "methodology_id": "acs_noncontrolled_structural_exposure_bounds_v1",
+            "variable_id": "acs_renter_recent_construction_share_lower_bound|acs_renter_recent_construction_share_upper_bound",
+            "assumption": "Vintage-normalized B25127 recent-construction bounds",
+            "value": "Lower = normalized definitely-recent renter total / B25127 renter total. Upper = (definitely-recent renter total + cutoff-mixed renter total) / B25127 renter total. Regimes are 2000+ and 1980-1999 for 2010-2014; 2010+ and 2000-2009 for 2015-2020; and 2020+ and 2000-2019 for 2021-2024.",
+            "rationale": "Published B25127 year-built bins and cell sequences change across vintages and cannot recover an exact rolling 15-year cutoff. Resolving cells by label and retaining a lower/upper interval prevents false precision.",
+        },
+        {
+            "methodology_id": "acs_noncontrolled_structural_exposure_bounds_v1",
+            "variable_id": "noncontrolled_exposure_share_structural_proxy_lower_bound",
+            "assumption": "2020 publication floor and lower structural proxy",
+            "value": "For ACS observations ending in 2020 or later, publish normalized B25127 definitely-recent renter total / B25127 renter total; preserve null before 2020.",
+            "rationale": "The 2020 floor corresponds to the AB 1482 effective period but is not proof that any unit is legally exempt or noncontrolled.",
+        },
+        {
+            "methodology_id": "acs_noncontrolled_structural_exposure_bounds_v1",
+            "variable_id": "noncontrolled_exposure_share_structural_proxy_upper_bound",
+            "assumption": "Broad recent-age and one-unit union upper proxy",
+            "value": "For 2020 onward, min(1, (B25127 definitely-recent total + B25127 cutoff-mixed total + B25032 one-unit total - B25127 definitely-recent one-unit - B25127 cutoff-mixed one-unit) / B25127 renter total).",
+            "rationale": "Subtracting the two B25127 one-unit components prevents double counting. Treating every remaining one-unit rental as potentially exempt makes this deliberately broad because ACS does not observe ownership and tenant-notice conditions.",
+        },
+        {
+            "methodology_id": "acs_noncontrolled_structural_exposure_bounds_v1",
+            "variable_id": "noncontrolled_exposure_share",
+            "assumption": "Exact point estimate remains absent",
+            "value": "config/rent_control_policy_crosswalk.csv is an official-source scaffold marked scaffold_only_not_applied. It is incomplete across incorporated municipalities and has no property-level join to the annual ACS aggregates.",
+            "rationale": "A defensible point estimate requires dated state and local rules, jurisdiction, property age, ownership and notice status, affordable-housing and other exemptions, plus an approved aggregation rule. COUNTY_06037 cannot represent an unincorporated-only ordinance, and Census ZCTAs are not USPS postal ZIPs.",
+        },
+        {
+            "methodology_id": "acs_renter_occupied_vintage_change_v1",
+            "variable_id": "net_change_occupied_apartments_annual",
+            "assumption": "Consecutive ACS vintage difference",
+            "value": "Subtract the immediately prior ending-year B25003 renter-occupied estimate only when both county vintages exist and their ending years are consecutive. Do not allocate or forward-fill the result to quarters.",
+            "rationale": "Adjacent ACS five-year estimates overlap for four survey years. The result is a transparent vintage-to-vintage change proxy, not an observed one-year or quarterly flow.",
+        },
+        {
+            "methodology_id": "acs_county_price_to_income_v1",
+            "variable_id": "county_annual_price_to_income_acs",
+            "assumption": "Matched-vintage Los Angeles County price-to-income ratio",
+            "value": "For each 2010-2024 ACS ending vintage, divide B25077 median home value by B19013 median household income matched on Los Angeles County and the exact ending year. Preserve a null when either source estimate is null or invalid, and retain the construction only in county annual controls.",
+            "rationale": "The construction uses matched official ACS five-year facts and does not create a fact observation or monthly/quarterly timing. Structural QA recomputes every eligible ratio from its two panel inputs.",
+        },
+        {
+            "methodology_id": "acs_zcta_price_to_income_v1",
+            "variable_id": "zcta_annual_price_to_income_acs",
+            "assumption": "Matched-vintage Census-ZCTA price-to-income ratio",
+            "value": "For each configured Census ZCTA and 2011-2024 ACS ending vintage, divide B25077 median home value by B19013 median household income from the same ZCTA and vintage. Preserve a null when either source estimate is null or invalid, and do not expand the annual estimate to quarters.",
+            "rationale": "The construction uses only matched official ACS five-year facts. A Census ZCTA is not a USPS postal ZIP, and published input gaps remain visible rather than being filled.",
+        },
+        {
+            "methodology_id": "acs_zcta_renter_occupied_vintage_change_v1",
+            "variable_id": "zcta_renter_occupied_units_vintage_change_annual",
+            "assumption": "Consecutive ACS B25003 Census-ZCTA vintage difference",
+            "value": "Within each exact configured Census ZCTA, subtract the immediately prior ending-year B25003 renter-occupied estimate only when both published five-year vintages exist and their ending years are consecutive. Do not allocate, interpolate, or forward-fill the result to quarters.",
+            "rationale": "Adjacent ACS five-year estimates overlap for four survey years. The result is a vintage-to-vintage change, not an observed one-year or quarterly flow, and the Census ZCTA is never relabeled as a postal ZIP.",
         },
         {
             "methodology_id": "hud_usps_residential_vacancy_proxy_v2",
@@ -1315,11 +1470,74 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
             "rationale": "A positive income midpoint is required to infer monthly owner housing cost from cost-burden percentages.",
         },
         {
+            "methodology_id": "ca_homeowners_premium_real_2023_cpi_v1",
+            "variable_id": "ca_homeowners_avg_written_premium_real",
+            "assumption": "California CPI deflator and base year",
+            "value": "nominal California DOI average written premium in year y multiplied by California DIR annual CPI-U for 2023 and divided by the same annual CPI-U for year y.",
+            "rationale": "This implements the workbook-approved constant-2023-dollar convention on exact calendar-year matches. The 2023 real value must equal the 2023 nominal value; missing or nonpositive inputs remain null, and no subannual CPI or real-premium observations are fabricated.",
+        },
+        {
+            "methodology_id": "bps_5_plus_distributed_completion_lag_v1",
+            "variable_id": "new_apartments_completed_proxy_central",
+            "assumption": "Central completion timing",
+            "value": "Allocate 20% of each 5+ permit cohort equally across lags 12-17, 55% equally across lags 18-23, and 25% equally across lags 24-30.",
+            "rationale": "The weights are the exact approved Central scenario and sum to one. All lags 12-30 must be present; a missing source month propagates to a null proxy month rather than being treated as zero.",
+        },
+        {
+            "methodology_id": "bps_5_plus_distributed_completion_lag_v1",
+            "variable_id": "new_apartments_completed_proxy_slow",
+            "assumption": "Slow completion timing",
+            "value": "Allocate 20% of each 5+ permit cohort equally across lags 18-23, 50% equally across lags 24-29, and 30% equally across lags 30-36.",
+            "rationale": "The weights are the exact approved Slow scenario and sum to one. All lags 18-36 must be present; a missing source month propagates to a null proxy month rather than being treated as zero.",
+        },
+        {
+            "methodology_id": "bps_5_plus_stock_flow_pipeline_v1",
+            "variable_id": "multifamily_under_construction_proxy_central",
+            "assumption": "Central pipeline recurrence and initialization",
+            "value": "Month-end stock equals prior stock plus current 5+ permits minus Central modeled completions; initialize from every cohort with positive uncompleted weight in the complete current-through-age-29 permit window.",
+            "rationale": "The approved 30-month active-cohort initialization avoids an arbitrary zero opening stock. Missing active-window inputs produce null until a complete window permits reinitialization.",
+        },
+        {
+            "methodology_id": "bps_5_plus_stock_flow_pipeline_v1",
+            "variable_id": "multifamily_under_construction_proxy_slow",
+            "assumption": "Slow pipeline recurrence and initialization",
+            "value": "Month-end stock equals prior stock plus current 5+ permits minus Slow modeled completions; initialize from every cohort with positive uncompleted weight in the complete current-through-age-35 permit window.",
+            "rationale": "The approved 36-month active-cohort initialization avoids an arbitrary zero opening stock. Missing active-window inputs produce null until a complete window permits reinitialization.",
+        },
+        {
+            "methodology_id": "irs_soi_net_exemptions_per_1000_pep_v1",
+            "variable_id": "census_pep_county_population_annual",
+            "assumption": "PEP population vintage segments",
+            "value": "Use Vintage 2019 for 2010-2019 and Vintage 2025 for 2020-2025, retaining July 1 source-year estimates as annual December 31 analytic endpoints.",
+            "rationale": "The segments are nonoverlapping and preserve the 2020 vintage boundary. PEP annual values are not interpolated or expanded to a higher frequency.",
+        },
+        {
+            "methodology_id": "irs_soi_net_exemptions_per_1000_pep_v1",
+            "variable_id": "net_exemption_rate",
+            "assumption": "Annual population denominator",
+            "value": "IRS SOI net migration exemptions for each filing-year interval divided by Census PEP resident population for the same ending year, multiplied by 1,000.",
+            "rationale": "The workbook expressly selects the interval ending year. Prior-year and ACS population denominators are not substituted, and the annual rate is not divided or carried into observed months.",
+        },
+        {
+            "methodology_id": "bps_1_unit_per_1000_pep_housing_units_v1",
+            "variable_id": "census_pep_county_housing_units_annual",
+            "assumption": "PEP housing-unit vintage segments",
+            "value": "Use Vintage 2019 for 2010-2019 and Vintage 2025 for 2020-2025, retaining July 1 source-year estimates as annual December 31 analytic endpoints.",
+            "rationale": "The segments are nonoverlapping and preserve the 2020 vintage boundary. PEP annual values are not interpolated or expanded to a higher frequency.",
+        },
+        {
+            "methodology_id": "bps_1_unit_per_1000_pep_housing_units_v1",
+            "variable_id": "permits_1_unit_per_1000_housing_units",
+            "assumption": "Annual housing-stock denominator",
+            "value": "Final annual Census BPS one-unit authorizations divided by the same-year Census PEP housing-unit estimate, multiplied by 1,000.",
+            "rationale": "The approved rate uses the final annual BPS product and same-year PEP housing stock. Monthly permits, ACS housing units, and lagged denominators are not substituted; the output remains annual.",
+        },
+        {
             "methodology_id": "eviction_lab_county_estimates_v1",
             "variable_id": "eviction_lab_filings_estimate_annual",
             "assumption": "LA eviction-source choice",
-            "value": "Use official Eviction Lab annual county modeled estimates for Los Angeles County because ETS and the observed/validated county analysis files do not provide LA County rows.",
-            "rationale": "This preserves the expected Eviction Lab source family without silently substituting another geography, and keeps the limitation explicit for modeling.",
+            "value": "Retain official Eviction Lab annual county modeled estimates for Los Angeles County for 2000-2018. The official ETS Version 3.0 release was checked on 2026-08-16 and contains neither Los Angeles nor any California geography; the observed/validated county analysis files also provide no LA County rows.",
+            "rationale": "This preserves the expected source family without silently substituting another geography. Annual values are not interpolated or expanded to monthly observations, and the limitation remains explicit for modeling.",
         },
         {
             "methodology_id": "eviction_lab_county_rate_v1",
@@ -1345,6 +1563,10 @@ def _proxy_methodology_assumptions() -> pd.DataFrame:
     )
     frame["methodology_status"] = "active"
     frame.loc[legacy, "methodology_status"] = "legacy"
+    frame.loc[
+        frame["variable_id"].eq("noncontrolled_exposure_share"),
+        "methodology_status",
+    ] = "blocked"
     return frame
 
 
@@ -1603,27 +1825,39 @@ def _write_source_tracker_workbook(
         assumptions_frame,
     )
     source_summary = _source_tracker_summary(catalog)
-    with pd.ExcelWriter(path, engine="openpyxl") as writer:
-        overview.to_excel(writer, sheet_name="Overview", index=False)
-        source_summary.to_excel(writer, sheet_name="Source Summary", index=False)
-        audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
-        dictionary.to_excel(writer, sheet_name="Variable Dictionary", index=False)
-        coverage.to_excel(writer, sheet_name="Coverage Summary", index=False)
-        catalog.to_excel(writer, sheet_name="Data Catalog", index=False)
-        manifest.to_excel(writer, sheet_name="Raw File Inventory", index=False)
-        raw_completeness.to_excel(writer, sheet_name="Raw Completeness", index=False)
-        gap.to_excel(writer, sheet_name="Missing Deferred", index=False)
-        assumptions_frame.to_excel(
-            writer,
-            sheet_name="Proxy Assumptions",
-            index=False,
-        )
-        catalog[["source_id", "update_command"]].to_excel(
-            writer,
-            sheet_name="Update Commands",
-            index=False,
-        )
-    _format_source_tracker_workbook(path)
+    with _atomic_workbook_target(path) as workbook_path:
+        with pd.ExcelWriter(workbook_path, engine="openpyxl") as writer:
+            overview.to_excel(writer, sheet_name="Overview", index=False)
+            source_summary.to_excel(writer, sheet_name="Source Summary", index=False)
+            audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
+            dictionary.to_excel(writer, sheet_name="Variable Dictionary", index=False)
+            coverage.to_excel(writer, sheet_name="Coverage Summary", index=False)
+            catalog.to_excel(writer, sheet_name="Data Catalog", index=False)
+            manifest.to_excel(writer, sheet_name="Raw File Inventory", index=False)
+            raw_completeness.to_excel(writer, sheet_name="Raw Completeness", index=False)
+            gap.to_excel(writer, sheet_name="Missing Deferred", index=False)
+            assumptions_frame.to_excel(
+                writer,
+                sheet_name="Proxy Assumptions",
+                index=False,
+            )
+            catalog[["source_id", "update_command"]].to_excel(
+                writer,
+                sheet_name="Update Commands",
+                index=False,
+            )
+        _format_source_tracker_workbook(workbook_path)
+
+
+@contextmanager
+def _atomic_workbook_target(path: Path):
+    """Yield a same-directory temporary path, then atomically replace the target."""
+    temp = path.with_name(f".{path.stem}.{uuid4().hex}.tmp.xlsx")
+    try:
+        yield temp
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def _write_workbooks(
@@ -1633,10 +1867,15 @@ def _write_workbooks(
     gap: pd.DataFrame,
     raw_completeness: pd.DataFrame,
     assumptions_frame: pd.DataFrame,
+    dictionary: pd.DataFrame | None = None,
 ) -> None:
     metadata_dir = config.root / "metadata"
     manifest = _raw_manifest(config)
-    dictionary = pd.DataFrame(config.variables)
+    dictionary = (
+        dictionary.copy()
+        if dictionary is not None
+        else pd.DataFrame(config.variables)
+    )
     requirements = pd.DataFrame(DOCX_VARIABLES)
     geography_matrix = (
         catalog.groupby(["Frequency", "Geography"])
@@ -1657,39 +1896,48 @@ def _write_workbooks(
             "recommended_next_action",
         ],
     ]
-    with pd.ExcelWriter(metadata_dir / "data_catalog.xlsx", engine="openpyxl") as writer:
-        catalog.to_excel(writer, sheet_name="Data Catalog", index=False)
-        dictionary.to_excel(writer, sheet_name="Variable Dictionary", index=False)
-        requirements.to_excel(writer, sheet_name="DOCX Requirements", index=False)
-        audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
-        assumptions_frame.to_excel(
-            writer, sheet_name="Proxy Assumptions", index=False
-        )
-        manifest.to_excel(writer, sheet_name="Raw File Inventory", index=False)
-        geography_matrix.to_excel(writer, sheet_name="Geography-Frequency Matrix", index=False)
-        coverage.to_excel(writer, sheet_name="Coverage Summary", index=False)
-        audit.loc[audit["docx_category"].eq("Difficult Variables")].to_excel(
-            writer,
-            sheet_name="Difficult Variables",
-            index=False,
-        )
-        gap.to_excel(writer, sheet_name="Missing Deferred", index=False)
-        catalog[["source_id", "update_command"]].to_excel(
-            writer,
-            sheet_name="Update Commands",
-            index=False,
-        )
-        assumptions.to_excel(writer, sheet_name="Assumptions Questions", index=False)
-    with pd.ExcelWriter(metadata_dir / "docx_variable_audit.xlsx", engine="openpyxl") as writer:
-        requirements.to_excel(writer, sheet_name="DOCX Requirements", index=False)
-        audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
-        assumptions_frame.to_excel(
-            writer, sheet_name="Proxy Assumptions", index=False
-        )
-    gap_workbook = metadata_dir / "data_gap_analysis.xlsx"
-    with pd.ExcelWriter(gap_workbook, engine="openpyxl") as writer:
-        gap.to_excel(writer, sheet_name="Gap Analysis", index=False)
-    _format_workbook(gap_workbook, "catalog-stage")
+    with _atomic_workbook_target(metadata_dir / "data_catalog.xlsx") as workbook_path:
+        with pd.ExcelWriter(workbook_path, engine="openpyxl") as writer:
+            catalog.to_excel(writer, sheet_name="Data Catalog", index=False)
+            dictionary.to_excel(writer, sheet_name="Variable Dictionary", index=False)
+            requirements.to_excel(writer, sheet_name="DOCX Requirements", index=False)
+            audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
+            assumptions_frame.to_excel(
+                writer, sheet_name="Proxy Assumptions", index=False
+            )
+            manifest.to_excel(writer, sheet_name="Raw File Inventory", index=False)
+            geography_matrix.to_excel(
+                writer, sheet_name="Geography-Frequency Matrix", index=False
+            )
+            coverage.to_excel(writer, sheet_name="Coverage Summary", index=False)
+            audit.loc[audit["docx_category"].eq("Difficult Variables")].to_excel(
+                writer,
+                sheet_name="Difficult Variables",
+                index=False,
+            )
+            gap.to_excel(writer, sheet_name="Missing Deferred", index=False)
+            catalog[["source_id", "update_command"]].to_excel(
+                writer,
+                sheet_name="Update Commands",
+                index=False,
+            )
+            assumptions.to_excel(
+                writer, sheet_name="Assumptions Questions", index=False
+            )
+    with _atomic_workbook_target(
+        metadata_dir / "docx_variable_audit.xlsx"
+    ) as workbook_path:
+        with pd.ExcelWriter(workbook_path, engine="openpyxl") as writer:
+            requirements.to_excel(writer, sheet_name="DOCX Requirements", index=False)
+            audit.to_excel(writer, sheet_name="DOCX Variable Audit", index=False)
+            assumptions_frame.to_excel(
+                writer, sheet_name="Proxy Assumptions", index=False
+            )
+    _write_gap_workbook_atomic(
+        metadata_dir / "data_gap_analysis.xlsx",
+        gap,
+        "catalog-stage",
+    )
     _write_source_tracker_workbook(
         metadata_dir / "LA_Housing_Source_Tracker.xlsx",
         catalog,
@@ -1701,6 +1949,22 @@ def _write_workbooks(
         gap,
         assumptions_frame,
     )
+
+
+def _write_gap_workbook_atomic(
+    path: Path,
+    gap: pd.DataFrame,
+    build_version: str,
+) -> None:
+    """Write the generated gap workbook without truncating the prior copy first."""
+    temp = path.with_name(f".{path.stem}.{uuid4().hex}.tmp.xlsx")
+    try:
+        with pd.ExcelWriter(temp, engine="openpyxl") as writer:
+            gap.to_excel(writer, sheet_name="Gap Analysis", index=False)
+        _format_workbook(temp, build_version)
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def _sync_raw_completeness_to_duckdb(
@@ -1717,6 +1981,35 @@ def _sync_raw_completeness_to_duckdb(
             "CREATE OR REPLACE TABLE quality.raw_repository_completeness AS "
             "SELECT * FROM raw_completeness_frame"
         )
+
+
+def _write_catalog_preserving_monthly_finance_products(
+    catalog: pd.DataFrame,
+    path: Path,
+) -> None:
+    """Replace general catalog rows without discarding completed B/C metadata.
+
+    The general reporting builders regenerate their portion of the catalog from
+    configuration.  Completed monthly-finance products are registered by a
+    separate pipeline and carry concrete checksums, cutoff vintages, row counts,
+    and output paths that cannot be reconstructed by the reporting builder.
+    Keep those six owned rows long enough for
+    ``register_monthly_finance_contracts`` to refresh their definitions while
+    preserving the completed-build fields.
+    """
+
+    generated = catalog.loc[
+        ~catalog["source_id"].isin(PRODUCT_SOURCE_IDS)
+    ].copy()
+    preserved = pd.DataFrame(columns=generated.columns)
+    if path.is_file():
+        existing = pd.read_csv(path, dtype=str)
+        if "source_id" in existing.columns:
+            preserved = existing.loc[
+                existing["source_id"].isin(PRODUCT_SOURCE_IDS)
+            ].copy()
+            preserved = preserved.reindex(columns=generated.columns, fill_value="")
+    pd.concat([generated, preserved], ignore_index=True).to_csv(path, index=False)
 
 
 def build_catalog_outputs(config: ProjectConfig) -> dict[str, int]:
@@ -1741,17 +2034,33 @@ def build_catalog_outputs(config: ProjectConfig) -> dict[str, int]:
         metadata_dir / "proxy_methodology_assumptions.csv", index=False
     )
     audit.to_csv(metadata_dir / "docx_variable_audit.csv", index=False)
-    catalog.to_csv(metadata_dir / "data_catalog.csv", index=False)
+    _write_catalog_preserving_monthly_finance_products(
+        catalog,
+        metadata_dir / "data_catalog.csv",
+    )
     gap.to_csv(metadata_dir / "data_gap_analysis.csv", index=False)
     catalog.to_csv(metadata_dir / "source_discovery.csv", index=False)
     raw_completeness.to_csv(qa_dir / "raw_repository_completeness.csv", index=False)
-    _write_workbooks(config, catalog, audit, gap, raw_completeness, assumptions_frame)
+    register_monthly_finance_contracts(root=config.root)
+    catalog = pd.read_csv(metadata_dir / "data_catalog.csv")
+    dictionary = pd.read_csv(metadata_dir / "data_dictionary.csv")
+    _write_workbooks(
+        config,
+        catalog,
+        audit,
+        gap,
+        raw_completeness,
+        assumptions_frame,
+        dictionary=dictionary,
+    )
     _sync_raw_completeness_to_duckdb(config, raw_completeness)
+    inventory_counts = build_system_inventory(config)
     return {
         "catalog_rows": len(catalog),
         "audit_rows": len(audit),
         "gap_rows": len(gap),
         "raw_completeness_rows": len(raw_completeness),
+        **inventory_counts,
     }
 
 
@@ -1808,17 +2117,18 @@ UNAVAILABLE_ROWS = [
         "Geography": "Los Angeles County or ZIP",
         "Key variables": "rental_inventory",
         "source_id": "unavailable_rental_inventory",
-        "provider": "No verified official public source",
+        "provider": "No approved source named in the governing methodology",
         "product": "True rental-listing inventory",
         "active_status": "Inactive",
-        "provenance_status": "unavailable_verified_source",
+        "provenance_status": "unavailable_methodology_source",
         "known_limitations": (
             "True rental-listing inventory remains unavailable. ZORI is a rent "
             "index, not inventory. The active HUD/USPS measure is a quarterly "
             "all-residential address-vacancy proxy, not a rental-listing stock. "
             "Its modeled postal ZIP county-parts remain distinct from whole "
             "postal ZIPs and Census ZCTAs. A documented listing universe, stable "
-            "geography, history, and revision policy are still required."
+            "geography, history, and revision policy would be required after the "
+            "methodology names an approved qualifying source."
         ),
     },
     {
@@ -2163,6 +2473,10 @@ def _catalog_frame(config: ProjectConfig) -> pd.DataFrame:
                     else
                     "constructed proxy (quarantined)"
                     if lifecycle_status == "Quarantined"
+                    else "constructed published-table sensitivity"
+                    if source.source_id in SIPP_SOURCE_IDS
+                    else "observed published estimates|constructed reported-case proxy"
+                    if source.source_id == AHS_TABLE_CREATOR_SOURCE_ID
                     else "observed"
                 ),
                 "manual_download_required": not source.auto_download,
@@ -2347,13 +2661,13 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
             "Balance-sheet benchmark",
             "ACS PUMS and FHFA NMDB",
             "Yes, as a constructed benchmark",
-            "Version A authoritative method implemented",
+            "Raw 20/25/30-year scenarios implemented; calibrated target blocked",
             "analytics.housing_finance_benchmark",
-            "acs_implied_first_mortgage_balance_raw_benchmark|acs_implied_first_mortgage_balance_cal_benchmark",
+            "acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark|acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark|acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark|acs_implied_first_mortgage_balance_raw_benchmark|acs_implied_first_mortgage_balance_cal_benchmark",
             "ACS 5-year plus exact-date parameter period",
             "California counties",
-            limitation="The calibrated value remains null without an exact-date, universe-compatible California NMDB UPB control. The B25106 midpoint method remains in facts only as a labeled legacy scenario.",
-            recommended_action="Use Version A _benchmark variables; never silently substitute the legacy B25106 scenario.",
+            limitation="All 174 explicit term-scenario debt values and the 58-row raw composite envelope are available. The calibrated value and normalized ratios remain null without an exact-date, owner-occupied first-lien California UPB control. The B25106 midpoint method remains in facts only as a labeled legacy scenario.",
+            recommended_action="Use the explicit Version A raw scenario variables for sensitivity analysis; obtain or approve a compatible owner-occupied California UPB control before using calibrated fields.",
         ),
         _gap_row(
             "aggregate home equity",
@@ -2361,13 +2675,13 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
             "Balance-sheet benchmark",
             "ACS and FHFA NMDB",
             "Yes, as a constructed benchmark",
-            "Version A authoritative method implemented",
+            "Raw 20/25/30-year scenarios implemented; calibrated target blocked",
             "analytics.housing_finance_benchmark",
-            "acs_implied_owner_occupied_home_equity_mortgaged_benchmark|acs_implied_owner_occupied_home_equity_all_benchmark",
+            "acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark|acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark|acs_implied_owner_occupied_home_equity_mortgaged_benchmark|acs_implied_owner_occupied_home_equity_all_benchmark",
             "ACS 5-year plus exact-date parameter period",
             "California counties",
-            limitation="Matched-universe equity depends on the Version A calibrated first-mortgage balance and remains null when that control is unavailable.",
-            recommended_action="Use Version A _benchmark variables and retain published mortgage-free owner value in full for all-owner equity.",
+            limitation="All 348 matching PMMS term-scenario equity values are available. Preferred calibrated nominal and real equity remain null because they depend on a compatible calibrated first-mortgage balance.",
+            recommended_action="Use the explicit scenario-equity variables for sensitivity analysis; retain published mortgage-free owner value in full and do not relabel scenarios as calibrated equity.",
         ),
         _gap_row("ZHVI", "Homeowner", "Outcome", "Zillow Research", "Yes", "Implemented", "analytics.county_monthly_panel", "zhvi", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Provider modeled index; histories can be revised.", "Keep as the local home-value index."),
         _gap_row("FHFA HPI", "Homeowner", "Benchmark", "FHFA", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel|analytics.county_annual_controls", "FHFA HPI columns", "quarterly and annual", "California; Los Angeles metro; Los Angeles County", "1975-12-31", "2026-03-31", "Products differ by geography, frequency, method, and seasonal adjustment.", "Retain at native frequency."),
@@ -2388,36 +2702,22 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
             "rental inventory",
             "Renter",
             "Supply",
-            "Census ACS B25003/B25004; HUD/USPS; true rental-listing inventory",
-            "ACS annual and HUD/USPS quarterly proxies active; no documented, "
-            "licensed source for true monthly rental-listing inventory",
+            "No approved true-listing source named; ACS and HUD/USPS are separate proxies",
+            "No; governing methodology/source decision required",
             RENTAL_INVENTORY_STATUS,
-            "analytics.fact_housing_observation|analytics.county_annual_controls|"
-            + "|".join(HUD_USPS_RESTRICTED_TABLES),
-            "|".join(
-                (*ACS_RENTAL_AVAILABILITY_VARIABLE_IDS, *HUD_USPS_VARIABLE_IDS)
-            ),
-            "annual ACS; quarterly HUD/USPS; no monthly listing series",
-            "ACS Los Angeles County and ZCTAs; HUD/USPS 58 California counties, "
-            "Los Angeles County standardized 2020 tracts, and modeled Los "
-            "Angeles County postal-ZIP county-parts",
-            "2008-03-31",
-            "2026-03-31",
-            "The current ACS rental-availability proxy is a 2024 five-year "
-            "estimate: F/(R+F), where F is B25004 for-rent vacant units and R is "
-            "B25003 renter-occupied units. Component margins of error are "
-            "retained and unreliable county rates are suppressed; values are not "
-            "interpolated. HUD/USPS is a separate all-residential "
-            "address-vacancy proxy, not rental-listing inventory. No-stat remains "
-            "a separate diagnostic. "
-            "Postal-ZIP county-parts are modeled, not whole ZIPs or ZCTAs. "
-            "Licensed tract and modeled ZIP-part detail remains restricted and "
-            "outside public exports. The earlier derived package is historical "
-            "and superseded, not an active source.",
-            "Keep the annual ACS and quarterly HUD/USPS proxies separate. Add "
-            "ACS history only from matched official B25003/B25004 vintages. Keep "
-            "rental_listing_inventory_monthly unavailable until a stable, "
-            "documented active-listing universe and usable license are acquired.",
+            "",
+            "rental_listing_inventory_monthly",
+            "monthly target; unavailable",
+            "Los Angeles County or provider ZIP target",
+            "",
+            "",
+            "The governing methodology does not name an approved, integrable "
+            "historical active-rental-listing source. ACS annual availability and "
+            "HUD/USPS quarterly all-residential vacancy remain separately labeled "
+            "proxies and do not satisfy this target.",
+            "Revise the methodology to name an approved qualifying source, or "
+            "leave rental_listing_inventory_monthly missing. No credential or API "
+            "activation resolves the current blocker.",
         ),
         _gap_row("rental vacancy", "Renter", "Supply", "Census HVS", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.metro_quarterly_panel", "hvs_rental_vacancy_rate_ca|hvs_rental_vacancy_rate_la_metro", "quarterly", "California and published metro geographies", "2005-03-31", "2026-03-31", "Los Angeles County is not an HVS published geography; sampling uncertainty is retained.", "Retain native geography/frequency."),
         _gap_row("multifamily permits", "Renter", "Supply", "Census BPS", "Yes", "Implemented", "analytics.county_monthly_panel", "permits_5_plus_units", "monthly", "Los Angeles County", "2000-01-31", "2026-05-31", "Permits are authorizations, not completed or occupied rental units.", "Retain as multifamily supply proxy."),
@@ -2430,7 +2730,7 @@ def _refresh_gap_analysis(config: ProjectConfig) -> pd.DataFrame:
         _gap_row("CES payroll employment", "Macro", "Control", "BLS CES", "Yes", "Implemented", "analytics.metro_monthly_controls", "ces_total_nonfarm_employment_sa", "monthly", "Los Angeles metro", "2005-01-31", "2026-05-31", "Metro establishment series; not county LAUS employment.", "Retain geography label."),
         _gap_row("personal income", "Macro", "Control", "BEA", "Yes", "Implemented", "analytics.state_quarterly_panel|analytics.county_annual_controls", "bea_ca_personal_income_q_sa|bea_la_county_personal_income_annual", "quarterly and annual", "California and Los Angeles County", "1948-03-31", "2026-03-31", "State quarterly and county annual products differ.", "Retain native frequency."),
         _gap_row("CPI / inflation", "Macro", "Control", "BLS CPI", "Yes", "Implemented", "analytics.metro_monthly_controls", "cpi_u_all_items_la_nsa|cpi_inflation_yoy", "monthly with historical gaps", "Los Angeles published area", "1914-12-31", "2026-05-31", "Local CPI is not seasonally adjusted and has historical publication gaps.", "Preserve gaps."),
-        _gap_row("price-to-income", "Homeowner", "Affordability", "ACS or BEA", "Yes", "Deferred", "", "", "annual or mixed", "Los Angeles County or ZIP", "", "", "Not part of the current active available-variable set.", "Add later only with an explicit denominator choice."),
+        _gap_row("price-to-income", "Homeowner", "Affordability", "Census ACS B25077/B19013", "Yes", "Partially implemented", "analytics.county_annual_controls", "county_annual_price_to_income_acs", "annual ACS five-year", "Los Angeles County", "2010-12-31", "2024-12-31", "Fifteen annual ratios are active; overlapping five-year estimates are not quarterly observations.", "Retain as annual or approve a separately labeled mixed-frequency method."),
     ]
     gap = pd.DataFrame(rows)
     path = config.root / "metadata" / "data_gap_analysis.csv"
@@ -2523,9 +2823,11 @@ def build_data_catalog(config: ProjectConfig) -> dict[str, int]:
     csv_path = config.root / "metadata" / "data_catalog.csv"
     xlsx_path = config.root / "metadata" / "data_catalog.xlsx"
     gap_xlsx = config.root / "metadata" / "data_gap_analysis.xlsx"
-    catalog.to_csv(csv_path, index=False)
+    _write_catalog_preserving_monthly_finance_products(catalog, csv_path)
+    register_monthly_finance_contracts(root=config.root)
+    catalog = pd.read_csv(csv_path)
     manifest = _manifest(config).drop(columns="_retrieved", errors="ignore")
-    variables = pd.DataFrame(config.variables)
+    variables = pd.read_csv(config.root / "metadata" / "data_dictionary.csv")
     matrix = catalog[
         [
             "source_id",
@@ -2575,9 +2877,7 @@ def build_data_catalog(config: ProjectConfig) -> dict[str, int]:
         )
         gap.to_excel(writer, sheet_name="Gap Analysis", index=False)
     _format_workbook(xlsx_path, build_version)
-    with pd.ExcelWriter(gap_xlsx, engine="openpyxl") as writer:
-        gap.to_excel(writer, sheet_name="Gap Analysis", index=False)
-    _format_workbook(gap_xlsx, build_version)
+    _write_gap_workbook_atomic(gap_xlsx, gap, build_version)
     if database_path.exists():
         connection = duckdb.connect(str(database_path))
         connection.register("data_catalog_frame", catalog)

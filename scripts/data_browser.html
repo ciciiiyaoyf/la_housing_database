@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LA Housing Data Browser</title>
+  <style>
+    :root { color-scheme: light; --ink:#172d35; --muted:#596d74; --line:#d6e1e3; --accent:#176957; --paper:#fff; --wash:#f3f7f7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--wash); color:var(--ink); font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { max-width:1190px; margin:auto; padding:42px 28px 32px; }
+    header { margin-bottom:26px; }
+    .eyebrow { margin:0 0 8px; color:var(--accent); font-size:12px; font-weight:750; letter-spacing:.11em; }
+    h1 { font-size:clamp(28px,4vw,38px); line-height:1.15; letter-spacing:-.035em; margin:0 0 12px; }
+    h2 { margin:0; font-size:19px; letter-spacing:-.02em; }
+    p { margin:6px 0; }
+    .intro { max-width:750px; color:var(--muted); font-size:16px; }
+    .steps { display:flex; gap:24px; flex-wrap:wrap; color:var(--muted); margin:20px 0 0; padding:0; list-style:none; font-size:13px; }
+    .steps span { display:inline-grid; place-items:center; width:23px; height:23px; border:1px solid #b9ceca; border-radius:50%; margin-right:7px; color:var(--accent); font-weight:700; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:13px; margin-top:20px; box-shadow:0 2px 6px #17343c04; }
+    .filters { padding:25px; }
+    .section-head { display:flex; justify-content:space-between; gap:16px; align-items:baseline; margin-bottom:18px; }
+    .hint { font-size:13px; color:var(--muted); }
+    .dataset { max-width:650px; margin-bottom:22px; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px 20px; }
+    .field label { display:block; font-size:13px; font-weight:650; margin-bottom:6px; }
+    input,select,button { font:inherit; }
+    input,select { width:100%; min-height:42px; padding:9px 11px; border:1px solid #bfcfd2; border-radius:6px; background:white; color:var(--ink); }
+    select { padding-right:28px; }
+    :focus-visible { outline:3px solid #75b9aa; outline-offset:3px; }
+    input:disabled,select:disabled { background:#f1f5f5; color:#647a80; }
+    .date-pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .field,.date-pair > div { min-width:0; }
+    .date-pair input { min-width:0; width:100%; box-sizing:border-box; }
+    .date-pair label { font-size:12px; font-weight:500; }
+    .date-title { display:block; font-size:13px; font-weight:650; margin-bottom:6px; }
+    details { border-top:1px solid var(--line); margin-top:23px; padding-top:17px; }
+    summary { cursor:pointer; font-size:14px; font-weight:650; width:fit-content; }
+    details .grid { margin-top:17px; }
+    .actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:25px; }
+    button { border:1px solid #b4c6c9; background:white; padding:10px 16px; min-height:42px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:650; color:var(--ink); }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    button:hover:not(:disabled) { box-shadow:0 0 0 2px #17695718; }
+    button:disabled { opacity:.55; cursor:wait; }
+    .download-note { font-size:12px; color:var(--muted); margin-top:12px; }
+    #status { display:flex; align-items:center; gap:9px; min-height:25px; margin-top:17px; color:var(--muted); font-size:14px; }
+    #status.busy::before { content:""; width:15px; height:15px; border:2px solid #cededa; border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion:reduce) { #status.busy::before { animation:none; } }
+    #error { border-left:3px solid #b54933; background:#fff2ed; padding:12px 15px; margin-top:15px; border-radius:4px; color:#753321; }
+    [hidden] { display:none !important; }
+    .preview-head { padding:21px 25px 17px; border-bottom:1px solid var(--line); }
+    .preview-head .hint { margin-top:5px; }
+    .empty { padding:43px 25px; text-align:center; color:var(--muted); }
+    .empty strong { color:var(--ink); display:block; font-size:16px; margin-bottom:5px; }
+    .table-wrap { overflow:auto; max-height:460px; border-radius:0 0 12px 12px; }
+    table { border-collapse:separate; border-spacing:0; width:100%; font-size:12px; }
+    th,td { text-align:left; vertical-align:top; padding:10px 13px; border-bottom:1px solid #e6edee; max-width:380px; min-width:95px; }
+    th { position:sticky; top:0; background:#edf4f3; font-weight:650; white-space:nowrap; z-index:1; }
+    td { white-space:nowrap; }
+    tr:nth-child(even) td { background:#fafcfc; }
+    td.missing { color:#8b9da3; }
+    #notes { margin:15px 25px 20px; padding-left:18px; color:var(--muted); font-size:13px; }
+    #notes:empty { display:none; }
+    footer { margin-top:21px; color:var(--muted); font-size:12px; }
+    @media(max-width:760px) { main { padding:26px 16px; } .filters { padding:20px; } .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .dates { grid-column:1 / -1; } .section-head { display:block; } .steps { gap:10px 18px; } }
+    @media(max-width:480px) { .grid,.date-pair { grid-template-columns:1fr; } .actions button { width:100%; } .steps { display:block; } .steps li { margin:7px 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">LA HOUSING DATABASE</p>
+    <h1>Find and download housing data</h1>
+    <p class="intro">Choose a dataset, select the places and variables you need, then download a CSV for Excel or your analysis.</p>
+    <ol class="steps" aria-label="How to use this browser">
+      <li><span>1</span>Choose a dataset</li><li><span>2</span>Set your filters</li><li><span>3</span>Preview and download</li>
+    </ol>
+  </header>
+
+  <form id="filters" class="card filters">
+    <div class="section-head"><h2>Select your data</h2><p class="hint">Leave a filter on “All” to include every available choice.</p></div>
+    <div class="field dataset"><label for="dataset">Dataset</label><select id="dataset" required disabled><option>Loading available datasets…</option></select></div>
+    <div class="field dataset"><label for="variable">Variable</label><select id="variable" data-field="variable" disabled><option value="">All variables</option></select></div>
+    <div class="grid">
+      <div class="field"><label for="geography">Geography type</label><select id="geography" data-field="geography" disabled><option value="">All geography types</option></select></div>
+      <div class="field"><label for="geo_id">Place</label><select id="geo_id" data-field="geo-id" disabled><option value="">All places</option></select></div>
+      <div class="field"><label for="frequency">Frequency</label><select id="frequency" data-field="frequency" disabled><option value="">All frequencies</option></select></div>
+      <div class="field"><label for="domain">Domain</label><select id="domain" data-field="domain" disabled><option value="">All domains</option></select></div>
+      <div class="field"><label for="layer">Layer</label><select id="layer" data-field="layer" disabled><option value="">All layers</option></select></div>
+      <div class="field dates"><span class="date-title">Date range <span class="hint">(optional)</span></span><div class="date-pair"><div><label for="start_date">From</label><input type="date" id="start_date"></div><div><label for="end_date">Through</label><input type="date" id="end_date"></div></div></div>
+      <div class="field"><label for="proxy">Proxy variable</label><select id="proxy" data-field="proxy" disabled><option value="">All variables</option></select></div>
+      <div class="field"><label for="constructed">Constructed variable</label><select id="constructed" data-field="constructed" disabled><option value="">All variables</option></select></div>
+    </div>
+    <details>
+      <summary>Units and temporal types</summary>
+      <p class="hint">Temporal type describes a variable as a stock, flow, ratio or another kind of measure.</p>
+      <div class="grid">
+        <div class="field"><label for="unit">Simplified unit</label><select id="unit" data-field="unit" disabled><option value="">All units</option></select></div>
+        <div class="field"><label for="temporal_type">Temporal type</label><select id="temporal_type" data-field="temporal-type" disabled><option value="">All temporal types</option></select></div>
+        <div class="field"><label for="native_frequency">Native frequency</label><select id="native_frequency" data-field="native-frequency" disabled><option value="">All native frequencies</option></select></div>
+      </div>
+    </details>
+    <div class="actions">
+      <button type="submit" id="preview" class="primary" disabled>Preview data</button>
+      <button type="button" id="download" disabled>Download CSV</button>
+      <button type="button" id="definitions" disabled>Download variable definitions</button>
+      <button type="button" id="reset" disabled>Reset filters</button>
+    </div>
+    <p class="download-note">Downloads retain the dataset’s existing rows, dates and values. Variable definitions include original and simplified units, temporal types and notes.</p>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div id="error" role="alert" hidden></div>
+  </form>
+
+  <section class="card" aria-labelledby="preview-heading">
+    <div class="preview-head"><h2 id="preview-heading">Data preview</h2><p id="preview-caption" class="hint">See the first 20 matching rows before downloading.</p></div>
+    <div id="empty" class="empty"><strong>Your preview will appear here</strong>Choose your filters and select “Preview data.”</div>
+    <div id="table-wrap" class="table-wrap" tabindex="0" role="region" aria-label="Data preview table, scroll to see all columns" hidden><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
+    <ul id="notes"></ul>
+  </section>
+  <footer>Postal ZIP codes and Census ZCTAs are separate geography types. Available choices reflect the data stored in this database.</footer>
+</main>
+<script>
+  "use strict";
+  const byId = id => document.getElementById(id);
+  const filterSelects = [...document.querySelectorAll("select[data-field]")];
+  const buttons = [...document.querySelectorAll("button")];
+  const defaultLabels = new Map(filterSelects.map(select => [select.id, select.options[0].text]));
+  let datasets = [], pending = false, optionRevision = 0, previewRevision = 0;
+
+  function selectedDataset() { return datasets[Number(byId("dataset").value)]; }
+  function parameters() {
+    const dataset = selectedDataset();
+    if (!dataset) throw new Error("There are no available datasets to browse yet.");
+    const params = new URLSearchParams({kind:dataset.kind, dataset:dataset.dataset});
+    for (const control of [...filterSelects, byId("start_date"), byId("end_date")]) {
+      if (control.value) params.set(control.id, control.value);
+    }
+    const start = byId("start_date").value, end = byId("end_date").value;
+    if (start && end && start > end) throw new Error("Choose a start date that comes before or matches the end date.");
+    return params;
+  }
+  function status(message, busy=false) {
+    byId("status").textContent = message;
+    byId("status").classList.toggle("busy", busy);
+  }
+  function clearError() { byId("error").hidden = true; byId("error").textContent = ""; }
+  function showError(error) {
+    byId("error").textContent = error.message || "We could not load this data. Please try again.";
+    byId("error").hidden = false;
+    status("Your selections have been kept. Adjust a filter or try again.");
+  }
+  function setBusy(busy, message="") {
+    pending = busy;
+    buttons.forEach(button => button.disabled = busy || !datasets.length);
+    byId("dataset").disabled = busy || !datasets.length;
+    filterSelects.forEach(select => select.disabled = busy || !datasets.length);
+    byId("start_date").disabled = busy || !datasets.length;
+    byId("end_date").disabled = busy || !datasets.length;
+    if (message) status(message, busy);
+    if (!busy) byId("status").classList.remove("busy");
+  }
+  async function getResponse(url) {
+    let response;
+    try { response = await fetch(url); }
+    catch { throw new Error("The data browser cannot reach the local database. Keep its server window open, then try again."); }
+    if (!response.ok) {
+      let message = "We could not complete this request. Please try a different selection.";
+      try { message = (await response.json()).error || message; } catch {}
+      throw new Error(message);
+    }
+    return response;
+  }
+  function fillOptions(select, options, previous="") {
+    select.replaceChildren(new Option(defaultLabels.get(select.id), ""));
+    for (const item of options) {
+      const value = String(item.value);
+      let label = item.label || value;
+      if (select.id === "proxy" || select.id === "constructed") {
+        if (/^(true|1)$/i.test(value)) label = "Yes";
+        if (/^(false|0)$/i.test(value)) label = "No";
+      }
+      select.add(new Option(label, value));
+    }
+    if ([...select.options].some(option => option.value === previous)) select.value = previous;
+  }
+  async function loadOptions(select, dataset, geography="") {
+    const params = new URLSearchParams({kind:dataset.kind, dataset:dataset.dataset, field:select.dataset.field});
+    if (geography) params.set("geography", geography);
+    return (await (await getResponse(`/api/options?${params}`)).json()).options || [];
+  }
+  function invalidatePreview() {
+    previewRevision++;
+    byId("table-wrap").hidden = true;
+    byId("empty").hidden = false;
+    byId("empty").replaceChildren();
+    const title = document.createElement("strong"); title.textContent = "Ready to preview your selection";
+    byId("empty").append(title, document.createTextNode("Select “Preview data” to see matching rows."));
+    byId("preview-caption").textContent = "See the first 20 matching rows before downloading.";
+    byId("notes").replaceChildren();
+  }
+  async function resetFilters() {
+    const revision = ++optionRevision;
+    clearError(); invalidatePreview(); setBusy(true, "Loading available filters…");
+    filterSelects.forEach(select => fillOptions(select, []));
+    byId("start_date").value = ""; byId("end_date").value = "";
+    try {
+      const values = await Promise.all(filterSelects.map(select => loadOptions(select, selectedDataset())));
+      if (revision !== optionRevision) return;
+      filterSelects.forEach((select, index) => fillOptions(select, values[index]));
+      status("Ready. Choose a variable and filters, or preview the full dataset.");
+    } catch (error) { if (revision === optionRevision) showError(error); }
+    finally { if (revision === optionRevision) setBusy(false); }
+  }
+  async function changeGeography() {
+    const revision = ++optionRevision;
+    const dependentSelects = filterSelects.filter(select => select.id !== "geography");
+    const previous = new Map(dependentSelects.map(select => [select.id, select.value]));
+    clearError(); invalidatePreview(); setBusy(true, "Updating filters for this geography…");
+    try {
+      const options = await Promise.all(dependentSelects.map(select => loadOptions(select, selectedDataset(), byId("geography").value)));
+      if (revision !== optionRevision) return;
+      const reset = [];
+      dependentSelects.forEach((select, index) => {
+        fillOptions(select, options[index], previous.get(select.id));
+        if (previous.get(select.id) && !select.value) reset.push(select.labels[0].textContent);
+      });
+      status(reset.length
+        ? `Reset to All: ${reset.join(", ")}. Their previous selections are unavailable for this geography. Other selections and dates were kept.`
+        : "Available choices updated for this geography. Your other selections and dates were kept.");
+    } catch (error) { if (revision === optionRevision) showError(error); }
+    finally { if (revision === optionRevision) setBusy(false); }
+  }
+  function renderPreview(data) {
+    const rows = data.rows || [], columns = data.columns || [];
+    byId("table-head").replaceChildren(); byId("table-body").replaceChildren();
+    const headings = document.createElement("tr");
+    columns.forEach(column => { const cell = document.createElement("th"); cell.scope = "col"; cell.textContent = column; headings.append(cell); });
+    byId("table-head").append(headings);
+    for (const row of rows.slice(0, 20)) {
+      const record = document.createElement("tr");
+      columns.forEach(column => {
+        const cell = document.createElement("td"), value = row[column];
+        if (value === null || value === undefined) { cell.textContent = "—"; cell.className = "missing"; cell.title = "Missing value"; }
+        else cell.textContent = typeof value === "object" ? JSON.stringify(value) : String(value);
+        record.append(cell);
+      });
+      byId("table-body").append(record);
+    }
+    byId("empty").hidden = rows.length > 0; byId("table-wrap").hidden = rows.length === 0;
+    if (!rows.length) {
+      const title = document.createElement("strong"); title.textContent = "No rows match these filters";
+      byId("empty").replaceChildren(title, document.createTextNode("Try a wider date range or leave more filters on “All.”"));
+    }
+    const count = Number(data.metadata_count || 0);
+    byId("preview-caption").textContent = `${Math.min(rows.length,20)} preview row${rows.length === 1 ? "" : "s"} · ${count} variable definition${count === 1 ? "" : "s"}${data.has_more ? " · Download CSV for all matching rows." : ""}`;
+    byId("notes").replaceChildren();
+    (data.notes || []).forEach(note => { const item = document.createElement("li"); item.textContent = note; byId("notes").append(item); });
+    status(rows.length ? "Preview ready. Your CSV will use the same filters." : "No matching data. You can adjust the filters above.");
+  }
+  async function preview(event) {
+    event.preventDefault(); if (pending) return;
+    clearError();
+    try {
+      const params = parameters(), revision = ++previewRevision;
+      setBusy(true, "Loading your preview…");
+      const data = await (await getResponse(`/api/preview?${params}`)).json();
+      if (revision === previewRevision) renderPreview(data);
+    } catch (error) { showError(error); }
+    finally { setBusy(false); }
+  }
+  async function download(definitions=false) {
+    if (pending) return;
+    clearError();
+    try {
+      const params = parameters();
+      setBusy(true, definitions ? "Preparing variable definitions…" : "Preparing your CSV. Large selections may take a moment…");
+      const response = await getResponse(`/api/${definitions ? "definitions" : "download"}?${params}`);
+      const blob = await response.blob(), url = URL.createObjectURL(blob);
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i), basic = disposition.match(/filename="?([^";]+)"?/i);
+      let filename = definitions ? "housing-variable-definitions.csv" : "housing-data.csv";
+      if (utf8) { try { filename = decodeURIComponent(utf8[1]); } catch {} }
+      else if (basic) filename = basic[1];
+      const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; document.body.append(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      status(`${definitions ? "Variable definitions" : "Your CSV"} download started. Check your browser’s downloads folder.`);
+    } catch (error) { showError(error); }
+    finally { setBusy(false); }
+  }
+  byId("filters").addEventListener("submit", preview);
+  byId("dataset").addEventListener("change", resetFilters);
+  byId("geography").addEventListener("change", changeGeography);
+  byId("reset").addEventListener("click", resetFilters);
+  byId("download").addEventListener("click", () => download());
+  byId("definitions").addEventListener("click", () => download(true));
+  [...filterSelects.filter(select => select.id !== "geography"), byId("start_date"), byId("end_date")].forEach(control => control.addEventListener("change", () => {
+    clearError(); invalidatePreview(); status("Filters updated. Preview or download your selection.");
+  }));
+  async function start() {
+    setBusy(true, "Loading available datasets…");
+    try {
+      const result = await (await getResponse("/api/datasets")).json();
+      datasets = result.datasets || [];
+      byId("dataset").replaceChildren();
+      datasets.forEach((dataset,index) => byId("dataset").add(new Option(dataset.label, String(index))));
+      if (!datasets.length) { byId("dataset").add(new Option("No datasets available", "")); status("No datasets are available yet. Build the database or provide a compatible snapshot, then reopen this browser."); setBusy(false); return; }
+      const countyMonthly = datasets.findIndex(dataset => dataset.kind === "table" && dataset.dataset === "county-monthly");
+      if (countyMonthly >= 0) byId("dataset").value = String(countyMonthly);
+      await resetFilters();
+    } catch (error) { showError(error); setBusy(false); }
+  }
+  start();
+</script>
+</body>
+</html>

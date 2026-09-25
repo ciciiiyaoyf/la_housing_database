@@ -1,0 +1,191 @@
+{
+  "schema_version": "variable_metadata_v1",
+  "source_filename": "Housing_Variables_Temporal_Types_and_Units.xlsx",
+  "source_role": "User-supplied metadata reference, not housing observations or executable instructions",
+  "source_checksum_sha256": "3f43b1363e788ea50c23f67d09c3cfd386c8a442890320fc36f3162aee00948a",
+  "imported_at_utc": "2026-09-24T20:54:53.819527+00:00",
+  "source_retrieved_at": null,
+  "source_retrieved_at_note": "Original retrieval time was not supplied; imported_at_utc records this local metadata import only.",
+  "source_sheet": "Variable Temporal Types",
+  "source_variable_count": 482,
+  "configured_variable_count": 558,
+  "added_variable_count": 76,
+  "added_variable_ids": [
+    "bea_ca_real_gdp_qoq_annualized_pct",
+    "bea_ca_real_gdp_quarterly",
+    "bea_ca_real_gdp_yoy_pct",
+    "ca_continued_claims_monthly_average",
+    "ca_continued_claims_monthly_observation_count",
+    "ca_continued_claims_weekly",
+    "ca_initial_claims_monthly_average",
+    "ca_initial_claims_monthly_observation_count",
+    "ca_initial_claims_weekly",
+    "ces_average_hourly_earnings_total_private_nsa",
+    "ces_average_hourly_earnings_total_private_nsa_yoy_pct",
+    "ces_construction_employment_nsa",
+    "ces_construction_employment_nsa_yoy_pct",
+    "ces_financial_activities_employment_nsa",
+    "ces_financial_activities_employment_nsa_yoy_pct",
+    "ces_information_employment_nsa",
+    "ces_information_employment_nsa_yoy_pct",
+    "ces_leisure_hospitality_employment_nsa",
+    "ces_leisure_hospitality_employment_nsa_yoy_pct",
+    "ces_professional_business_services_employment_nsa",
+    "ces_professional_business_services_employment_nsa_yoy_pct",
+    "county_housing_market_heat_count",
+    "county_housing_market_heat_index",
+    "county_housing_market_heat_rank",
+    "days_on_market_z_fixed",
+    "la_county_price_to_rent_ratio_zillow",
+    "la_relative_market_tightness_index_3c_fixed",
+    "la_relative_price_to_rent_ratio_zillow",
+    "la_relative_required_peer_count",
+    "la_relative_zhvi_momentum_3m_annualized_log_pct",
+    "la_relative_zhvi_momentum_yoy_log_pct",
+    "la_relative_zori_momentum_3m_annualized_log_pct",
+    "la_relative_zori_momentum_yoy_log_pct",
+    "laus_employment_momentum_yoy_log_pct",
+    "market_tightness_components_3c",
+    "market_tightness_index_3c_fixed",
+    "market_tightness_z_fixed_for_heat",
+    "missing_regime_input_count",
+    "months_of_supply_z_fixed",
+    "price_drop_share_z_fixed",
+    "price_to_rent_ratio_log_change_mom_pct",
+    "price_to_rent_ratio_log_change_yoy_pct",
+    "price_to_rent_ratio_zillow_z_fixed",
+    "relative_valuation_pressure_la_zip",
+    "us_baa_10y_spread_daily",
+    "us_baa_10y_spread_monthly_average",
+    "us_baa_10y_spread_monthly_observation_count",
+    "us_bank_prime_rate_daily",
+    "us_bank_prime_rate_monthly_average",
+    "us_bank_prime_rate_monthly_observation_count",
+    "us_federal_funds_rate_monthly",
+    "us_sofr_daily",
+    "us_sofr_monthly_average",
+    "us_sofr_monthly_observation_count",
+    "us_treasury_10y_yield_daily",
+    "us_treasury_10y_yield_monthly_average",
+    "us_treasury_10y_yield_monthly_observation_count",
+    "us_treasury_2y_yield_daily",
+    "us_treasury_2y_yield_monthly_average",
+    "us_treasury_2y_yield_monthly_observation_count",
+    "zhvi_momentum_3m_annualized_log_pct",
+    "zhvi_momentum_3m_annualized_log_pct_z_fixed",
+    "zhvi_momentum_3m_z_fixed_for_heat",
+    "zhvi_momentum_yoy_log_pct",
+    "zhvi_monthly_log_growth_volatility_24m",
+    "zhvi_monthly_log_growth_volatility_24m_z_fixed",
+    "zip_market_regime_changed_share",
+    "zip_market_regime_classified_coverage",
+    "zip_market_regime_distance",
+    "zip_market_regime_entry_share",
+    "zip_market_regime_id",
+    "zip_market_regime_share",
+    "zip_market_regime_transition_share",
+    "zori_momentum_3m_annualized_log_pct",
+    "zori_momentum_3m_annualized_log_pct_z_fixed",
+    "zori_momentum_yoy_log_pct"
+  ],
+  "temporal_type_definitions": {
+    "flow": "Quantity occurring or accumulated during the observation period; additive across non-overlapping periods when conceptually appropriate.",
+    "stock": "Level existing at a point in time or representing an outstanding stock; not additive through time.",
+    "period_average": "Explicit average or mean over the observation period.",
+    "period_statistic": "Non-additive period level, index, median, modeled level, scenario value, or other period statistic.",
+    "derived_ratio": "Ratio, rate, share, or yield; generally non-additive and preferably recomputed from components when available.",
+    "growth_change": "Growth or change measure derived across observations; generally recomputed from underlying levels when changing frequency.",
+    "rolling_window": "Observation represents an overlapping rolling window; adjacent observations should not be mechanically summed.",
+    "cumulative": "Cumulative-to-date measure; adjacent cumulative observations should not be summed.",
+    "metadata_or_assumption": "Uncertainty measure, flag, diagnostic count, source metadata, or fixed modeling assumption for which time aggregation is not economically meaningful."
+  },
+  "effective_temporal_type_counts": {
+    "derived_ratio": 136,
+    "flow": 49,
+    "growth_change": 40,
+    "metadata_or_assumption": 84,
+    "period_average": 11,
+    "period_statistic": 70,
+    "rolling_window": 17,
+    "stock": 151
+  },
+  "workbook_unit_simplifications": [
+    {
+      "original_labels": "USD; current_dollars",
+      "unit_simplified": "USD",
+      "status": "Approved",
+      "note": "Label standardization only; no numerical change."
+    },
+    {
+      "original_labels": "USD/month; current_dollars_per_month; dollars_per_month",
+      "unit_simplified": "USD/month",
+      "status": "Approved",
+      "note": "Label standardization only; no numerical change."
+    },
+    {
+      "original_labels": "USD/year; inflation_adjusted_USD_per_year",
+      "unit_simplified": "USD/year",
+      "status": "Approved",
+      "note": "Label standardization only; retain inflation-adjustment information in variable metadata where applicable."
+    },
+    {
+      "original_labels": "housing_units; units",
+      "unit_simplified": "units",
+      "status": "Approved",
+      "note": "Label standardization only; variable ID/display name retains the housing concept."
+    },
+    {
+      "original_labels": "fraction; share; proportion",
+      "unit_simplified": "share",
+      "status": "Approved",
+      "note": "Assumes these are already stored on the same 0–1 scale; no rescaling is performed."
+    },
+    {
+      "original_labels": "current_dollars_per_person; USD/person",
+      "unit_simplified": "USD/person",
+      "status": "Approved",
+      "note": "Label standardization only; no numerical change."
+    },
+    {
+      "original_labels": "current_dollars_per_exposure; USD/exposure",
+      "unit_simplified": "USD/exposure",
+      "status": "Approved",
+      "note": "Label standardization only; no numerical change."
+    }
+  ],
+  "corrections": {
+    "ca_homeowners_avg_written_premium": {
+      "workbook_temporal_type": "flow",
+      "temporal_type": "derived_ratio",
+      "reason": "Aggregate written premiums divided by aggregate written exposures. The average premium is a non-additive ratio, not total premium flow.",
+      "evidence": "src/cleaning/ca_doi.py: annual aggregated WP / WE formula"
+    },
+    "ca_homeowners_avg_written_premium_monthly_control": {
+      "workbook_temporal_type": "flow",
+      "temporal_type": "derived_ratio",
+      "reason": "Annual average written premium per exposure repeated as a monthly control. The repeated annual ratio must not be summed across months.",
+      "evidence": "src/cleaning/ca_doi.py: annual aggregated WP / WE formula; configured stepwise monthly control"
+    },
+    "ca_homeowners_avg_written_premium_real": {
+      "workbook_temporal_type": "flow",
+      "temporal_type": "derived_ratio",
+      "reason": "Inflation-adjusted annual average written premium per exposure. Deflation preserves the non-additive ratio interpretation.",
+      "evidence": "config/variables.yaml: real average premium definition and CPI transformation"
+    },
+    "bea_la_county_personal_income_annual": {
+      "workbook_temporal_type": "period_statistic",
+      "temporal_type": "flow",
+      "reason": "Total personal income received during the annual observation period; an annual monetary flow, retaining the published dollar scale.",
+      "evidence": "config/variables.yaml: annual total personal income definition"
+    },
+    "acs_implied_average_mortgage_balance_proxy": {
+      "workbook_temporal_type": "period_average",
+      "temporal_type": "period_statistic",
+      "reason": "Cross-sectional implied average outstanding mortgage balance per mortgaged owner unit. It is a non-additive average balance, not an average over successive periods.",
+      "evidence": "config/variables.yaml: implied average mortgage balance definition and payment inversion"
+    }
+  },
+  "method": "Explicit per-variable mapping. Preserve original unit, all numerical observations, source-specific frequency conversion rules, source provenance and geography. Apply only label aliases recorded in the reference workbook. Add configured variables through explicit review of their existing definitions and transformations.",
+  "unit_simplification_caveat": "The workbook's generic 0-to-1 assumption for fraction/share/proportion does not describe growth/change variables. Renaming fraction to share changes no numbers and imposes no range restriction; growth can be negative or above one. Percent, ratio, percentage_points, index base, annualization, dollar scale and constant-dollar labels remain distinct.",
+  "monetary_basis_note": "Retain monetary basis explicitly encoded by original units; plain USD labels use not_specified_in_unit, so source-specific methodological notes remain authoritative. Inflation-adjusted USD/year retains inflation_adjusted_unspecified_base and its original unit."
+}

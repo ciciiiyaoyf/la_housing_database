@@ -1,0 +1,5 @@
+started_at,completed_at,database_version,stage,information_cutoff_date,start_month,end_month,strict_primary_concepts,status,error
+2026-08-17T21:14:24.263259+00:00,2026-08-17T21:15:33.798027+00:00,B,preflight,,,,False,succeeded,
+2026-08-17T21:15:48.017111+00:00,2026-08-17T21:37:40.281755+00:00,B,build,,,,False,succeeded,
+2026-08-17T21:37:55.303380+00:00,2026-08-17T21:38:20.256271+00:00,B,validate,,,,False,succeeded,
+2026-08-17T22:20:47.070479+00:00,2026-08-17T22:21:14.146255+00:00,B,validate,,,,False,succeeded,

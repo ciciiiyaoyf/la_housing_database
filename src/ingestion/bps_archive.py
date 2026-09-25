@@ -289,7 +289,11 @@ def download_bps_archive(
     logger = logging.getLogger("la_housing.download.bps")
     archive_config = config.pipeline["census_bps"]
     effective_start = start_date or str(archive_config["archive_start_date"])
-    effective_end = end_date or pd.Timestamp.now().date().isoformat()
+    effective_end = (
+        end_date
+        or source.selected_end_date
+        or pd.Timestamp.now().date().isoformat()
+    )
     targets = _targets(source, effective_start, effective_end)
     existing = _existing_archive_files(config, source.source_id)
     existing_by_period = (

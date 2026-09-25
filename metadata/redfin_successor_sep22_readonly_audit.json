@@ -1,0 +1,804 @@
+{
+  "files": {
+    "tracker": {
+      "filename": "redfin_housing_market_monthly_all_counties_2012_Jan_to_2026_Aug.csv",
+      "bytes": 119227326,
+      "sha256": "4da139d502a9eec8a78c63d7c5f243ac5357057e97c006c514078ebababbf1a3",
+      "headers": [
+        "LAST UPDATED",
+        "FREQUENCY",
+        "PERIOD BEGIN",
+        "PERIOD END",
+        "REGION ID",
+        "REGION TYPE",
+        "REGION NAME",
+        "METRO",
+        "HOMES SOLD",
+        "HOMES SOLD YOY (%)",
+        "MEDIAN SALE PRICE NSA ($)",
+        "MEDIAN SALE PRICE NSA YOY (%)",
+        "MEDIAN DAYS ON MARKET (DAYS)",
+        "MEDIAN DAYS ON MARKET YOY (DAYS)",
+        "AVERAGE SALE TO LIST RATIO (%)",
+        "AVERAGE SALE TO LIST RATIO YOY (PPTS)",
+        "SHARE SOLD ABOVE ORIGINAL LIST (%)",
+        "SHARE SOLD ABOVE ORIGINAL LIST YOY (PPTS)",
+        "NEW LISTINGS",
+        "NEW LISTINGS YOY (%)",
+        "ACTIVE LISTINGS",
+        "ACTIVE LISTINGS YOY (%)",
+        "INVENTORY",
+        "INVENTORY YOY (%)",
+        "PENDING SALES",
+        "PENDING SALES YOY (%)",
+        "MEDIAN NEW LISTING PRICE ($)",
+        "MEDIAN NEW LISTING PRICE YOY (%)",
+        "MEDIAN NEW LISTING PRICE PER SQ.FT. ($)",
+        "MEDIAN NEW LISTING PRICE PER SQ.FT. YOY (%)",
+        "MEDIAN SALE PRICE PER SQ.FT. ($)",
+        "MEDIAN SALE PRICE PER SQ.FT. YOY (%)",
+        "MONTHS OF SUPPLY",
+        "MONTHS OF SUPPLY YOY (%)",
+        "PERCENT OFF MARKET IN TWO WEEKS (%)",
+        "PERCENT OFF MARKET IN TWO WEEKS YOY (PPTS)"
+      ],
+      "total_rows": 532836,
+      "unique_region_names": 3138,
+      "frequency_values": [
+        "Monthly"
+      ],
+      "region_type_values": [
+        "County"
+      ],
+      "provider_last_updated_values": [
+        "2026-09-03"
+      ],
+      "invalid_calendar_month_rows": 0,
+      "duplicate_region_period_end_rows": 0,
+      "seasonal_adjustment_columns": [],
+      "property_type_columns": [],
+      "selected_county_rows": 1408,
+      "county_coverage": [
+        {
+          "county": "Los Angeles County, CA",
+          "county_fips": "06037",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 1.3,
+              "maximum": 5.4
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 17.0,
+              "maximum": 73.0
+            }
+          }
+        },
+        {
+          "county": "Orange County, CA",
+          "county_fips": "06059",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 0.9,
+              "maximum": 5.4
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 13.0,
+              "maximum": 76.0
+            }
+          }
+        },
+        {
+          "county": "Riverside County, CA",
+          "county_fips": "06065",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 1.1,
+              "maximum": 5.6
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 15.0,
+              "maximum": 73.0
+            }
+          }
+        },
+        {
+          "county": "San Bernardino County, CA",
+          "county_fips": "06071",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 1.3,
+              "maximum": 5.4
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 21.0,
+              "maximum": 75.0
+            }
+          }
+        },
+        {
+          "county": "San Diego County, CA",
+          "county_fips": "06073",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 0.6,
+              "maximum": 4.7
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 9.0,
+              "maximum": 69.0
+            }
+          }
+        },
+        {
+          "county": "Sacramento County, CA",
+          "county_fips": "06067",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 0.5,
+              "maximum": 4.3
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 6.0,
+              "maximum": 67.0
+            }
+          }
+        },
+        {
+          "county": "Santa Clara County, CA",
+          "county_fips": "06085",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 0.4,
+              "maximum": 3.1
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 8.0,
+              "maximum": 48.0
+            }
+          }
+        },
+        {
+          "county": "Alameda County, CA",
+          "county_fips": "06001",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "MONTHS OF SUPPLY": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 0.5,
+              "maximum": 3.2
+            },
+            "MEDIAN DAYS ON MARKET (DAYS)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 9.0,
+              "maximum": 53.0
+            }
+          }
+        }
+      ]
+    },
+    "price_drops": {
+      "filename": "redfin_price_drops_monthly_all_counties_2012_Jan_to_2026_Aug.csv",
+      "bytes": 61717180,
+      "sha256": "63f6d00f807d5162545e3f29631567d780a5a8e6fab4fa2176983cd604322862",
+      "headers": [
+        "LAST UPDATED",
+        "FREQUENCY",
+        "PERIOD BEGIN",
+        "PERIOD END",
+        "REGION TYPE",
+        "REGION NAME",
+        "METRO",
+        "PRICE DROPS",
+        "PRICE DROPS YOY (%)",
+        "AVERAGE SIZE OF PRICE DROP (%)",
+        "AVERAGE SIZE OF PRICE DROP YOY (PPTS)",
+        "PERCENT ACTIVE WITH PRICE DROPS (%)",
+        "PERCENT ACTIVE WITH PRICE DROPS YOY (PPTS)",
+        "HOMES SOLD WITH PRICE DROPS",
+        "HOMES SOLD WITH PRICE DROPS YOY (%)"
+      ],
+      "total_rows": 532836,
+      "unique_region_names": 3138,
+      "frequency_values": [
+        "Monthly"
+      ],
+      "region_type_values": [
+        "County"
+      ],
+      "provider_last_updated_values": [
+        "2026-09-03"
+      ],
+      "invalid_calendar_month_rows": 0,
+      "duplicate_region_period_end_rows": 0,
+      "seasonal_adjustment_columns": [],
+      "property_type_columns": [],
+      "selected_county_rows": 1408,
+      "county_coverage": [
+        {
+          "county": "Los Angeles County, CA",
+          "county_fips": "06037",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 4.99,
+              "maximum": 19.55
+            }
+          }
+        },
+        {
+          "county": "Orange County, CA",
+          "county_fips": "06059",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 3.27,
+              "maximum": 27.39
+            }
+          }
+        },
+        {
+          "county": "Riverside County, CA",
+          "county_fips": "06065",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 4.59,
+              "maximum": 26.21
+            }
+          }
+        },
+        {
+          "county": "San Bernardino County, CA",
+          "county_fips": "06071",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 3.18,
+              "maximum": 25.33
+            }
+          }
+        },
+        {
+          "county": "San Diego County, CA",
+          "county_fips": "06073",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 4.86,
+              "maximum": 27.91
+            }
+          }
+        },
+        {
+          "county": "Sacramento County, CA",
+          "county_fips": "06067",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 6.73,
+              "maximum": 32.96
+            }
+          }
+        },
+        {
+          "county": "Santa Clara County, CA",
+          "county_fips": "06085",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 2.33,
+              "maximum": 23.23
+            }
+          }
+        },
+        {
+          "county": "Alameda County, CA",
+          "county_fips": "06001",
+          "rows": 176,
+          "first_period": "2012-01-01",
+          "last_period": "2026-08-31",
+          "metrics": {
+            "PERCENT ACTIVE WITH PRICE DROPS (%)": {
+              "nonmissing": 176,
+              "missing": 0,
+              "minimum": 3.85,
+              "maximum": 22.06
+            }
+          }
+        }
+      ]
+    }
+  },
+  "join": {
+    "matched_rows": 1408,
+    "unmatched_rows": 0,
+    "price_drop_share_vs_count_divided_by_active_listings_max_absolute_percentage_point_difference": 0.007077412754345147,
+    "price_drop_share_vs_count_divided_by_active_listings_median_absolute_percentage_point_difference": 0.002557100942126578
+  },
+  "old_clean_seasonal_flags": [
+    false
+  ],
+  "overlap_comparisons": {
+    "months_of_supply": {
+      "all_overlap": {
+        "paired_rows": 1382,
+        "paired_nonmissing": 1382,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 652,
+        "equal_within_successor_display_rounding": 652,
+        "rounding_tolerance_in_stored_units": 0.050000001,
+        "mean_new_minus_old": 0.038133140376266285,
+        "median_absolute_difference": 0.09999999999999964,
+        "p95_absolute_difference": 0.20000000000000018,
+        "max_absolute_difference": 0.5999999999999999,
+        "correlation": 0.9962772144318063
+      },
+      "frozen_reference_window": {
+        "paired_rows": 760,
+        "paired_nonmissing": 760,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 350,
+        "equal_within_successor_display_rounding": 350,
+        "rounding_tolerance_in_stored_units": 0.050000001,
+        "mean_new_minus_old": 0.03684210526315789,
+        "median_absolute_difference": 0.09999999999999964,
+        "p95_absolute_difference": 0.19999999999999996,
+        "max_absolute_difference": 0.5999999999999999,
+        "correlation": 0.9956802097266869
+      },
+      "2020_onward": {
+        "paired_rows": 616,
+        "paired_nonmissing": 616,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 302,
+        "equal_within_successor_display_rounding": 302,
+        "rounding_tolerance_in_stored_units": 0.050000001,
+        "mean_new_minus_old": 0.0387987012987013,
+        "median_absolute_difference": 0.09999999999999964,
+        "p95_absolute_difference": 0.20000000000000018,
+        "max_absolute_difference": 0.5,
+        "correlation": 0.9968234006955478
+      },
+      "largest_overlap_differences": [
+        {
+          "observation_date": "2019-04-30T00:00:00.000",
+          "county_fips": "06085",
+          "old_value": 1.8,
+          "new_value": 2.4,
+          "abs_difference": 0.6
+        },
+        {
+          "observation_date": "2026-05-31T00:00:00.000",
+          "county_fips": "06071",
+          "old_value": 4.3,
+          "new_value": 4.8,
+          "abs_difference": 0.5
+        },
+        {
+          "observation_date": "2015-02-28T00:00:00.000",
+          "county_fips": "06071",
+          "old_value": 4.9,
+          "new_value": 4.5,
+          "abs_difference": 0.4
+        },
+        {
+          "observation_date": "2026-05-31T00:00:00.000",
+          "county_fips": "06037",
+          "old_value": 3.9,
+          "new_value": 4.3,
+          "abs_difference": 0.4
+        },
+        {
+          "observation_date": "2025-02-28T00:00:00.000",
+          "county_fips": "06037",
+          "old_value": 4.4,
+          "new_value": 4.1,
+          "abs_difference": 0.3
+        }
+      ],
+      "new_only_rows": 26,
+      "old_only_rows": 0
+    },
+    "days_on_market": {
+      "all_overlap": {
+        "paired_rows": 1382,
+        "paired_nonmissing": 1382,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 803,
+        "equal_within_successor_display_rounding": 803,
+        "rounding_tolerance_in_stored_units": 0.500000001,
+        "mean_new_minus_old": -0.24746743849493488,
+        "median_absolute_difference": 0.0,
+        "p95_absolute_difference": 1.0,
+        "max_absolute_difference": 10.0,
+        "correlation": 0.9978012786785091
+      },
+      "frozen_reference_window": {
+        "paired_rows": 760,
+        "paired_nonmissing": 760,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 444,
+        "equal_within_successor_display_rounding": 444,
+        "rounding_tolerance_in_stored_units": 0.500000001,
+        "mean_new_minus_old": -0.21973684210526315,
+        "median_absolute_difference": 0.0,
+        "p95_absolute_difference": 1.0,
+        "max_absolute_difference": 9.0,
+        "correlation": 0.9983712309987139
+      },
+      "2020_onward": {
+        "paired_rows": 616,
+        "paired_nonmissing": 616,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 357,
+        "equal_within_successor_display_rounding": 357,
+        "rounding_tolerance_in_stored_units": 0.500000001,
+        "mean_new_minus_old": -0.2775974025974026,
+        "median_absolute_difference": 0.0,
+        "p95_absolute_difference": 2.0,
+        "max_absolute_difference": 10.0,
+        "correlation": 0.9969377864172109
+      },
+      "largest_overlap_differences": [
+        {
+          "observation_date": "2020-03-31T00:00:00.000",
+          "county_fips": "06085",
+          "old_value": 12.0,
+          "new_value": 22.0,
+          "abs_difference": 10.0
+        },
+        {
+          "observation_date": "2019-06-30T00:00:00.000",
+          "county_fips": "06085",
+          "old_value": 25.0,
+          "new_value": 34.0,
+          "abs_difference": 9.0
+        },
+        {
+          "observation_date": "2020-02-29T00:00:00.000",
+          "county_fips": "06085",
+          "old_value": 14.0,
+          "new_value": 23.0,
+          "abs_difference": 9.0
+        },
+        {
+          "observation_date": "2020-04-30T00:00:00.000",
+          "county_fips": "06085",
+          "old_value": 12.0,
+          "new_value": 21.0,
+          "abs_difference": 9.0
+        },
+        {
+          "observation_date": "2020-09-30T00:00:00.000",
+          "county_fips": "06085",
+          "old_value": 20.0,
+          "new_value": 29.0,
+          "abs_difference": 9.0
+        }
+      ],
+      "new_only_rows": 26,
+      "old_only_rows": 0
+    },
+    "price_drop_share": {
+      "all_overlap": {
+        "paired_rows": 1382,
+        "paired_nonmissing": 1380,
+        "old_missing_new_present": 2,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 0,
+        "equal_within_successor_display_rounding": 0,
+        "rounding_tolerance_in_stored_units": 5.0001e-05,
+        "mean_new_minus_old": -0.07687428809594203,
+        "median_absolute_difference": 0.07048046685,
+        "p95_absolute_difference": 0.13727797111,
+        "max_absolute_difference": 0.21911093870000004,
+        "correlation": 0.9166312941221287
+      },
+      "frozen_reference_window": {
+        "paired_rows": 760,
+        "paired_nonmissing": 758,
+        "old_missing_new_present": 2,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 0,
+        "equal_within_successor_display_rounding": 0,
+        "rounding_tolerance_in_stored_units": 5.0001e-05,
+        "mean_new_minus_old": -0.07524940773693932,
+        "median_absolute_difference": 0.06978517149999999,
+        "p95_absolute_difference": 0.128721650205,
+        "max_absolute_difference": 0.17040160489999998,
+        "correlation": 0.912578671461791
+      },
+      "2020_onward": {
+        "paired_rows": 616,
+        "paired_nonmissing": 616,
+        "old_missing_new_present": 0,
+        "new_missing_old_present": 0,
+        "equal_at_1e_9": 0,
+        "equal_within_successor_display_rounding": 0,
+        "rounding_tolerance_in_stored_units": 5.0001e-05,
+        "mean_new_minus_old": -0.07894473534853895,
+        "median_absolute_difference": 0.07089619055,
+        "p95_absolute_difference": 0.14243422837499997,
+        "max_absolute_difference": 0.21911093870000004,
+        "correlation": 0.921492819530616
+      },
+      "largest_overlap_differences": [
+        {
+          "observation_date": "2022-08-31T00:00:00.000",
+          "county_fips": "06067",
+          "old_value": 0.5484109387,
+          "new_value": 0.3293,
+          "abs_difference": 0.2191109387
+        },
+        {
+          "observation_date": "2022-05-31T00:00:00.000",
+          "county_fips": "06067",
+          "old_value": 0.3971061093,
+          "new_value": 0.2098,
+          "abs_difference": 0.1873061093
+        },
+        {
+          "observation_date": "2020-06-30T00:00:00.000",
+          "county_fips": "06067",
+          "old_value": 0.3447339848,
+          "new_value": 0.1589,
+          "abs_difference": 0.1858339848
+        },
+        {
+          "observation_date": "2021-08-31T00:00:00.000",
+          "county_fips": "06067",
+          "old_value": 0.3452115813,
+          "new_value": 0.1602,
+          "abs_difference": 0.1850115813
+        },
+        {
+          "observation_date": "2021-11-30T00:00:00.000",
+          "county_fips": "06067",
+          "old_value": 0.3018092105,
+          "new_value": 0.124,
+          "abs_difference": 0.1778092105
+        }
+      ],
+      "new_only_rows": 26,
+      "old_only_rows": 0
+    }
+  },
+  "august_2026_values": [
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06037",
+      "new_value": 4.5,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06065",
+      "new_value": 3.9,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06071",
+      "new_value": 4.7,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06073",
+      "new_value": 3.0,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06059",
+      "new_value": 3.4,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06001",
+      "new_value": 2.4,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06067",
+      "new_value": 2.7,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06085",
+      "new_value": 2.3,
+      "variable_id": "months_of_supply"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06037",
+      "new_value": 49.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06065",
+      "new_value": 56.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06071",
+      "new_value": 54.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06073",
+      "new_value": 28.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06059",
+      "new_value": 43.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06001",
+      "new_value": 22.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06067",
+      "new_value": 27.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06085",
+      "new_value": 19.0,
+      "variable_id": "days_on_market"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06037",
+      "new_value": 0.1701,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06065",
+      "new_value": 0.1816,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06071",
+      "new_value": 0.1942,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06073",
+      "new_value": 0.223,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06059",
+      "new_value": 0.1943,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06001",
+      "new_value": 0.1557,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06067",
+      "new_value": 0.2407,
+      "variable_id": "price_drop_share"
+    },
+    {
+      "observation_date": "2026-08-31T00:00:00.000",
+      "county_fips": "06085",
+      "new_value": 0.1652,
+      "variable_id": "price_drop_share"
+    }
+  ],
+  "limitations": [
+    "Successor CSVs have no explicit seasonal-adjustment or property-type columns; source-page methodology/selection records are required to establish those attributes.",
+    "Overlap differences describe observed revisions and/or methodological differences; the files alone do not identify their cause.",
+    "Monthly frequency and August source observations do not establish a working automated provider download endpoint."
+  ]
+}

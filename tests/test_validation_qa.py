@@ -7,6 +7,7 @@ from src.validation.qa import (
     _classify_geo_type,
     _hud_usps_county_coverage_failures,
     _hud_usps_geography_identity_failures,
+    _market_tightness_failures,
 )
 
 
@@ -106,3 +107,34 @@ def test_hud_usps_geography_safeguards_reject_mismatch_and_missing_county() -> N
 
     assert identity["geo_id"].tolist() == ["TRACT_06037101110"]
     assert coverage["missing_counties"].tolist() == ["06115"]
+
+
+def _market_tightness_panel() -> pd.DataFrame:
+    panel = pd.DataFrame(
+        {
+            "date": pd.date_range("2025-01-31", periods=5, freq="ME"),
+            "months_of_supply": [4.0, 3.5, 3.0, 2.5, 2.0],
+            "days_on_market": [40.0, 38.0, 34.0, 30.0, 25.0],
+            "inventory_growth_yoy": [0.10, 0.05, 0.0, -0.05, -0.10],
+            "price_drop_share": [0.30, 0.25, 0.20, 0.15, 0.10],
+        }
+    )
+    from src.features.derived import market_tightness_index
+
+    index, components = market_tightness_index(panel, 3)
+    panel["market_tightness_index"] = index
+    panel["market_tightness_components"] = components
+    return panel
+
+
+def test_market_tightness_qa_recomputes_formula_and_component_count() -> None:
+    panel = _market_tightness_panel()
+
+    assert _market_tightness_failures(panel, 3).empty
+
+    panel.loc[2, "market_tightness_index"] += 0.5
+    panel.loc[3, "market_tightness_components"] = 3
+    failures = _market_tightness_failures(panel, 3)
+
+    assert failures["date"].tolist() == [panel.loc[2, "date"], panel.loc[3, "date"]]
+    assert failures["failure"].eq("formula_or_component_count_mismatch").all()

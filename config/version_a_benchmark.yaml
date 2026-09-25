@@ -117,9 +117,11 @@ sources:
     implementation_status: manual_required
     acquisition: official_combined_file_import
     source_page_url: https://ffiec.cfpb.gov/data-publication/modified-lar
+    download_url: https://files.ffiec.cfpb.gov/modified-lar/combined-mlar/2025/2025_combined_mlar_header.zip
     native_frequency: annual
     geography: loan_record_with_county
     first_supported_vintage: 2018
+    latest_verified_vintage: 2025
     required_columns:
       - activity_year
       - state_code
@@ -131,7 +133,7 @@ sources:
       - loan_type
       - property_value
       - combined_loan_to_value_ratio
-    notes: The repository does not invent a stable bulk URL. Import the official combined Modified LAR CSV or ZIP and preserve its checksum.
+    notes: Import the official combined Modified LAR ZIP exposed by the provider's year page and preserve its checksum, release date, and retrieval timestamp.
 
   fhfa_nmdb_joint_distribution:
     provider: Federal Housing Finance Agency
@@ -162,7 +164,7 @@ sources:
 
   freddie_mac_pmms:
     provider: Freddie Mac
-    implementation_status: implemented_fallback_only
+    implementation_status: implemented_scenario_only
     acquisition: official_csv
     source_page_url: https://www.freddiemac.com/pmms/pmms_archives
     native_frequency: weekly
@@ -171,7 +173,7 @@ sources:
       - mortgage_rate_30y_monthly_average
       - mortgage_rate_30y_monthly_median
       - mortgage_rate_30y_month_end
-    notes: Sensitivity fallback only; it is an origination-rate series, not the preferred outstanding-stock coupon.
+    notes: Implemented only for explicitly labeled 20/25/30-year term-sensitivity scenarios; it is an origination-rate series, not an outstanding-stock coupon or calibrated UPB control.
 
   bls_cpi_u_us_city_average:
     provider: U.S. Bureau of Labor Statistics
@@ -187,6 +189,8 @@ sources:
     release_date_policy: explicit_required
     notes: Select the published M13 annual average. Never recompute it from monthly values. ACS dollar estimates use the ACS vintage ending year as their price basis, not the five-year midpoint.
 
+# Core benchmark outputs used for build orchestration. The exhaustive 67-ID
+# contract, including all 28 HMDA loan-type splits, is version_a_variables.yaml.
 benchmark_outputs:
   - variable_name: pums_first_mortgage_pi_share_benchmark
     concept: source_first_mortgage_pi_share_parameter
@@ -211,6 +215,33 @@ benchmark_outputs:
     source_frequency: acs_5_year
   - variable_name: acs_implied_first_mortgage_balance_raw_benchmark
     concept: implied_mortgage_debt
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark
+    concept: uncalibrated_implied_mortgage_debt_pmms_20y_sensitivity
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark
+    concept: uncalibrated_implied_mortgage_debt_pmms_25y_sensitivity
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark
+    concept: uncalibrated_implied_mortgage_debt_pmms_30y_sensitivity
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_benchmark
+    concept: mortgaged_owner_home_equity_pmms_20y_scenario
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark
+    concept: all_owner_home_equity_pmms_20y_scenario
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_benchmark
+    concept: mortgaged_owner_home_equity_pmms_25y_scenario
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark
+    concept: all_owner_home_equity_pmms_25y_scenario
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_benchmark
+    concept: mortgaged_owner_home_equity_pmms_30y_scenario
+    source_frequency: acs_5_year
+  - variable_name: acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark
+    concept: all_owner_home_equity_pmms_30y_scenario
     source_frequency: acs_5_year
   - variable_name: acs_implied_first_mortgage_balance_cal_benchmark
     concept: calibrated_implied_mortgage_debt
@@ -271,6 +302,8 @@ benchmark_outputs:
     source_frequency: annual
 
 supplementary_version_a_source_status:
+  # These statuses apply only to integration inside the Version A benchmark.
+  # They do not override sources already implemented by the general pipeline.
   fhfa_hpi: {status: not_implemented, native_frequency: monthly_or_quarterly}
   bls_ces_payroll_employment: {status: not_implemented, native_frequency: monthly, geography: la_metro}
   bea_personal_income: {status: not_implemented, native_frequency: annual_county_or_quarterly_state}

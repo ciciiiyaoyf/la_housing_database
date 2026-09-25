@@ -5,6 +5,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 from src.common.config import load_config
+from src.housing_finance_monthly.metadata import PRODUCT_SOURCE_IDS
 from src.pipeline import STAGES
 from src.reporting.catalog import (
     HUD_USPS_RESTRICTED_TABLES,
@@ -49,7 +50,13 @@ def test_catalog_csv_excel_and_active_source_contract():
     active_catalog = set(
         catalog.loc[catalog["active_status"].eq("Active"), "source_id"]
     )
-    assert active_config == active_catalog
+    assert active_config | PRODUCT_SOURCE_IDS == active_catalog
+    hmda = catalog.loc[
+        catalog["source_id"].eq("cfpb_hmda_modified_lar")
+    ].iloc[0]
+    assert "--start-year YYYY" in hmda["update_command"]
+    assert "--local-file PATH_TO_OFFICIAL_FILE" in hmda["update_command"]
+    assert "--release-date YYYY-MM-DD" in hmda["update_command"]
 
 
 def test_raw_repository_completeness_and_checksums():

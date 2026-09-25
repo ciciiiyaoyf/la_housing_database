@@ -250,6 +250,25 @@ def test_zip_with_one_csv_is_read_in_chunks_and_preserves_county_fips(tmp_path):
     ]
 
 
+def test_zip_with_provider_pipe_delimited_txt_is_supported(tmp_path):
+    txt_path = tmp_path / "2025_combined_mlar.txt"
+    pd.DataFrame(
+        [
+            _base_row(activity_year="2025", county_code="06037"),
+            _base_row(activity_year="2025", county_code="06059"),
+        ]
+    ).to_csv(txt_path, sep="|", index=False)
+    archive = tmp_path / "2025_combined_mlar_header.zip"
+    with ZipFile(archive, "w") as zipped:
+        zipped.write(txt_path, arcname=txt_path.name)
+
+    chunks = list(iter_hmda_modified_lar_chunks(archive, chunksize=1))
+    assert [chunk.iloc[0]["county_code"] for chunk in chunks] == [
+        "06037",
+        "06059",
+    ]
+
+
 def test_cltv_is_never_repaired_from_loan_amount(tmp_path):
     source = tmp_path / "lar.csv"
     pd.DataFrame(
@@ -279,13 +298,13 @@ def test_cltv_is_never_repaired_from_loan_amount(tmp_path):
     assert math.isnan(all_median["value"])
 
 
-def test_zip_must_contain_exactly_one_csv(tmp_path):
+def test_zip_must_contain_exactly_one_supported_data_file(tmp_path):
     archive = tmp_path / "bad.zip"
     with ZipFile(archive, "w") as zipped:
         zipped.writestr("one.csv", "activity_year\n2023\n")
         zipped.writestr("two.csv", "activity_year\n2023\n")
 
-    with pytest.raises(HMDAFormatError, match="exactly one CSV"):
+    with pytest.raises(HMDAFormatError, match="exactly one CSV or TXT"):
         list(iter_hmda_modified_lar_chunks(archive))
 
 

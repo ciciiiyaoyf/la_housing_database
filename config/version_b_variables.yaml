@@ -1,0 +1,686 @@
+schema_version: 1
+database_version: "B. Retrospective monthly"
+config_version: version_b_monthly_hist_v1
+output_frequency: monthly
+output_id_suffix: _monthly_hist
+contract:
+  description: >-
+    Closed variable dictionary for the retrospective Version B builder. All
+    rows are modeled historical observations, never nowcasts. Canonical
+    targets that lack a method-compliant public input remain explicit nulls;
+    proxies and PMMS sensitivities use separate identifiers.
+  output_statuses:
+    - canonical_modeled_repeat
+    - canonical_null
+    - proxy
+    - scenario
+  canonical_null_policy: >-
+    Never populate canonical monthly financed-purchase flow, calibrated debt,
+    or calibrated equity with a Redfin proxy or PMMS sensitivity.
+
+variables:
+  - variable_id: acs_estimated_aggregate_monthly_first_mortgage_pi_monthly_hist
+    benchmark_variable_id: acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark
+    construction_anchor_variable_ids: [acs_estimated_aggregate_monthly_first_mortgage_pi_benchmark]
+    unit: USD/month
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_anchor_in_reference_calendar_year
+    transformation_id: version_b_reference_year_payment_repeat_v1
+
+  - variable_id: acs_first_mortgage_pi_per_mortgaged_unit_monthly_hist
+    benchmark_variable_id: acs_first_mortgage_pi_per_mortgaged_unit_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_pi_per_mortgaged_unit_benchmark]
+    unit: USD/unit/month
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_anchor_in_reference_calendar_year
+    transformation_id: version_b_reference_year_payment_repeat_v1
+
+  - variable_id: acs_annual_first_mortgage_debt_service_monthly_hist
+    benchmark_variable_id: acs_annual_first_mortgage_debt_service_benchmark
+    construction_anchor_variable_ids: [acs_annual_first_mortgage_debt_service_benchmark]
+    unit: USD/year
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_anchor_in_reference_calendar_year
+    transformation_id: version_b_reference_year_payment_repeat_v1
+
+  - variable_id: acs_mortgage_debt_service_to_income_monthly_hist
+    benchmark_variable_id: acs_mortgage_debt_service_to_income_benchmark
+    construction_anchor_variable_ids: [acs_mortgage_debt_service_to_income_benchmark]
+    unit: ratio
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_anchor_in_reference_calendar_year
+    transformation_id: version_b_reference_year_payment_repeat_v1
+
+  - variable_id: hmda_median_downpayment_rate_monthly_hist
+    benchmark_variable_id: hmda_median_downpayment_rate_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_monthly_hist
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_median_downpayment_rate_conventional_monthly_hist
+    benchmark_variable_id: hmda_median_downpayment_rate_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_conventional_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_conventional_monthly_hist
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_conventional_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_median_downpayment_rate_fha_monthly_hist
+    benchmark_variable_id: hmda_median_downpayment_rate_fha_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_fha_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_fha_monthly_hist
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_fha_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_fha_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_median_downpayment_rate_va_monthly_hist
+    benchmark_variable_id: hmda_median_downpayment_rate_va_benchmark
+    construction_anchor_variable_ids: [hmda_median_downpayment_rate_va_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_property_value_weighted_downpayment_rate_va_monthly_hist
+    benchmark_variable_id: hmda_property_value_weighted_downpayment_rate_va_benchmark
+    construction_anchor_variable_ids: [hmda_property_value_weighted_downpayment_rate_va_benchmark]
+    unit: rate
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_rate_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_b_hmda_flow_unavailable_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_conventional_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_conventional_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_b_hmda_flow_unavailable_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_fha_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_fha_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_fha_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_b_hmda_flow_unavailable_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_va_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_va_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_va_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_exact_monthly_financed_purchase_value_exists
+    transformation_id: version_b_hmda_flow_unavailable_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_redfin_sales_value_proxy_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_benchmark]
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: false
+    expected_value_policy: populated_only_with_complete_twelve_month_positive_proxy_weights
+    transformation_id: version_b_redfin_purchase_value_proxy_distribution_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_conventional_redfin_sales_value_proxy_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_conventional_benchmark]
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: false
+    expected_value_policy: populated_only_with_complete_twelve_month_positive_total_market_proxy_weights
+    transformation_id: version_b_redfin_purchase_value_proxy_distribution_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_fha_redfin_sales_value_proxy_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_fha_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_fha_benchmark]
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: false
+    expected_value_policy: populated_only_with_complete_twelve_month_positive_total_market_proxy_weights
+    transformation_id: version_b_redfin_purchase_value_proxy_distribution_v1
+
+  - variable_id: hmda_aggregate_downpayment_flow_va_redfin_sales_value_proxy_monthly_hist
+    benchmark_variable_id: hmda_aggregate_downpayment_flow_va_benchmark
+    construction_anchor_variable_ids: [hmda_aggregate_downpayment_flow_va_benchmark]
+    indicator_variable_ids: [homes_sold, median_sale_price]
+    indicator_source_ids: [redfin_county_monthly]
+    unit: USD
+    output_status: proxy
+    canonical: false
+    proxy: true
+    scenario: false
+    expected_value_policy: populated_only_with_complete_twelve_month_positive_total_market_proxy_weights
+    transformation_id: version_b_redfin_purchase_value_proxy_distribution_v1
+
+  - variable_id: acs_implied_first_mortgage_balance_cal_monthly_hist
+    benchmark_variable_id: acs_implied_first_mortgage_balance_cal_benchmark
+    construction_anchor_variable_ids: [acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibration_control_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_monthly_hist
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark
+    construction_anchor_variable_ids: [acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark]
+    indicator_variable_ids: [nmdb_ca_all_mortgages_upb, homes_sold]
+    indicator_source_ids: [fhfa_nmdb_ca_upb, redfin_county_monthly]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_anchor_nmdb_and_complete_county_sales_shares_exist
+    transformation_id: version_b_single_anchor_nmdb_redfin_pmms_debt_v1
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_monthly_hist
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark
+    construction_anchor_variable_ids: [acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark]
+    indicator_variable_ids: [nmdb_ca_all_mortgages_upb, homes_sold]
+    indicator_source_ids: [fhfa_nmdb_ca_upb, redfin_county_monthly]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_anchor_nmdb_and_complete_county_sales_shares_exist
+    transformation_id: version_b_single_anchor_nmdb_redfin_pmms_debt_v1
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_monthly_hist
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark
+    construction_anchor_variable_ids: [acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark]
+    indicator_variable_ids: [nmdb_ca_all_mortgages_upb, homes_sold]
+    indicator_source_ids: [fhfa_nmdb_ca_upb, redfin_county_monthly]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_anchor_nmdb_and_complete_county_sales_shares_exist
+    transformation_id: version_b_single_anchor_nmdb_redfin_pmms_debt_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_mortgaged_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_all_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_20y_scenario_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_owner_value_mortgaged_benchmark, acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark]
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_values_hpi_and_scenario_debt_exist
+    transformation_id: version_b_hpi_updated_pmms_equity_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_pmms_20y_scenario_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_owner_value_mortgaged_benchmark, acs_aggregate_owner_value_no_mortgage_benchmark, acs_implied_first_mortgage_balance_raw_pmms_20y_sensitivity_benchmark]
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_values_hpi_and_scenario_debt_exist
+    transformation_id: version_b_hpi_updated_pmms_equity_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_25y_scenario_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_owner_value_mortgaged_benchmark, acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark]
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_values_hpi_and_scenario_debt_exist
+    transformation_id: version_b_hpi_updated_pmms_equity_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_pmms_25y_scenario_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_owner_value_mortgaged_benchmark, acs_aggregate_owner_value_no_mortgage_benchmark, acs_implied_first_mortgage_balance_raw_pmms_25y_sensitivity_benchmark]
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_values_hpi_and_scenario_debt_exist
+    transformation_id: version_b_hpi_updated_pmms_equity_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_pmms_30y_scenario_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_owner_value_mortgaged_benchmark, acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark]
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_values_hpi_and_scenario_debt_exist
+    transformation_id: version_b_hpi_updated_pmms_equity_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_pmms_30y_scenario_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_owner_value_mortgaged_benchmark, acs_aggregate_owner_value_no_mortgage_benchmark, acs_implied_first_mortgage_balance_raw_pmms_30y_sensitivity_benchmark]
+    indicator_variable_ids: [zhvi]
+    indicator_source_ids: [zillow_county_zhvi]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_matched_values_hpi_and_scenario_debt_exist
+    transformation_id: version_b_hpi_updated_pmms_equity_v1
+
+  - variable_id: hmda_share_downpayment_below_3pct_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_5pct_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_10pct_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_20pct_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_3pct_conventional_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_5pct_conventional_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_10pct_conventional_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_20pct_conventional_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_conventional_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_conventional_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_3pct_fha_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_5pct_fha_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_10pct_fha_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_20pct_fha_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_fha_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_fha_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_3pct_va_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_3pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_3pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_5pct_va_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_5pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_5pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_10pct_va_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_10pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_10pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: hmda_share_downpayment_below_20pct_va_monthly_hist
+    benchmark_variable_id: hmda_share_downpayment_below_20pct_va_benchmark
+    construction_anchor_variable_ids: [hmda_share_downpayment_below_20pct_va_benchmark]
+    unit: share
+    output_status: canonical_modeled_repeat
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: repeat_annual_share_in_each_activity_year_month_not_divided
+    transformation_id: version_b_hmda_annual_rate_repeat_v1
+
+  - variable_id: acs_implied_first_mortgage_balance_raw_monthly_hist
+    benchmark_variable_id: acs_implied_first_mortgage_balance_raw_benchmark
+    construction_anchor_variable_ids: [acs_implied_first_mortgage_balance_raw_benchmark]
+    indicator_variable_ids: [nmdb_ca_all_mortgages_upb, homes_sold]
+    indicator_source_ids: [fhfa_nmdb_ca_upb, redfin_county_monthly]
+    unit: USD
+    output_status: scenario
+    canonical: false
+    proxy: false
+    scenario: true
+    expected_value_policy: populated_when_raw_anchor_nmdb_growth_and_complete_county_sales_shares_exist
+    transformation_id: version_b_single_anchor_nmdb_redfin_raw_debt_v1
+
+  - variable_id: acs_first_mortgage_debt_per_mortgaged_owner_unit_monthly_hist
+    benchmark_variable_id: acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_per_mortgaged_owner_unit_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD/unit
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_first_mortgage_debt_per_owner_unit_monthly_hist
+    benchmark_variable_id: acs_first_mortgage_debt_per_owner_unit_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_per_owner_unit_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD/unit
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_first_mortgage_debt_per_capita_monthly_hist
+    benchmark_variable_id: acs_first_mortgage_debt_per_capita_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_per_capita_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD/person
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_first_mortgage_debt_to_owner_income_monthly_hist
+    benchmark_variable_id: acs_first_mortgage_debt_to_owner_income_benchmark
+    construction_anchor_variable_ids: [acs_first_mortgage_debt_to_owner_income_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: ratio
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_per_owner_unit_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_per_owner_unit_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: USD/unit
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_mortgaged_real_2024_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_mortgaged_real_2024_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: constant_2024_USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_implied_owner_occupied_home_equity_all_real_2024_monthly_hist
+    benchmark_variable_id: acs_implied_owner_occupied_home_equity_all_real_2024_benchmark
+    construction_anchor_variable_ids: [acs_implied_owner_occupied_home_equity_all_real_2024_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: constant_2024_USD
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_aggregate_ltv_mortgaged_monthly_hist
+    benchmark_variable_id: acs_aggregate_ltv_mortgaged_benchmark
+    construction_anchor_variable_ids: [acs_aggregate_ltv_mortgaged_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: ratio
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1
+
+  - variable_id: acs_equity_rate_mortgaged_monthly_hist
+    benchmark_variable_id: acs_equity_rate_mortgaged_benchmark
+    construction_anchor_variable_ids: [acs_equity_rate_mortgaged_benchmark, acs_implied_first_mortgage_balance_cal_benchmark]
+    unit: ratio
+    output_status: canonical_null
+    canonical: true
+    proxy: false
+    scenario: false
+    expected_value_policy: explicit_null_until_universe_compatible_calibrated_debt_exists
+    transformation_id: version_b_calibrated_target_unavailable_v1

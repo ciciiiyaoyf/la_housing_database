@@ -174,15 +174,16 @@ def _sha256(path: Path) -> str:
 
 
 @contextmanager
-def _csv_payload(path: Path) -> Iterator[BinaryIO]:
+def _delimited_payload(path: Path) -> Iterator[tuple[BinaryIO, str]]:
     suffix = path.suffix.casefold()
-    if suffix == ".csv":
+    if suffix in {".csv", ".txt"}:
         with path.open("rb") as handle:
-            yield handle
+            yield handle, ("|" if suffix == ".txt" else ",")
         return
     if suffix != ".zip":
         raise HMDAFormatError(
-            f"{path.name}: expected a CSV or ZIP containing one CSV"
+            f"{path.name}: expected a CSV, pipe-delimited TXT, or ZIP "
+            "containing exactly one supported data file"
         )
 
     try:
@@ -191,15 +192,16 @@ def _csv_payload(path: Path) -> Iterator[BinaryIO]:
                 member
                 for member in archive.infolist()
                 if not member.is_dir()
-                and Path(member.filename).suffix.casefold() == ".csv"
+                and Path(member.filename).suffix.casefold() in {".csv", ".txt"}
             ]
             if len(members) != 1:
                 raise HMDAFormatError(
-                    f"{path.name}: ZIP must contain exactly one CSV; "
+                    f"{path.name}: ZIP must contain exactly one CSV or TXT; "
                     f"found {len(members)}"
                 )
             with archive.open(members[0], "r") as handle:
-                yield handle
+                member_suffix = Path(members[0].filename).suffix.casefold()
+                yield handle, ("|" if member_suffix == ".txt" else ",")
     except BadZipFile as exc:
         raise HMDAFormatError(f"{path.name}: invalid ZIP archive") from exc
 
@@ -209,7 +211,7 @@ def iter_hmda_modified_lar_chunks(
     *,
     chunksize: int = 100_000,
 ) -> Iterator[pd.DataFrame]:
-    """Yield required Modified LAR columns as strings from CSV or one-file ZIP."""
+    """Yield required Modified LAR columns from CSV or provider TXT archives."""
     source_path = Path(path)
     if not source_path.is_file():
         raise FileNotFoundError(source_path)
@@ -218,10 +220,11 @@ def iter_hmda_modified_lar_chunks(
     if chunksize <= 0:
         raise ValueError("chunksize must be positive")
 
-    with _csv_payload(source_path) as payload:
+    with _delimited_payload(source_path) as (payload, delimiter):
         try:
             reader = pd.read_csv(
                 payload,
+                sep=delimiter,
                 usecols=list(REQUIRED_HMDA_COLUMNS),
                 dtype=str,
                 keep_default_na=False,
@@ -231,7 +234,7 @@ def iter_hmda_modified_lar_chunks(
             yield from reader
         except (UnicodeDecodeError, pd.errors.EmptyDataError) as exc:
             raise HMDAFormatError(
-                f"{source_path.name}: cannot parse Modified LAR CSV"
+                f"{source_path.name}: cannot parse Modified LAR data file"
             ) from exc
         except ValueError as exc:
             if "Usecols do not match" in str(exc):
@@ -450,7 +453,7 @@ def clean_hmda_modified_lar(
             )
 
     if not saw_chunk:
-        raise HMDAFormatError(f"{source_path.name}: Modified LAR CSV has no rows")
+        raise HMDAFormatError(f"{source_path.name}: Modified LAR data file has no rows")
     if not observed_keys:
         year_detail = f" for activity_year={selected_year}" if selected_year else ""
         raise ValueError(

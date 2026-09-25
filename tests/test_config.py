@@ -1,4 +1,5 @@
 from src.common.config import load_config
+from src.geography.comparable_counties import COMPARABLE_LAUS_SERIES_IDS
 
 
 def test_config_has_unique_sources_and_la_geography():
@@ -34,9 +35,4 @@ def test_config_has_unique_sources_and_la_geography():
     assert bls.download_url == (
         "https://api.bls.gov/publicAPI/v2/timeseries/data/"
     )
-    assert bls.series_ids == (
-        "LAUCN060370000000003",
-        "LAUCN060370000000004",
-        "LAUCN060370000000005",
-        "LAUCN060370000000006",
-    )
+    assert bls.series_ids == COMPARABLE_LAUS_SERIES_IDS
