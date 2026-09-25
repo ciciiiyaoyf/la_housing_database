@@ -196,30 +196,26 @@ A recent successful download is not proof that a provider published new observat
 
 ### When a refresh does not add newer observations
 
-**Refresh means retrieve and rebuild the configured source; it does not guarantee
-that every dataset gains a new month, quarter, or year.** A historical file can
-receive corrections without gaining new years. A named survey edition still
-refers to that edition. A source with a compatibility hold stops the workflow
-until its importer or method is updated.
+**These datasets require a manual action to obtain or accept an update.** Use the
+trigger column to distinguish an action needed now from an edition change needed
+when the provider publishes a successor. The detailed source sections below give
+the update commands and import instructions.
 
-| Example | Why the current command cannot extend coverage | Required solution |
+| Dataset requiring manual action | When action is needed | Manual action required |
 |---|---|---|
-| HUD-USPS quarterly vacancies | The provider has a quarterly release process, but strict refresh requires authorized access and the project currently limits its validated geography/coverage contract to 2026 Q1. | Supply an authorized token locally, verify the latest release, and extend both acquisition and cleaning to validated new quarters. Separate the observation end date from the ZIP-crosswalk vintage: keep the approved weights fixed or publish a new allocation-method version. Changing the end date alone currently also changes the requested crosswalk and is insufficient. See [HUD-USPS source access and geography](source_definitions_and_methods.md#hud-usps-vacancy). |
-| Eviction Lab county estimates, 2000–2018 | This configured release is a historical annual series. Fetching it again may retrieve corrections, but cannot supply recent eviction years. | Retain it for historical analysis. The California Judicial Council's [Court Statistics Reports](https://courts.ca.gov/news-reference/research-data/court-statistics) are a candidate for a separate Los Angeles fiscal-year unlawful-detainer filing series; the 2026 report includes FY 2024–25. Acquisition, extraction and scope validation still need implementation. Court filings and city-only notices must not be appended to the modeled county estimates under the same definition. |
-| Redfin county data | The configured legacy file and cleaner do not implement the newer tracker and price-drop CSVs; historical values and adjustment conventions also differ. | Implement the successor importer, reconcile provider definitions, and introduce an explicit new methodology version for affected history and fixed-reference indicators. Preserve the legacy version. See [the county-source review](county_and_zip_housing_indicators.md#current-redfin-source-limitation). |
-| A named Census or other fixed-year edition | The configured endpoint and observation window select a particular edition. | Verify the successor's definitions, geography and fields, then update and test its edition-selection rules. A recurring provider release does not make a hard-coded edition advance automatically. |
+| HUD-USPS quarterly vacancies (`hud_usps_ncwm_quarterly`) | Authorized access has not been configured, or coverage must extend beyond the approved 2026 Q1 scope. | Supply an authorized token locally. A maintainer must validate new quarters and extend both acquisition and cleaning, separating the observation end date from the ZIP-crosswalk vintage. Keep the approved weights fixed or publish a new allocation-method version; changing the end date alone is insufficient. See [HUD-USPS source access and geography](source_definitions_and_methods.md#hud-usps-vacancy). |
+| Redfin county data (`redfin_county_monthly`) | **Current review hold:** the newer county releases cannot yet enter the active series. | A maintainer must implement the successor importer, reconcile provider definitions, and introduce an explicit new methodology version for affected history and fixed-reference indicators. Preserve the legacy version. See [the county-source review](county_and_zip_housing_indicators.md#current-redfin-source-limitation). |
+| AHS California mortgage characteristics (`census_ahs_2023_ca_table14a`) | An updated official table is needed. | Manually export Table 14A from the official Table Creator with margins of error, then import the unchanged CSV. A different survey year also requires configuration and coverage review. See [wealth and debt surveys](#wealth-and-debt-surveys). |
+| CDC WONDER natality and current mortality (`cdc_wonder_natality_county`, `cdc_wonder_ucd_2018_2024_county`) | A new final annual release is needed. | Manually export the official county tables and follow the source-specific provenance and archiving workflow. Preserve suppression markers. No generic local-file importer is implemented. See [population and migration](#population-and-migration). |
+| NMDB California unpaid principal balance (`fhfa_nmdb_ca_upb`) | An updated official parameter file is available and needed for finance B. | Obtain the official file and use the finance importer with explicit start year, release date, and local-file path. The unified refresh does not download this input. See [separate finance inputs](#separate-finance-inputs). |
+| Census PEP Vintage 2025 population and housing units (`census_pep_county_population_v2025`, `census_pep_county_housing_units_v2025`) | A newer annual vintage is published and needed. | A maintainer must select and verify the successor edition, then update and test its source configuration and field mappings. See [population and housing stock](#population-and-housing-stock). |
+| SIPP 2025 debt and wealth tables (`census_sipp_2025_state_debt_2024`, `census_sipp_2025_state_wealth_2024`) | A newer survey/reference-year edition is published and needed. | A maintainer must verify the new workbook, reference year and definitions, then update and test the configured edition and extraction rules. See [wealth and debt surveys](#wealth-and-debt-surveys). |
+| HUD PIT estimates (`hud_pit_coc_2007_2025`) | A successor to the configured 2007–2025 workbook is published and needed. | A maintainer must select the official successor workbook and validate its years, fields and Continuum of Care geography before extending coverage. See [housing insecurity](#housing-insecurity). |
+| Current HVS state and metro vacancy files (`census_hvs_state_rental_vacancy`, `census_hvs_metro_rental_vacancy_2026`) | The provider moves to a new year-specific file or edition. | A maintainer must update and test the configured file selection and year coverage. Quarterly additions within a supported file are handled by normal refresh. See [vacancy](#vacancy). |
 
-These are maintenance tasks for the source configuration and importer, rather
-than extra refresh commands for users to repeat. Once a compatible recurring
-source is supported, the normal refresh command should discover and ingest its
-new releases within the validated rules. A new schema or unsupported geography
-must still be reported instead of silently accepted. Historical and frozen
-datasets remain historical or frozen.
-
-For current modeling inputs, inspect each variable's latest observation and
-coverage. Preserve missing recent values when no compatible release exists; do
-not carry old values forward merely to make every dataset appear current. A
-recent retrieval timestamp records a download, not a recent observation.
+After completing the applicable manual action, use the source's command below or
+the [whole-project refresh](#refresh-everything-before-modeling), then check its
+reported results. Repeating refresh alone does not complete the actions listed here.
 
 ### Interest rates
 
