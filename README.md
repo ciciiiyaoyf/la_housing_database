@@ -405,9 +405,14 @@ product, and its source/finance methods before interpreting modeled values.
 
 ### Refresh the data before modeling
 
-On a **fully provisioned research workspace**, use one command to refresh the
-configured sources, rebuild the general tables and finance B/C, and validate the
-database. This requires the installed packages, existing source archives, permitted
+**For a whole-project update before modeling, use `run_system_refresh.py`.**
+It refreshes the configured general sources and tables, rebuilds finance B,
+builds or validates the finance C cutoff, and validates the integrated database.
+`run_pipeline.py --stage refresh` is the narrower choice for general data only;
+it does not recompute finance B/C. Choose one workflow, rather than running both.
+
+The whole-project command requires a **fully provisioned research workspace**:
+installed packages, existing source archives, permitted
 source access, and the frozen finance A files. A supplied DuckDB snapshot by itself
 does not include these prerequisites; follow the
 [complete refresh guide](docs/database_build_and_refresh.md#refresh-everything-before-modeling)
@@ -418,13 +423,22 @@ DuckDB's graphical interface. Stop the CSV Data Browser with **Ctrl+C** in its
 terminal, and close Python connections to the database. Closing a web-browser tab
 alone does not stop either server.
 
-**Where to type:** in **Windows PowerShell**, with the prompt starting with `PS`
-and ending in `\la_housing_database>`. Use
-[Return to the project folder](#return-to-the-project-folder-in-powershell) if needed.
-Enter this command and wait for the prompt to return:
+**Where to type:** in **Windows PowerShell** or **macOS Terminal**, inside the
+`la_housing_database` project folder. On Windows, use
+[Return to the project folder](#return-to-the-project-folder-in-powershell) if needed;
+on macOS, use the [Terminal walkthrough](#macos-and-linux). Run only the command
+for your operating system, then wait for the prompt to return.
+
+**Windows PowerShell — whole-project update:**
 
 ```powershell
 .\.venv\Scripts\python.exe run_system_refresh.py
+```
+
+**macOS Terminal — whole-project update:**
+
+```bash
+.venv/bin/python run_system_refresh.py
 ```
 
 The default finance C information cutoff is **today's UTC date**. To choose a
@@ -433,10 +447,18 @@ C vintages and frozen A remain preserved. Fixed source editions are checked with
 their configured scope; this command does not silently replace them with newer
 products or make unavailable manual inputs current.
 
-Immediately after the command finishes, enter:
+Immediately after the command finishes, check its exit code in the same window.
+
+**Windows PowerShell:**
 
 ```powershell
 $LASTEXITCODE
+```
+
+**macOS Terminal:**
+
+```bash
+echo $?
 ```
 
 | Result | What to do before modeling |
@@ -454,15 +476,50 @@ refresh logs and actions to resolve before modeling.
 Redfin ZIP acquisition uses the provider's public file index and downloads its
 national CSV directly (about 1.3 GB); no browser automation or API key is needed.
 The cleaner keeps the newer days-on-market YoY change in days separate from the
-legacy percentage measure. See [Redfin downloads](docs/database_build_and_refresh.md#redfin-downloads)
-for the source formats and the separate county-data review hold.
+legacy percentage measure. **The county Redfin source still has a methodology
+review hold. A whole-project, all-general-source, or combined Redfin refresh cannot
+finish successfully while that hold remains.** The command reports the blocker;
+successful ZIP acquisition does not clear it. See
+[Redfin downloads](docs/database_build_and_refresh.md#redfin-downloads) for the
+current source status and the independent ZIP refresh.
 
-For a smaller update, the guide's [command selector](docs/database_build_and_refresh.md#choose-the-right-refresh-command)
-distinguishes one source, all general sources, and the whole project including
-finance B/C. `run_pipeline.py --stage refresh --source redfin` selects both Redfin
-county and ZIP sources and rebuilds the shared outputs once; it remains subject
-to the county review hold. A complete refresh already includes cleaning, so a
-separate `--stage clean` is only for the documented maintenance workflow.
+If you deliberately want **only the general sources and tables**, use the
+following alternative. It includes cleaning, rebuilding, validation, and exports,
+but leaves finance B/C unrecomputed. Do not run it before or after the
+whole-project command as an additional setup step.
+
+**Windows PowerShell — general data only:**
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh
+```
+
+**macOS Terminal — general data only:**
+
+```bash
+.venv/bin/python run_pipeline.py --stage refresh
+```
+
+To select **both Redfin county and ZIP sources**, the smaller alternative below
+acquires and cleans those sources, then rebuilds shared outputs once. It remains
+subject to the county hold and does not recompute finance B/C.
+
+**Windows PowerShell — both Redfin sources:**
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin
+```
+
+**macOS Terminal — both Redfin sources:**
+
+```bash
+.venv/bin/python run_pipeline.py --stage refresh --source redfin
+```
+
+The guide's [command selector](docs/database_build_and_refresh.md#choose-the-right-refresh-command)
+also covers individual-source updates. A successful complete refresh already
+includes cleaning; separate cleaning commands are for the documented maintenance
+workflow.
 
 ### Load model inputs from DuckDB
 
@@ -673,16 +730,11 @@ Terminal:
 At DuckDB's `D` prompt, use the SQL in step 4 and the
 [DuckDB SQL guide](docs/duckdb_sql_guide.md). Enter `.quit` to return to Terminal.
 Before modeling on a provisioned workspace, close all database connections and
-follow the prerequisites and status checks in
-[Refresh the data before modeling](#refresh-the-data-before-modeling). The Terminal
-version of its command is:
-
-```bash
-.venv/bin/python run_system_refresh.py
-```
-
-Immediately run `echo $?` to see the exit code; the same `0`/`2`/`1` meanings above
-apply. See the [dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
+follow [Refresh the data before modeling](#refresh-the-data-before-modeling).
+That section provides paired Windows/macOS commands, recommends the whole-project
+workflow, and explains exit codes and the current county-source hold. Use its
+**macOS Terminal** blocks here. See the
+[dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
 for the full list and source-specific actions. Once you have reviewed the refresh
 result, run the modeling example:
 
