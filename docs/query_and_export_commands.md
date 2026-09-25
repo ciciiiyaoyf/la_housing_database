@@ -74,6 +74,22 @@ prompt if the double-click launcher shows one. Next time, repeat
 The page reads a local snapshot. Opening it does not fetch new provider releases
 or update observations.
 
+### After a database refresh
+
+**The Data Browser automatically uses the database updated by the refresh workflow.**
+It queries the local DuckDB file for each preview, CSV download, and definition
+download; it does not use a separate saved copy of the data. Stop the browser
+before refreshing, then reopen it after the refresh completes and its results have
+been checked. Use the new page, or reload an old tab, to reload dataset and filter
+choices. The [refresh guide](database_build_and_refresh.md#use-the-refreshed-data-in-the-csv-browser)
+provides the complete sequence with Windows and macOS commands.
+
+Click **Preview data** again and download a new CSV. Files already saved in your
+Downloads folder do not change automatically. To include newly available months,
+leave **Through** blank or extend it; a previously selected end date still applies.
+A failed refresh may have updated only part of the database, so check the refresh
+result before treating browser downloads as current.
+
 ### Download your first dataset
 
 **Where to work:** in the **Data Browser tab** opened above. The next actions

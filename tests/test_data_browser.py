@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from threading import Thread
+from threading import Event, Thread
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from src.common.config import ROOT, load_config
-from src.reporting.data_browser import BrowserServer
+from src.reporting.data_browser import BrowserHandler, BrowserServer
 
 
 @pytest.fixture
@@ -196,3 +196,92 @@ def test_single_scenario_variable_csv_and_definitions_use_row_specific_id(browse
     assert [row["variable_id"] for row in definitions] == [variable]
     assert definitions[0]["row_identifier_column"] == "price_source_variable_id"
     assert definitions[0]["row_identifier_value"] == variable
+
+
+def test_same_browser_serves_refreshed_data_options_and_definitions(browser, monkeypatch):
+    address, database = browser
+    table_query = "?kind=table&dataset=county-monthly&variable=zori_smoothed_sa&geo_id=COUNTY_06037"
+    observation_query = "?kind=observations&dataset=main&variable=zori_smoothed_sa&geo_id=COUNTY_06037"
+    option_query = "?kind=table&dataset=county-monthly&field=variable"
+    definition_request_finished = Event()
+    original_get = BrowserHandler.do_GET
+
+    def signal_closed_reader(handler):
+        try:
+            original_get(handler)
+        finally:
+            if handler.path == "/api/definitions" + table_query:
+                definition_request_finished.set()
+
+    monkeypatch.setattr(BrowserHandler, "do_GET", signal_closed_reader)
+
+    def csv_rows(path):
+        with urlopen(address + path, timeout=15) as response:
+            assert response.headers["Cache-Control"] == "no-store"
+            return list(csv.DictReader(io.StringIO(response.read().decode("utf-8"))))
+
+    initial = read_json(address + "/api/preview" + table_query)
+    assert [row["zori"] for row in initial["rows"]] == [2100.0]
+    assert [float(row["value"]) for row in csv_rows("/api/download" + observation_query)] == [2100.0]
+    initial_options = read_json(address + "/api/options" + option_query)["options"]
+    assert "new_permits" not in {row["value"] for row in initial_options}
+    initial_definition = csv_rows("/api/definitions" + table_query)[0]
+    # Receiving the response body can precede the handler closing its reader.
+    # Wait for that request's cleanup instead of racing DuckDB's write access.
+    assert definition_request_finished.wait(timeout=5)
+
+    # Model a completed refresh of this fixture database between requests. The
+    # same server remains running; all changes are committed before reading it.
+    with duckdb.connect(str(database)) as con:
+        con.begin()
+        con.execute(
+            "CREATE OR REPLACE TABLE analytics.county_monthly_panel AS "
+            "SELECT date, county_fips, permits_total, "
+            "CASE WHEN county_fips = '06037' THEN 2250.0 ELSE zori END zori, "
+            "latest_source_vintage, 7.0 new_permits FROM analytics.county_monthly_panel "
+            "UNION ALL SELECT DATE '2026-02-28', '06037', 14.0, 2300.0, 'refreshed-vintage', 7.0"
+        )
+        con.execute(
+            "UPDATE analytics.fact_housing_observation SET value = 2250.0 "
+            "WHERE geo_id = 'COUNTY_06037' AND variable_id = 'zori_smoothed_sa'"
+        )
+        con.execute(
+            "INSERT INTO analytics.fact_housing_observation VALUES "
+            "(DATE '2026-02-28', 'COUNTY_06037', 'zori_smoothed_sa', 2300.0, "
+            "'USD/month', 'refreshed-vintage', 'new-source.csv', 'new-checksum'), "
+            "(DATE '2026-02-28', 'COUNTY_06037', 'new_permits', 7.0, "
+            "'units', 'refreshed-vintage', 'new-permits.csv', 'new-permits-checksum')"
+        )
+        con.execute(
+            "INSERT INTO metadata.variable_dictionary "
+            "SELECT * REPLACE ('new_permits' AS variable_id, 'New permit subset' AS display_name, "
+            "'A newly available permit measure' AS definition, 'new_permits' AS original_field) "
+            "FROM metadata.variable_dictionary WHERE variable_id = 'permits_total'"
+        )
+        con.execute(
+            "UPDATE metadata.variable_dictionary SET display_name = 'Updated rent series', "
+            "definition = 'Updated snapshot rent definition' WHERE variable_id = 'zori_smoothed_sa'"
+        )
+        con.commit()
+
+    refreshed = read_json(address + "/api/preview" + table_query)
+    assert [(str(row["date"])[:10], row["zori"]) for row in refreshed["rows"]] == [
+        ("2026-01-31", 2250.0), ("2026-02-28", 2300.0)
+    ]
+    downloaded = csv_rows("/api/download" + table_query)
+    assert [(row["date"][:10], float(row["zori"])) for row in downloaded] == [
+        ("2026-01-31", 2250.0), ("2026-02-28", 2300.0)
+    ]
+    observations = csv_rows("/api/download" + observation_query)
+    assert [float(row["value"]) for row in observations] == [2250.0, 2300.0]
+    assert observations[-1]["source_filename"] == "new-source.csv"
+    assert observations[-1]["checksum_sha256"] == "new-checksum"
+    definitions = csv_rows("/api/definitions" + table_query)
+    assert definitions[0]["definition"] == "Updated snapshot rent definition"
+    assert definitions[0]["definition"] != initial_definition["definition"]
+    options = {row["value"]: row["label"] for row in read_json(address + "/api/options" + option_query)["options"]}
+    assert options["zori_smoothed_sa"] == "Updated rent series (zori_smoothed_sa)"
+    assert options["new_permits"] == "New permit subset (new_permits)"
+    new_query = table_query.replace("zori_smoothed_sa", "new_permits")
+    assert csv_rows("/api/definitions" + new_query)[0]["definition"] == "A newly available permit measure"
+    assert [float(row["new_permits"]) for row in csv_rows("/api/download" + new_query)] == [7.0, 7.0]

@@ -133,6 +133,47 @@ This preflight does not contact every provider or certify current releases.
 Current Redfin limitations are explained under [Redfin downloads](#redfin-downloads).
 The command runs when you invoke it; it does not install a recurring schedule.
 
+### Use the refreshed data in the CSV browser
+
+**A successful refresh also updates the data available in the CSV Data Browser.**
+The default browser reads `database/housing.duckdb`, which these refresh commands
+rebuild. Each preview, CSV download, and variable-definition download queries that
+database when requested. There is no separate browser dataset to rebuild or sync.
+The refresh also regenerates the project's saved exports under `output/exports/`.
+
+1. Before refreshing, stop the Data Browser with **Ctrl+C** in its terminal and
+   close other database readers, as described above.
+2. Run your chosen refresh command. Wait for completion, check its exit code,
+   and review the source actions and QA results. A failed refresh can leave
+   partially updated products; opening the browser does not prove success.
+3. Reopen the Data Browser with the command for your computer below. Enter it in
+   **Windows PowerShell** or **macOS Terminal**, inside the project folder.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe run_data_browser.py --open-browser
+```
+
+**macOS Terminal:**
+
+```bash
+.venv/bin/python run_data_browser.py --open-browser
+```
+
+4. Use the newly opened page. If you kept an old browser tab, reload it to reload
+   the dataset list and filter choices, then click **Preview data** again. Leave
+   the **Through** date blank to include all available later dates; an old end-date
+   filter will still exclude new months.
+5. Click **Download CSV** for the updated selection. Previously downloaded files
+   in your Downloads folder remain saved copies; download a new copy when needed.
+
+The browser reflects the scope of the completed refresh. A selected-source update
+updates that source and its rebuilt general products; finance B/C require the
+whole-project workflow. Frozen products and existing information-cutoff vintages
+retain their documented rules. Opening the browser itself does not fetch releases
+from providers.
+
 ## Dataset update schedule
 
 This is the complete update list: **61 configured general source datasets, 8 separately managed finance inputs, and 4 database products**. The same source can support several tables; these entries describe acquisition and rebuild responsibilities, not 73 unrelated provider downloads.
@@ -152,6 +193,33 @@ For a normal update, use [Refresh everything before modeling](#refresh-everythin
 | Derived | Recompute from eligible inputs; there is no separate provider download. |
 
 A recent successful download is not proof that a provider published new observations. Read the action and notes, then check the refresh and coverage reports before selecting model inputs. In particular, the integrated runner preserves frozen A and existing C vintages.
+
+### When a refresh does not add newer observations
+
+**Refresh means retrieve and rebuild the configured source; it does not guarantee
+that every dataset gains a new month, quarter, or year.** A historical file can
+receive corrections without gaining new years. A named survey edition still
+refers to that edition. A source with a compatibility hold stops the workflow
+until its importer or method is updated.
+
+| Example | Why the current command cannot extend coverage | Required solution |
+|---|---|---|
+| HUD-USPS quarterly vacancies | The provider has a quarterly release process, but strict refresh requires authorized access and the project currently limits its validated geography/coverage contract to 2026 Q1. | Supply an authorized token locally, verify the latest release, and extend both acquisition and cleaning to validated new quarters. Separate the observation end date from the ZIP-crosswalk vintage: keep the approved weights fixed or publish a new allocation-method version. Changing the end date alone currently also changes the requested crosswalk and is insufficient. See [HUD-USPS source access and geography](source_definitions_and_methods.md#hud-usps-vacancy). |
+| Eviction Lab county estimates, 2000–2018 | This configured release is a historical annual series. Fetching it again may retrieve corrections, but cannot supply recent eviction years. | Retain it for historical analysis. The California Judicial Council's [Court Statistics Reports](https://courts.ca.gov/news-reference/research-data/court-statistics) are a candidate for a separate Los Angeles fiscal-year unlawful-detainer filing series; the 2026 report includes FY 2024–25. Acquisition, extraction and scope validation still need implementation. Court filings and city-only notices must not be appended to the modeled county estimates under the same definition. |
+| Redfin county data | The configured legacy file and cleaner do not implement the newer tracker and price-drop CSVs; historical values and adjustment conventions also differ. | Implement the successor importer, reconcile provider definitions, and introduce an explicit new methodology version for affected history and fixed-reference indicators. Preserve the legacy version. See [the county-source review](county_and_zip_housing_indicators.md#current-redfin-source-limitation). |
+| A named Census or other fixed-year edition | The configured endpoint and observation window select a particular edition. | Verify the successor's definitions, geography and fields, then update and test its edition-selection rules. A recurring provider release does not make a hard-coded edition advance automatically. |
+
+These are maintenance tasks for the source configuration and importer, rather
+than extra refresh commands for users to repeat. Once a compatible recurring
+source is supported, the normal refresh command should discover and ingest its
+new releases within the validated rules. A new schema or unsupported geography
+must still be reported instead of silently accepted. Historical and frozen
+datasets remain historical or frozen.
+
+For current modeling inputs, inspect each variable's latest observation and
+coverage. Preserve missing recent values when no compatible release exists; do
+not carry old values forward merely to make every dataset appear current. A
+recent retrieval timestamp records a download, not a recent observation.
 
 ### Interest rates
 

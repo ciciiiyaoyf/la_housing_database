@@ -467,6 +467,14 @@ echo $?
 | `2` | Rebuild completed, but manual source checks or other reported actions remain. Resolve or document those limitations before choosing model inputs. |
 | `1` | Refresh failed and may have updated only some products. Read the reported error and refresh reports; do not treat this as a completed update. |
 
+**The CSV Data Browser uses this refreshed database too.** After a successful
+refresh, reopen it and use the new page, or reload an existing tab, to load current
+dataset and filter choices. Previews and CSV downloads read the database at the
+time you request them; there is no separate browser update command. Previously
+downloaded CSVs remain saved copies. Follow the
+[Windows/macOS reopening steps](docs/database_build_and_refresh.md#use-the-refreshed-data-in-the-csv-browser)
+to download updated data.
+
 The complete [dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
 is directly in the refresh guide. It lists all **73 configured datasets, finance
 inputs, and products**, distinguishes observation frequency from provider release
