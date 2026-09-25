@@ -1,14 +1,26 @@
-# Exports, reports, and archives
+# Output module
 
-Products written by the pipeline and query tools for data delivery or verification.
-They are generated locally and mostly excluded from Git.
+This README belongs to `output/` and describes the whole module.
 
-| Folder | Purpose |
+**On GitHub and in a fresh clone**, this module contains only:
+
+```text
+output/
+  README.md
+  exports/
+    variable_dictionary.csv
+```
+
+The [variable dictionary](exports/variable_dictionary.csv) contains definitions,
+not housing observations. Other exports and reports are generated locally and
+excluded from Git, so their folders do not appear on GitHub.
+
+| Local folder | Purpose and when it appears |
 |---|---|
-| `exports/` | Data CSVs, Parquet query exports, and matching definitions. The [variable dictionary](exports/variable_dictionary.csv) is published. |
-| `coverage/` | Date, geography, source, missingness, and vintage coverage for the recorded build. |
-| `qa/` | Structural checks, review warnings, and completeness evidence. |
-| `archive/legacy_reports/` | Local historical workbooks, previews, and supporting files retired from the former `outputs/` folder. Excluded from Git. |
+| `exports/` | Holds the published dictionary; query and pipeline exports add data CSVs, Parquet files, and matching definitions here. |
+| `coverage/` | Created by pipeline checks for date, geography, source, missingness, and vintage coverage. |
+| `qa/` | Created by validation for structural checks, review warnings, and completeness evidence. |
+| `archive/legacy_reports/` | Preserved only in the existing maintainer workspace: historical workbooks, previews, and supporting files retired from `outputs/`. A fresh clone does not recreate this archive. Previously published workbooks remain in Git history. |
 
 These files can be consumed by tests, analysts, or reproducibility checks. Do not
 remove them simply because they are generated. Use this single `output/` location
