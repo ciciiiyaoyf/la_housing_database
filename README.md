@@ -246,6 +246,9 @@ the data**: obtain an updated compatible snapshot or use the maintainer workflow
 
 This README is the beginner tutorial. Each of the six reference guides below
 has one purpose. Replaced guides and dated narrative reports remain in Git history.
+Each maintained project folder also has a short `README.md` explaining its role,
+key files, and inputs/outputs. Provider/vintage partitions use their storage-layer
+guide; generated caches and installed dependencies are not project modules.
 
 | Guide | Read it for… |
 |---|---|
@@ -259,16 +262,23 @@ has one purpose. Replaced guides and dated narrative reports remain in Git histo
 | Folder or file | Contents |
 |---|---|
 | `Open_Data_Browser.cmd` | Windows launcher for everyday downloading. |
-| `docs/` | The six guides above. |
+| [docs/](docs/README.md) | Index of the six detailed guides above. |
 | `metadata/data_dictionary.csv` | Variable names, IDs, definitions, units, and classifications. |
-| `metadata/` | Machine-readable inventories, coverage, provenance, and audit evidence. |
-| `config/` | Sources, variables, geography references, and method settings. |
-| `outputs/reference_workbooks/` | Excel inventories and finance comparisons, named by subject and snapshot date. |
-| `outputs/mentor_reports/` | The report on metro variables and more detailed geography alternatives. |
-| `database/` | Local query database, not included in Git. |
-| `data/` | Local source archives and generated tables; most contents are not included in Git. |
-| `output/` | Generated CSVs and QA reports, distinct from published reference `outputs/`. |
-| `src/`, `scripts/`, `tests/` | Implementation, maintenance utilities, and verification for developers. |
+| [metadata/](metadata/README.md) | Inventories, coverage, provenance, audit evidence, and frozen model parameters. |
+| [config/](config/README.md) | Sources, variables, geography references, and method settings. |
+| [outputs/](outputs/README.md) / [reference_workbooks/](outputs/reference_workbooks/README.md) | Dated Excel inventories and finance comparisons. |
+| [database/](database/README.md) | Local query database, not included in Git. |
+| [data/](data/README.md) | Storage-layer map for source archives, clean inputs, and final analytical products. |
+| [output/](output/README.md) | Generated CSVs and QA reports, distinct from published reference `outputs/`. |
+| [src/](src/README.md) | Pipeline modules, their responsibilities, and module-level guides. |
+| [scripts/](scripts/README.md) | Source refresh helpers, audits, browser page, and preserved document tools. |
+| [sql/](sql/README.md) | Database schemas, optional views, and manual structural checks. |
+| [tests/](tests/README.md) | Verification and required local fixtures. |
+
+Metro variables and finer-geography alternatives are covered in the
+[data guide](docs/data_inventory_and_limitations.md#metro-variables-and-finer-geography-alternatives).
+The standalone progress report has been absorbed there. Its reusable building and
+QA code is preserved in [report authoring](scripts/report_authoring/README.md).
 
 For an Excel inventory, use the [reference overview workbook](outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx).
 It covers the earlier 482-ID inventory; the current dictionary contains 558 IDs.

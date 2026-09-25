@@ -614,7 +614,9 @@ def _storage_inventory(root: Path) -> pd.DataFrame:
         return [
             path
             for path in base.rglob("*")
-            if path.is_file() and (suffix is None or path.suffix.lower() == suffix)
+            if path.is_file()
+            and path.name.casefold() not in {"readme.md", ".gitkeep"}
+            and (suffix is None or path.suffix.lower() == suffix)
         ]
 
     raw = files_under("data/raw")

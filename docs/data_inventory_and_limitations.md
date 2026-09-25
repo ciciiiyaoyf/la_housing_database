@@ -109,6 +109,45 @@ Licensed HUD-USPS detail is excluded from public downloads.
 Detailed source formulas, uncertainty treatment, and modeled construction
 assumptions are in [source definitions and methods](source_definitions_and_methods.md).
 
+## Metro variables and finer geography alternatives
+
+The earlier metro review used an August 24 inventory and September 4, 2026
+source review. Its variable counts and coverage dates are historical. The
+configuration was rechecked for this consolidation on September 24; the
+alternatives below remain proposals, not newly acquired observations.
+
+The Los Angeles–Long Beach–Anaheim MSA covers Los Angeles and Orange counties.
+Los Angeles–Long Beach–Glendale Metropolitan Division **31084** has the footprint
+of Los Angeles County. Equal land coverage does not make provider methods or
+geography labels interchangeable. Keep division records labeled as divisions,
+including the distinct BLS and FHFA provider identifiers. See the
+[California EDD metropolitan definitions](https://labormarketinfo.edd.ca.gov/definitions/metropolitan-areas.html).
+
+| Existing measure family | Geography and interpretation |
+|---|---|
+| CES total nonfarm employment and MoM/YoY growth | `ces_total_nonfarm_employment_sa` uses MSA series `SMS06310800000000001`; it is a broader payroll-employment control. |
+| CPI-U and inflation | `cpi_u_all_items_la_nsa` uses the published LA–Orange CPI area. The September 4 review identified no official county/ZIP/ZCTA/tract general CPI replacement; retain the regional control rather than allocate it. [BLS geographic sample](https://www.bls.gov/cpi/additional-resources/geographic-sample.htm). |
+| HVS rental vacancy, MOE, and YoY percentage-point change | Published metro quarterly estimates remain broader controls. Local ACS availability and HUD-USPS address vacancy have different universes and are not interchangeable replacements. |
+| FHFA purchase-only HPI and growth | Quarterly SA/NSA division products retain their official method. The existing annual county all-transactions HPI is a separate product. |
+| September CES industry and earnings additions | NSA monthly industry employment and total-private hourly earnings already exist for California and Division 31084. These do not implement the proposed SA total-nonfarm division series below. |
+
+County LAUS employment measures residents; CES measures payroll jobs at
+establishments. Even with matching footprints, they answer different questions.
+See [BLS LAUS geographic availability](https://www.bls.gov/lau/lauavail.htm).
+
+| Possible extension | Current repository boundary and required treatment |
+|---|---|
+| SA total-nonfarm payrolls for Division 31084 | [BLS lists `SMS06310840000000001`](https://www.bls.gov/sae/additional-resources/list-of-published-state-and-metropolitan-area-series/california.htm), but it is not configured. Any adoption needs separate level/MoM/YoY IDs; preserve the existing MSA comparator. |
+| QCEW county industry detail | [BLS QCEW](https://www.bls.gov/cew/overview.htm) offers employment, establishments, and wages. It is not configured here; retain its quarterly reporting and source adjustment status rather than replacing monthly CES. |
+| FHFA ZIP5 and tract HPI | [FHFA developmental indexes](https://www.fhfa.gov/data/hpi/datasets) offer finer annual geography, but are not configured here. Preserve missing/suppressed values, verify ZIP5 definitions, and do not splice them into quarterly purchase-only HPI. |
+| ACS tract rental availability | A proposed annual five-year-estimate extension to the existing county/ZCTA components. Preserve matched vintages and published MOEs; no tract product or quarterly interpolation is implemented. |
+
+Matching five-digit postal ZIP and ZCTA codes do not establish spatial
+equivalence. Any spatial allocation requires a dated crosswalk and explicit
+weighting method. New source/geography/method combinations require their own
+configuration, identifiers, provenance, and validation before becoming active;
+public source discovery alone is not ingestion or approval of a new method.
+
 ## September 22, 2026 verification snapshot
 
 This section records the September 22 review of

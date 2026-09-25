@@ -9,6 +9,7 @@ import pandas as pd
 from src.common.config import ProjectConfig, SourceConfig
 from src.reporting.system_inventory import (
     _estimate_inventory,
+    _storage_inventory,
     build_system_inventory,
 )
 
@@ -33,6 +34,26 @@ def _project_config(root: Path) -> ProjectConfig:
         geographies=(),
         crosswalk_version="test",
     )
+
+
+def test_storage_inventory_excludes_folder_docs_but_counts_other_files(tmp_path: Path) -> None:
+    for layer in ("data/raw", "data/restricted"):
+        directory = tmp_path / layer / "provider"
+        directory.mkdir(parents=True)
+        (directory / "source_payload.bin").write_bytes(b"official payload")
+        (directory / "provider_notes.md").write_bytes(b"source documentation")
+
+    before = _storage_inventory(tmp_path).set_index("path")
+    for layer in ("data/raw/", "data/restricted/"):
+        assert before.loc[layer, "file_count"] == 2
+        assert before.loc[layer, "bytes"] == len(b"official payloadsource documentation")
+        directory = tmp_path / layer
+        (directory / "README.md").write_text("Folder guide", encoding="utf-8")
+        (directory / "provider" / "readme.md").write_text("Nested folder guide", encoding="utf-8")
+        (directory / "provider" / ".gitkeep").write_bytes(b"placeholder")
+
+    after = _storage_inventory(tmp_path).set_index("path")
+    pd.testing.assert_frame_equal(after, before)
 
 
 def _write_inventory_inputs(root: Path) -> None:
