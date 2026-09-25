@@ -23,7 +23,10 @@ def test_config_has_unique_sources_and_la_geography():
         for source in config.sources
         if source.source_id == "redfin_zip_monthly"
     )
-    assert not redfin_zip.auto_download
+    assert redfin_zip.auto_download
+    assert redfin_zip.access_method == "official_browser_download"
+    assert not redfin_zip.selected_end_date
+    assert "redfin_zip_monthly" in config.pipeline["source_refresh_review_holds"]
     assert redfin_zip.native_frequency == "rolling_3_months"
     assert redfin_zip.rolling_window_months == 3
     assert len(redfin_zip.expected_columns) == 20

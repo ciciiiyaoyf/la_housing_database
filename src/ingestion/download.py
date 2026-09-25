@@ -35,6 +35,7 @@ from src.ingestion.bps_annual import (
 from src.ingestion.irs_migration import download_irs_soi_county_migration
 from src.ingestion.hud_usps import download_hud_usps_archive
 from src.ingestion.macro_claims import download_claims
+from src.ingestion.redfin_download import download_redfin_zip
 
 RAW_SUBDIR = {
     "Zillow Research": "zillow",
@@ -957,6 +958,7 @@ def download_source(
     start_date: str | None,
     end_date: str | None,
     local_file: str | None = None,
+    refresh_latest: bool = False,
 ) -> dict:
     logger = logging.getLogger("la_housing.download")
     if local_file:
@@ -968,6 +970,10 @@ def download_source(
         return _import_local_file(config, source, local_file, force)
     if not source.auto_download:
         raise PermissionError(source.manual_reason or "Explicit source selection required")
+    if source.source_id == "redfin_zip_monthly":
+        return download_redfin_zip(
+            config, source, force=force, start_date=start_date, end_date=end_date,
+        )
     if source.source_id.startswith("census_bps_"):
         if source.source_id == BPS_ANNUAL_SOURCE_ID:
             configured_start = start_date or source.selected_start_date or "1990-01-01"
@@ -975,20 +981,22 @@ def download_source(
             records = download_bps_annual_county(
                 config.root,
                 start_year=int(str(configured_start)[:4]),
-                end_year=int(str(configured_end)[:4]),
+                end_year=None if refresh_latest and end_date is None else int(str(configured_end)[:4]),
                 force=force,
+                refresh_latest=refresh_latest,
             )
+            selected_end_year = max(int(record["survey_year"]) for record in records)
             logger.info(
                 "Archived/reused %s annual BPS files for %s-%s",
                 len(records),
                 str(configured_start)[:4],
-                str(configured_end)[:4],
+                str(selected_end_year),
             )
             return {
                 "source_id": source.source_id,
                 "archive_count": len(records),
                 "selected_start_year": str(configured_start)[:4],
-                "selected_end_year": str(configured_end)[:4],
+                "selected_end_year": str(selected_end_year),
                 "download_status": "complete",
             }
         return download_bps_archive(
@@ -997,6 +1005,7 @@ def download_source(
             force=force,
             start_date=start_date,
             end_date=end_date,
+            refresh_latest=refresh_latest,
         )
     if source.source_id == "irs_soi_county_migration":
         return download_irs_soi_county_migration(
@@ -1005,6 +1014,7 @@ def download_source(
             force=force,
             start_date=start_date,
             end_date=end_date,
+            refresh_latest=refresh_latest,
         )
     if source.source_id == "hud_usps_ncwm_quarterly":
         return download_hud_usps_archive(
@@ -1013,6 +1023,7 @@ def download_source(
             force=force,
             start_date=start_date,
             end_date=end_date,
+            refresh_latest=refresh_latest,
         )
     acs_request_contract = None
     if source.source_id in ACS_HISTORICAL_TABLES:
@@ -1242,6 +1253,7 @@ def download_sources(
                     start_date=start_date,
                     end_date=source_end_date,
                     local_file=local_file,
+                    refresh_latest=refresh_latest,
                 )
             )
         except Exception as exc:  # keep independent sources moving

@@ -104,8 +104,9 @@ def test_annual_targets_are_final_and_use_only_official_urls():
     assert targets[0]["download_url"].endswith("/co1990a.txt")
     assert targets[-1]["download_url"].endswith("/co2025a.txt")
     assert {target["annual_release_status"] for target in targets} == {"final"}
-    with pytest.raises(ValueError, match="1990-2025"):
-        annual_county_url(2026)
+    current_year = datetime.now(timezone.utc).year
+    with pytest.raises(ValueError, match=f"1990-{current_year - 1}"):
+        annual_county_url(current_year)
 
 
 def test_download_archives_payload_and_complete_provenance(tmp_path):

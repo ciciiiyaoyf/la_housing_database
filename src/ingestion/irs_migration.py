@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import pandas as pd
 import requests
@@ -15,6 +16,7 @@ from src.common.io import append_csv, sha256_file
 
 USER_AGENT = "UCLA housing research data pipeline/0.2"
 IRS_MIGRATION_DIRECTIONS = ("inflow", "outflow")
+MIGRATION_PAGE = "https://www.irs.gov/statistics/soi-tax-stats-migration-data"
 
 
 def _period_targets(start_date: str, end_date: str) -> list[dict[str, str]]:
@@ -25,7 +27,9 @@ def _period_targets(start_date: str, end_date: str) -> list[dict[str, str]]:
     date used downstream is the current/end filing year.
     """
     start_year = max(2011, pd.Timestamp(start_date).year)
-    end_year = min(2023, pd.Timestamp(end_date).year)
+    end_year = pd.Timestamp(end_date).year
+    if end_year > 2023:
+        raise ValueError("New IRS migration releases require provider-linked discovery")
     targets: list[dict[str, str]] = []
     for end_year_item in range(start_year, end_year + 1):
         prior_year = end_year_item - 1
@@ -42,6 +46,56 @@ def _period_targets(start_date: str, end_date: str) -> list[dict[str, str]]:
                     ),
                 }
             )
+    return targets
+
+
+def _published_targets(start_date: str, end_date: str | None) -> list[dict[str, str]]:
+    """Discover new releases from exact links on the official IRS year pages."""
+    def links(url: str) -> set[str]:
+        response = requests.get(url, timeout=120, headers={"User-Agent": USER_AGENT})
+        response.raise_for_status()
+        return {
+            urljoin(url, href)
+            for href in re.findall(r'''href\s*=\s*["']([^"']+)["']''', response.text, re.I)
+        }
+
+    pages: dict[int, str] = {}
+    for url in links(MIGRATION_PAGE):
+        match = re.fullmatch(
+            r"https://www\.irs\.gov/statistics/soi-tax-stats-migration-data-(20\d{2})-(20\d{2})",
+            url,
+        )
+        if match and int(match[2]) == int(match[1]) + 1:
+            pages[int(match[2])] = url
+    if not pages:
+        raise RuntimeError("Official IRS migration page contains no recognized release links")
+    start_year = max(2011, pd.Timestamp(start_date).year)
+    latest_year = max(pages)
+    end_year = min(latest_year, pd.Timestamp(end_date).year) if end_date else latest_year
+    if start_year > end_year:
+        raise ValueError("No published IRS migration period is within the requested dates")
+    # The already supported 2010-2011 CSVs are archived under the legacy schema.
+    targets = _period_targets(start_date, f"{min(end_year, 2023)}-12-31")
+    # Verify the latest supported release too, and acquire only provider-linked
+    # CSVs for every newly discovered year rather than guessing future filenames.
+    for year in range(max(start_year, 2023), end_year + 1):
+        if year not in pages:
+            raise RuntimeError(f"Official IRS release index has a gap for {year - 1}-{year}")
+        period = f"{year - 1}-{year}"
+        token = f"{(year - 1) % 100:02d}{year % 100:02d}"
+        published = links(pages[year])
+        replacements = []
+        for direction in IRS_MIGRATION_DIRECTIONS:
+            url = f"https://www.irs.gov/pub/irs-soi/county{direction}{token}.csv"
+            if url not in published:
+                raise RuntimeError(f"Official IRS release {period} lacks its {direction} CSV link")
+            replacements.append({
+                "archive_period": period,
+                "migration_direction": direction,
+                "download_url": url,
+            })
+        targets = [target for target in targets if target["archive_period"] != period]
+        targets.extend(replacements)
     return targets
 
 
@@ -70,7 +124,8 @@ def _existing_files(config: ProjectConfig, source_id: str) -> pd.DataFrame:
         .tail(1)
     )
     exists = [
-        (config.root / str(row.relative_path)).exists()
+        (config.root / str(row.relative_path)).is_file()
+        and sha256_file(config.root / str(row.relative_path)) == str(row.checksum_sha256)
         for row in latest.itertuples()
     ]
     return latest.loc[exists].drop(columns="_retrieved")
@@ -129,9 +184,11 @@ def _download_one(
         checksum = sha256_file(temp)
         filename = (
             f"{source.source_id}_{period_token}_{direction}_"
-            f"{retrieved_at:%Y%m%dT%H%M%SZ}_{checksum[:12]}.csv"
+            f"{retrieved_at:%Y%m%dT%H%M%S%fZ}_{checksum[:12]}.csv"
         )
         destination = raw_dir / filename
+        if destination.exists():
+            raise FileExistsError(f"Refusing to replace immutable IRS archive: {destination}")
         temp.replace(destination)
         record = {
             "source_id": source.source_id,
@@ -185,11 +242,17 @@ def download_irs_soi_county_migration(
     force: bool,
     start_date: str | None,
     end_date: str | None,
+    refresh_latest: bool = False,
 ) -> dict:
     logger = logging.getLogger("la_housing.download.irs_soi")
     effective_start = start_date or source.selected_start_date or "2011-01-01"
     effective_end = end_date or source.selected_end_date or "2023-12-31"
-    targets = _period_targets(effective_start, effective_end)
+    targets = (
+        _published_targets(effective_start, end_date)
+        if refresh_latest
+        else _period_targets(effective_start, effective_end)
+    )
+    latest_period = max(target["archive_period"] for target in targets)
     existing = _existing_files(config, source.source_id)
     existing_keys = (
         {
@@ -205,7 +268,9 @@ def download_irs_soi_county_migration(
     coverage: list[dict] = []
     for target in targets:
         key = (target["archive_period"], target["migration_direction"])
-        if not force and key in existing_keys:
+        if not force and key in existing_keys and not (
+            refresh_latest and key[0] == latest_period
+        ):
             prior = existing.loc[
                 existing["archive_period"].eq(key[0])
                 & existing["migration_direction"].eq(key[1])
@@ -234,6 +299,14 @@ def download_irs_soi_county_migration(
     coverage_path = config.root / "output" / "coverage" / "irs_soi_migration_download.csv"
     coverage_path.parent.mkdir(parents=True, exist_ok=True)
     coverage_frame.to_csv(coverage_path, index=False)
+    failures = coverage_frame.loc[
+        ~coverage_frame["download_status"].isin({"downloaded", "reused"})
+    ]
+    if not failures.empty:
+        raise RuntimeError(
+            "IRS migration archive is incomplete; required period/direction downloads "
+            f"failed or disappeared. See {coverage_path}"
+        )
     successful = coverage_frame.loc[
         coverage_frame["download_status"].isin({"downloaded", "reused"})
     ]

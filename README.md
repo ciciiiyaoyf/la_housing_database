@@ -9,7 +9,8 @@ analytical panels, variable definitions, and provenance.
 [install the tools](#2-set-up-the-project) → [get the database](#3-get-a-local-database) →
 [open DuckDB](#4-open-duckdb-and-run-your-first-query) →
 [learn SQL](docs/duckdb_sql_guide.md) → [use results in Python](#6-use-query-results-for-modeling).
-Already set up? Start at step 4.
+Already set up? Start at step 4 to explore the database, or
+[refresh the data before modeling](#refresh-the-data-before-modeling).
 
 For readers who prefer spreadsheet files, the
 [CSV browser and export tutorial](docs/query_and_export_commands.md#browser-downloads)
@@ -225,6 +226,17 @@ This step needs an internet connection and can take several minutes. It reads
 `requirements.txt`; you do not need to open that file or install its entries by
 hand. Wait for installation to finish before continuing.
 
+Then install the browser used by the automated Redfin download. In the same
+PowerShell window, run:
+
+```powershell
+.\.venv\Scripts\python.exe -m playwright install chromium
+```
+
+Wait for the download to finish. This installs a browser managed by Playwright;
+you do not need to open it yourself or replace your normal web browser. It is
+needed when refreshing Redfin data, and repeating the command is safe.
+
 **D. Check that setup worked.** Run:
 
 ```powershell
@@ -402,6 +414,56 @@ product, and its source/finance methods before interpreting modeled values.
 
 ## 6. Use query results for modeling
 
+### Refresh the data before modeling
+
+On a **fully provisioned research workspace**, use one command to refresh the
+configured sources, rebuild the general tables and finance B/C, and validate the
+database. This requires the installed packages, existing source archives, permitted
+source access, and the frozen finance A files. A supplied DuckDB snapshot by itself
+does not include these prerequisites; follow the
+[complete refresh guide](docs/database_build_and_refresh.md#refresh-everything-before-modeling)
+if you are setting up acquisition for the first time.
+
+First exit **every DuckDB session** with `.quit`, including the terminal running
+DuckDB's graphical interface. Stop the CSV Data Browser with **Ctrl+C** in its
+terminal, and close Python connections to the database. Closing a web-browser tab
+alone does not stop either server.
+
+**Where to type:** in **Windows PowerShell**, with the prompt starting with `PS`
+and ending in `\la_housing_database>`. Use
+[Return to the project folder](#return-to-the-project-folder-in-powershell) if needed.
+Enter this command and wait for the prompt to return:
+
+```powershell
+.\.venv\Scripts\python.exe run_system_refresh.py
+```
+
+The default finance C information cutoff is **today's UTC date**. To choose a
+specific cutoff, follow the guide's `--information-cutoff` instructions. Existing
+C vintages and frozen A remain preserved. Fixed source editions are checked within
+their configured scope; this command does not silently replace them with newer
+products or make unavailable manual inputs current.
+
+Immediately after the command finishes, enter:
+
+```powershell
+$LASTEXITCODE
+```
+
+| Result | What to do before modeling |
+|---|---|
+| `0` | Refresh completed for the configured scope. Review coverage, QA, and fixed-edition limitations. |
+| `2` | Rebuild completed, but manual source checks or other reported actions remain. Resolve or document those limitations before choosing model inputs. |
+| `1` | Refresh failed and may have updated only some products. Read the reported error and refresh reports; do not treat this as a completed update. |
+
+The complete [dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
+is directly in the refresh guide. It lists all **73 configured datasets, finance
+inputs, and products**, distinguishes observation frequency from provider release
+cadence, and gives each update command or required action. The same guide explains
+refresh logs and actions to resolve before modeling.
+
+### Load model inputs from DuckDB
+
 You can move data directly from DuckDB into Python, without downloading a CSV.
 The repository includes a small, reproducible example:
 
@@ -477,8 +539,18 @@ work to force it through.
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Wait for installation to finish without errors, then reopen DuckDB using step 4. **Updating code does not refresh housing observations.** To update the data,
-obtain a newer compatible snapshot or follow the maintainer build workflow.
+Wait for package installation to finish, then install or update the browser used
+by the Redfin downloader in the same PowerShell window:
+
+```powershell
+.\.venv\Scripts\python.exe -m playwright install chromium
+```
+
+Wait for that command to finish without errors. **`git pull` updates code and
+documentation; it does not refresh housing observations.** To update the data on
+a provisioned workspace, follow [Refresh the data before modeling](#refresh-the-data-before-modeling).
+If you only have a supplied database snapshot, obtain a newer compatible snapshot
+from the maintainer. Reopen DuckDB using step 4 after the chosen update is complete.
 
 ## Troubleshooting
 
@@ -582,11 +654,17 @@ python3 -m venv .venv
 ```
 
 ```bash
+.venv/bin/python -m playwright install chromium
+```
+
+```bash
 .venv/bin/python run_query.py --help
 ```
 
 Environment creation may be silent; package installation prints progress. Wait
-for completion without errors. The last command should show query-tool help.
+for completion without errors. The Chromium command installs the browser used
+for Redfin refreshes; you do not need to open it yourself. The last command should
+show query-tool help.
 
 Use **Finder** on macOS or your Linux **Files** application to place the permitted
 snapshot directly at `la_housing_database/database/housing.duckdb`, following
@@ -605,7 +683,19 @@ Terminal:
 
 At DuckDB's `D` prompt, use the SQL in step 4 and the
 [DuckDB SQL guide](docs/duckdb_sql_guide.md). Enter `.quit` to return to Terminal.
-For the modeling example, run this at the Terminal prompt:
+Before modeling on a provisioned workspace, close all database connections and
+follow the prerequisites and status checks in
+[Refresh the data before modeling](#refresh-the-data-before-modeling). The Terminal
+version of its command is:
+
+```bash
+.venv/bin/python run_system_refresh.py
+```
+
+Immediately run `echo $?` to see the exit code; the same `0`/`2`/`1` meanings above
+apply. See the [dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
+for the full list and source-specific actions. Once you have reviewed the refresh
+result, run the modeling example:
 
 ```bash
 .venv/bin/python scripts/load_model_data.py
@@ -617,7 +707,7 @@ The CSV browser is an alternative described in the
 
 For later updates, exit DuckDB with `.quit`, return to the project folder with `cd`, then
 run `git status --short`. Continue only if it lists no local changes. Run these
-two commands separately, stopping if either fails:
+three commands separately, stopping if any fails:
 
 ```bash
 git pull --ff-only
@@ -627,8 +717,13 @@ git pull --ff-only
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-Open DuckDB again after a successful update. This updates programs and
-packages; a newer data snapshot must be obtained or built separately.
+```bash
+.venv/bin/python -m playwright install chromium
+```
+
+These commands update programs and packages. Use `run_system_refresh.py` as
+described above to refresh observations on a provisioned workspace, or obtain a
+newer permitted snapshot. Open DuckDB again after that update is complete.
 
 </details>
 
@@ -652,6 +747,7 @@ key files, and inputs/outputs. Nested modules are described in their parent guid
 | Folder or file | Contents |
 |---|---|
 | `Open_Data_Browser.cmd` | Windows launcher for the alternative CSV browser. |
+| `run_system_refresh.py` | One-command data refresh and rebuild; see the update schedule in the build and refresh guide. |
 | [docs/](docs/README.md) | Index of the seven guides above. |
 | `metadata/data_dictionary.csv` | Variable names, IDs, definitions, units, and classifications. |
 | [metadata/](metadata/README.md) | Inventories, coverage, provenance, audit evidence, and frozen model parameters. |

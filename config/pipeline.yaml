@@ -2,6 +2,7 @@ project_name: la_housing_database
 database_path: database/housing.duckdb
 require_variable_metadata: true
 request_timeout_seconds: 120
+redfin_download_timeout_seconds: 900
 download_chunk_bytes: 1048576
 default_start_date: "2000-01-01"
 stale_after_days: 120
@@ -9,6 +10,17 @@ extreme_mom_threshold: 0.25
 extreme_yoy_threshold: 0.60
 market_tightness_min_components: 3
 source_refresh_review_holds:
+  redfin_zip_monthly: >-
+    The official ZIP Key Metrics export downloaded September 25, 2026 has
+    provider update date September 3 and observations through August 2026.
+    Its 22-column schema replaces MEDIAN DAYS ON MARKET YOY (%) with
+    MEDIAN DAYS ON MARKET YOY (DAYS), and adds listing-price-per-square-foot
+    fields. A change in days cannot populate the existing percentage-point
+    variable. Implement an explicit versioned variable/source migration before
+    declaring ZIP data current. Unattended Chromium was also denied access to
+    the public download page during verification; automatic attempts report
+    this failure without bypassing provider restrictions. A compatible older
+    manual CSV remains usable as dated but does not resolve this review hold.
   redfin_county_monthly: >-
     As of September 22, 2026, the configured official legacy county download
     still ends in May 2026 although Redfin has published newer releases through

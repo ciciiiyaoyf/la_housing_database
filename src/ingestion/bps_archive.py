@@ -9,6 +9,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -67,6 +68,26 @@ def _targets(
     ]
 
 
+def _latest_published_period(source: SourceConfig) -> pd.Period:
+    """Discover the newest current-month file from the official Census directory."""
+    base_url, prefix, _ = _archive_coordinates(source)
+    response = _session().get(base_url, timeout=120)
+    response.raise_for_status()
+    periods: list[pd.Period] = []
+    for href in re.findall(r'''href\s*=\s*["']([^"']+)["']''', response.text, re.I):
+        match = re.fullmatch(
+            re.escape(base_url + prefix) + r"(\d{2})(\d{2})c\.txt",
+            urljoin(base_url, href),
+        )
+        if match and 1 <= int(match[2]) <= 12:
+            period = pd.Period(year=2000 + int(match[1]), month=int(match[2]), freq="M")
+            if period <= pd.Timestamp.now().to_period("M"):
+                periods.append(period)
+    if not periods:
+        raise RuntimeError(f"Official BPS directory has no recognized monthly links: {base_url}")
+    return max(periods)
+
+
 def _existing_archive_files(config: ProjectConfig, source_id: str) -> pd.DataFrame:
     manifest_path = config.root / "metadata" / "raw_file_manifest.csv"
     if not manifest_path.exists():
@@ -95,6 +116,7 @@ def _existing_archive_files(config: ProjectConfig, source_id: str) -> pd.DataFra
     )
     valid = [
         is_bps_ascii_payload(config.root / str(row.relative_path))
+        and sha256_file(config.root / str(row.relative_path)) == str(row.checksum_sha256)
         for row in latest.itertuples()
     ]
     return latest.loc[valid]
@@ -158,6 +180,8 @@ def _download_one(
             f"{checksum[:12]}.txt"
         )
         destination = raw_dir / filename
+        if destination.exists():
+            raise FileExistsError(f"Refusing to replace immutable BPS archive: {destination}")
         temp.replace(destination)
         valid_payload = is_bps_ascii_payload(destination)
         format_version = (
@@ -284,6 +308,7 @@ def download_bps_archive(
     force: bool,
     start_date: str | None,
     end_date: str | None,
+    refresh_latest: bool = False,
 ) -> dict:
     """Download or reuse every documented monthly current-period archive file."""
     logger = logging.getLogger("la_housing.download.bps")
@@ -294,6 +319,12 @@ def download_bps_archive(
         or source.selected_end_date
         or pd.Timestamp.now().date().isoformat()
     )
+    if refresh_latest:
+        latest = _latest_published_period(source)
+        requested = pd.Timestamp(end_date).to_period("M") if end_date else latest
+        effective_end = min(requested, latest).end_time.date().isoformat()
+        if pd.Timestamp(effective_start).to_period("M") > min(requested, latest):
+            raise ValueError("No published BPS month is within the requested dates")
     targets = _targets(source, effective_start, effective_end)
     existing = _existing_archive_files(config, source.source_id)
     existing_by_period = (
@@ -324,7 +355,9 @@ def download_bps_archive(
             if prior is not None
             else None
         )
-        if not force and prior is not None and prior_path is not None and prior_path.exists():
+        if not force and prior is not None and prior_path is not None and prior_path.exists() and not (
+            refresh_latest and target["archive_period"] == targets[-1]["archive_period"]
+        ):
             coverage.append(
                 {
                     **target,
@@ -374,6 +407,18 @@ def download_bps_archive(
             [prior_coverage, coverage_frame], ignore_index=True, sort=False
         )
     coverage_frame.to_csv(coverage_path, index=False)
+    if refresh_latest:
+        # Inspect this run only: the cumulative coverage file also retains older
+        # requests that may have targeted an as-yet unpublished future month.
+        incomplete = [
+            row for row in coverage
+            if row["download_status"] not in {"downloaded", "reused"}
+        ]
+        if incomplete:
+            raise RuntimeError(
+                f"Required published BPS periods could not be acquired for {source.source_id}; "
+                f"see {coverage_path}"
+            )
     successful = coverage_frame.loc[
         coverage_frame["source_id"].eq(source.source_id)
         & coverage_frame["download_status"].isin({"downloaded", "reused"})

@@ -7,6 +7,274 @@ For optional CSV downloads, use the [Data Browser instructions](query_and_export
 The commands here rebuild or update local research products; they are not a
 complete database installation recipe for a fresh clone.
 
+## Refresh everything before modeling
+
+For a provisioned research workspace, this is the normal command for updating the
+configured general sources and rebuilding the database and monthly finance products.
+The [dataset schedule below](#dataset-update-schedule) lists every source, its release
+cadence, and the fixed-edition or manual exceptions. A provider's newest available
+release can still describe an earlier month, quarter, or year.
+
+**Where to run it:** in **Windows PowerShell**, inside `la_housing_database`, as
+explained in [Open the working folder](#open-the-working-folder-and-run-commands).
+Exit DuckDB with `.quit`, stop its graphical UI, stop the Data Browser with Ctrl+C,
+and close Python sessions connected to the database. The runner checks database
+access before downloading. It also requires the existing source archives and frozen
+finance inputs described under [What a rebuild requires](#what-a-rebuild-requires).
+
+After updating the project's packages, install Redfin's browser runtime once:
+
+```powershell
+.\.venv\Scripts\python.exe -m playwright install chromium
+```
+
+For each subsequent data update, enter **this one command** and press Enter:
+
+```powershell
+.\.venv\Scripts\python.exe run_system_refresh.py
+```
+
+It attempts current provider acquisition, checks and cleans sources, rebuilds
+general analytical products and retrospective finance B, builds or validates the
+finance C cutoff, registers the integrated database and unit/temporal metadata,
+and runs QA and exports. Downloading large Redfin files can take several minutes.
+Automatic acquisition or structural failures stop the workflow and identify the
+source or stage needing attention.
+
+The default C cutoff is **today's UTC date**. If that cutoff already exists, its
+immutable observations and lineage are validated and reused. Later downloads on
+the same day can update general/B products, but cannot overwrite that C vintage.
+Frozen Version A and its finance input vintages remain unchanged. For an explicit
+historical cutoff, follow [Finance layers and integrated refresh](#finance-layers-and-integrated-refresh).
+
+When the PowerShell prompt returns, immediately enter:
+
+```powershell
+$LASTEXITCODE
+```
+
+| Exit code | Meaning and next step |
+|---|---|
+| `0` | The configured refresh and integrated checks completed. Review coverage and the fixed-edition/finance limitations before selecting model inputs. |
+| `2` | The rebuild completed, but manual provider-release checks remain. Read each `action_required` in the source report; the command has not verified all sources as current. |
+| `1` | A source, preflight, or build failed. Products may be partly updated; use the recorded failure to resolve the issue before treating this as a completed refresh. |
+
+Read `metadata/source_refresh_status.csv` for each source's acquisition result,
+latest clean observation, and required action. Read the newest
+`metadata/system_refresh_run_log.csv` row for `general_completed`,
+`version_b_rebuilt`, `version_c_action`, `integrated_completed`, `status`, and `error`.
+These fields record completed work, including whether C was newly built or reused.
+The QA and coverage reports are under `output/qa/` and `output/coverage/`.
+
+To diagnose database access, the frozen benchmark, and known source actions without
+starting downloads or rebuilding, use:
+
+```powershell
+.\.venv\Scripts\python.exe run_system_refresh.py --check
+```
+
+This preflight does not contact every provider or certify current releases.
+Current Redfin limitations are explained under [Redfin downloads](#redfin-downloads).
+The command runs when you invoke it; it does not install a recurring schedule.
+
+## Dataset update schedule
+
+This is the complete update list: **61 configured general source datasets, 8 separately managed finance inputs, and 4 database products**. The same source can support several tables; these entries describe acquisition and rebuild responsibilities, not 73 unrelated provider downloads.
+
+**Observation frequency** describes the periods represented by the values. **Provider release cadence** describes when files or new vintages are published. For example, DOL claims observations are weekly but its bulk file is updated daily. The linked dataset names lead to official provider evidence; release calendars can change.
+
+For a normal update, use [Refresh everything before modeling](#refresh-everything-before-modeling). The source-specific commands below are for refreshing or troubleshooting one source. They acquire and rebuild that source through the general pipeline; they do not replace an integrated finance B/C refresh.
+
+**Where to enter commands:** first follow [Open the working folder and run commands](#open-the-working-folder-and-run-commands), then paste one complete command into **PowerShell in the project folder**. Close database readers before updating. On macOS/Linux, replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`. Paths such as `C:\path\to\official_ahs.csv` are examples to replace with the actual downloaded file path.
+
+| Refresh mode | Meaning |
+|---|---|
+| Automatic | The pipeline can request the configured official source; access errors and provider review holds still matter. |
+| Manual | An official export or source-specific action is required; a routine command cannot certify a newer release. |
+| Fixed edition | The command checks a named year, vintage, or file edition. Extending coverage requires a verified source/configuration review. |
+| Frozen | Preserve the historical edition or benchmark and its immutable inputs. It is not supposed to advance during a routine refresh. |
+| Derived | Recompute from eligible inputs; there is no separate provider download. |
+
+A recent successful download is not proof that a provider published new observations. Read the action and notes, then check the refresh and coverage reports before selecting model inputs. In particular, the integrated runner preserves frozen A and existing C vintages.
+
+### Interest rates
+
+National series. Monthly modeling aggregates retain source-specific rules and exclude incomplete months where required.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [Effective Federal Funds Rate [FEDFUNDS]](https://fred.stlouisfed.org/series/FEDFUNDS)<br>`fred_fedfunds` | Monthly | Monthly observations added after month end; FRED may revise history | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fred_fedfunds` | See group note above. |
+| [2-Year Treasury constant-maturity yield [DGS2]](https://www.federalreserve.gov/releases/h15/about.htm)<br>`fred_dgs2` | Daily | Business days; FRED may post later than the originating provider | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fred_dgs2` | See group note above. |
+| [10-Year Treasury constant-maturity yield [DGS10]](https://www.federalreserve.gov/releases/h15/about.htm)<br>`fred_dgs10` | Daily | Business days; FRED may post later than the originating provider | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fred_dgs10` | See group note above. |
+| [Baa corporate spread over 10-Year Treasury [BAA10Y]](https://fred.stlouisfed.org/series/BAA10Y)<br>`fred_baa10y` | Daily | Business days; FRED may post later than the originating provider | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fred_baa10y` | See group note above. |
+| [Bank Prime Loan Rate [DPRIME]](https://www.federalreserve.gov/releases/h15/about.htm)<br>`fred_dprime` | Daily | Business days; FRED may post later than the originating provider | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fred_dprime` | See group note above. |
+| [Secured Overnight Financing Rate [SOFR]](https://www.newyorkfed.org/markets/reference-rates/sofr)<br>`fred_sofr` | Daily | Business days; FRED may post later than the originating provider | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fred_sofr` | See group note above. |
+| [Primary Mortgage Market Survey, weekly rates since 1971](https://www.freddiemac.com/pmms/docs/PMMS_Publication_Calendar.pdf)<br>`freddie_mac_pmms` | Weekly | Weekly on Thursday; Wednesday when Thursday is a US holiday | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source freddie_mac_pmms` | Also supplies finance sensitivity calculations. Weekly observations remain distinguishable from monthly summaries. |
+
+### Employment and prices
+
+Use the provider calendar for actual release dates; observations and publication dates differ.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [California and Los Angeles division CES industry employment and total-private average hourly earnings](https://www.bls.gov/schedule/news_release/metro.htm)<br>`bls_ces_ca_la_industry_earnings` | Monthly | Monthly; annual benchmark or seasonal revisions may also occur | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bls_ces_ca_la_industry_earnings` | See group note above. |
+| [ETA 539 daily-updated bulk file: California weekly initial and continued claims](https://oui.doleta.gov/unemploy/DataDownloads.asp)<br>`dol_ca_ui_claims` | Weekly | Daily bulk-file updates; new claims observations are weekly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source dol_ca_ui_claims` | ETA539 revisions appear in the next daily file. California only; completed-month means require all component weeks. |
+| [Local Area Unemployment Statistics, Los Angeles and seven comparable California counties](https://www.bls.gov/schedule/news_release/metro.htm)<br>`bls_laus_la_county` | Monthly | Monthly; annual benchmark or seasonal revisions may also occur | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bls_laus_la_county` | See group note above. |
+| [California Consumer Price Index, All Urban Consumers, annual average](https://www.dir.ca.gov/oprl/CAPriceIndex.htm)<br>`ca_dir_california_cpi` | Annual | Bimonthly publication; annual-average series adds completed calendar years | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source ca_dir_california_cpi` | DIR states updates in even-numbered months. The database uses the published annual-average series. |
+| [Current Employment Statistics, Los Angeles-Long Beach-Anaheim MSA](https://www.bls.gov/schedule/news_release/metro.htm)<br>`bls_ces_la_metro` | Monthly | Monthly; annual benchmark or seasonal revisions may also occur | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bls_ces_la_metro` | See group note above. |
+| [CPI-U All Items, Los Angeles-Long Beach-Anaheim published area](https://www.bls.gov/cpi/news.htm)<br>`bls_cpi_la_metro` | Monthly | Monthly; annual benchmark or seasonal revisions may also occur | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bls_cpi_la_metro` | See group note above. |
+
+### Income and output
+
+Retain published vintage and units; state GDP and personal income do not become new monthly observations.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [SQGDP9 California real GDP all industries](https://www.bea.gov/news/schedule)<br>`bea_ca_real_gdp` | Quarterly | Quarterly with annual revisions | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bea_ca_real_gdp` | See group note above. |
+| [SQINC1 Quarterly Personal Income by State](https://www.bea.gov/news/schedule)<br>`bea_state_personal_income` | Quarterly | Quarterly with annual revisions | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bea_state_personal_income` | See group note above. |
+| [CAINC1 Annual Personal Income by County](https://www.bea.gov/news/schedule)<br>`bea_county_personal_income` | Annual | Annual with revisions | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source bea_county_personal_income` | See group note above. |
+
+### Home values and rents
+
+For Zillow, fetch the current complete CSV, including provider history revisions. Only smoothed seasonally adjusted ZORI is active.
+
+For FHFA, selected state/metro series are quarterly; the county developmental index remains annual.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [County ZHVI, all homes, middle tier, smoothed and seasonally adjusted](https://www.zillow.com/research/data/)<br>`zillow_county_zhvi` | Monthly | Monthly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source zillow_county_zhvi` | See group note above. |
+| [ZIP ZHVI, all homes, middle tier, smoothed and seasonally adjusted](https://www.zillow.com/research/data/)<br>`zillow_zip_zhvi` | Monthly | Monthly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source zillow_zip_zhvi` | See group note above. |
+| [County ZORI, all homes plus multifamily, smoothed and seasonally adjusted](https://www.zillow.com/research/data/)<br>`zillow_county_zori_smoothed_sa` | Monthly | Monthly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source zillow_county_zori_smoothed_sa` | See group note above. |
+| [ZIP ZORI, all homes plus multifamily, smoothed and seasonally adjusted](https://www.zillow.com/research/data/)<br>`zillow_zip_zori_smoothed_sa` | Monthly | Monthly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source zillow_zip_zori_smoothed_sa` | See group note above. |
+| [Purchase-Only House Price Index by State](https://www.fhfa.gov/data/hpi)<br>`fhfa_hpi_state_purchase_only` | Quarterly | Quarterly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fhfa_hpi_state_purchase_only` | See group note above. |
+| [Purchase-Only House Price Index for the 100 Largest Metropolitan Areas](https://www.fhfa.gov/data/hpi)<br>`fhfa_hpi_metro_purchase_only` | Quarterly | Quarterly | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fhfa_hpi_metro_purchase_only` | See group note above. |
+| [Developmental All-Transactions House Price Index by County](https://www.fhfa.gov/data/hpi)<br>`fhfa_hpi_county_annual` | Annual | Annual observations; publication/revision dates require provider review | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source fhfa_hpi_county_annual` | See group note above. |
+
+### Home sales and listings
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [Housing Market Tracker monthly county data](https://www.redfin.com/news/data-center/downloads/)<br>`redfin_county_monthly` | Monthly | Monthly product; provider may revise history | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_county_monthly` | Legacy county endpoint has a configured provider-release review hold. Download success cannot clear that hold. |
+| [Housing Market Tracker ZIP Key Metrics, rolling three months](https://www.redfin.com/news/data-center/downloads/)<br>`redfin_zip_monthly` | Overlapping 3-month windows | Monthly product; provider may revise history | **Automatic browser attempt, currently blocked:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source redfin_zip_monthly` | Current unattended access denial and provider YoY unit change require attention; see [Redfin downloads](#redfin-downloads). National CSV stays raw-only; cleaning uses the versioned LA County ZIP reference. |
+
+### Construction
+
+Discover official period files, recheck the newest eligible period, and retain checksum-valid historical archives. Missing required files or download errors stop refresh.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [Building Permits Survey county monthly archive](https://www.census.gov/construction/bps/schedule.html)<br>`census_bps_county` | Monthly | Monthly; county/state data follow the revised-permits release | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_bps_county` | See group note above. |
+| [Building Permits Survey final annual county files, 1990-2025](https://www.census.gov/construction/bps/schedule.html)<br>`census_bps_county_annual_final` | Annual | Annual final release, usually in May | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_bps_county_annual_final` | See group note above. |
+| [Building Permits Survey state monthly archive](https://www.census.gov/construction/bps/schedule.html)<br>`census_bps_state` | Monthly | Monthly; county/state data follow the revised-permits release | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_bps_state` | See group note above. |
+
+### Population and housing stock
+
+The Vintage 2019 sources are historical baselines. Retain them; do not replace their archived files with a newer vintage.
+
+For the Vintage 2025 sources, re-download checks that named edition only. A newer vintage requires an explicit source/configuration and comparability review.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [Vintage 2019 annual county resident population estimates](https://www.census.gov/programs-surveys/popest/about/schedule.html)<br>`census_pep_county_population_v2019` | Annual | Annual vintage releases; this source ID selects a fixed vintage | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_pep_county_population_v2019` | See group note above. |
+| [Vintage 2025 annual county resident population estimates](https://www.census.gov/programs-surveys/popest/about/schedule.html)<br>`census_pep_county_population_v2025` | Annual | Annual vintage releases; this source ID selects a fixed vintage | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_pep_county_population_v2025` | See group note above. |
+| [Vintage 2019 annual county housing-unit estimates for California](https://www.census.gov/programs-surveys/popest/about/schedule.html)<br>`census_pep_county_housing_units_v2019` | Annual | Annual vintage releases; this source ID selects a fixed vintage | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_pep_county_housing_units_v2019` | See group note above. |
+| [Vintage 2025 annual county housing-unit estimates for California](https://www.census.gov/programs-surveys/popest/about/schedule.html)<br>`census_pep_county_housing_units_v2025` | Annual | Annual vintage releases; this source ID selects a fixed vintage | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_pep_county_housing_units_v2025` | See group note above. |
+
+### Insurance
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [Residential Property Insurance Report Part I Premium and Exposure Summary Data](https://www.insurance.ca.gov/0400-news/0200-studies-reports/0250-homeowners-study/)<br>`ca_doi_residential_property_part_i` | Annual | Report releases containing annual observations; fixed release date not verified | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source ca_doi_residential_property_part_i` | Refresh the provider workbook and inspect its last data year; report release timing need not match the insured year. |
+
+### Wealth and debt surveys
+
+Re-download checks this edition only. A later reference year needs a verified workbook and schema/configuration update.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [2025 Survey of Income and Program Participation state debt tables, 2024 reference period](https://www.census.gov/topics/income-poverty/wealth/data/tables.html)<br>`census_sipp_2025_state_debt_2024` | Annual reference-year table | Annual survey/table releases; this source selects 2025 SIPP / 2024 reference year | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_sipp_2025_state_debt_2024` | See group note above. |
+| [2025 Survey of Income and Program Participation state wealth tables, 2024 reference period](https://www.census.gov/topics/income-poverty/wealth/data/tables.html)<br>`census_sipp_2025_state_wealth_2024` | Annual reference-year table | Annual survey/table releases; this source selects 2025 SIPP / 2024 reference year | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_sipp_2025_state_wealth_2024` | See group note above. |
+| [2023 American Housing Survey Table Creator Table 14A Mortgage Characteristics, California](https://www.census.gov/programs-surveys/ahs/about.html)<br>`census_ahs_2023_ca_table14a` | Biennial survey year | Biennial survey program; this source selects the 2023 California table | **Manual:** Export official AHS California Table 14A CSV with margins of error, then run `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_ahs_2023_ca_table14a --local-file "C:\path\to\official_ahs.csv"` | Interactive export required. Review coverage and configuration before adding a new survey year; do not overwrite the old archive. |
+
+### Population and migration
+
+Manual source-release check required. Preserve suppression markers, geography and source definition; do not replace missing releases with provisional data.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [SOI Tax Stats County-to-County Migration Data, Los Angeles County](https://www.irs.gov/statistics/soi-tax-stats-migration-data)<br>`irs_soi_county_migration` | Annual | Annual migration-year releases with publication lag | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source irs_soi_county_migration` | Discover complete official inflow/outflow pairs and recheck the newest published pair. Do not treat a migration year as its release year. |
+| [Natality, 2007-2024, year by county](https://wonder.cdc.gov/natality-current.html)<br>`cdc_wonder_natality_county` | Annual | Final annual vintages when released; no fixed publication day verified | **Manual:** Use the official CDC WONDER web export and the source-specific provenance/archiving workflow. No generic --local-file importer is implemented. | See group note above. |
+| [Underlying Cause of Death, 1999-2020, Los Angeles County annual deaths](https://wonder.cdc.gov/ucd-icd10.html)<br>`cdc_wonder_ucd_1999_2020_la_county` | Annual | Closed historical edition (1999-2020); no new observation years expected | **Frozen:** Retain the official historical export and provenance; this fixed edition has no routine forward update. | Historical mortality baseline; the newer single-race edition is a separate source with an explicit overlap policy. |
+| [Underlying Cause of Death, 2018-2024, year by county](https://wonder.cdc.gov/ucd-icd10-expanded.html)<br>`cdc_wonder_ucd_2018_2024_county` | Annual | Final annual vintages when released; no fixed publication day verified | **Manual:** Use the official CDC WONDER web export and the source-specific provenance/archiving workflow. No generic --local-file importer is implemented. | See group note above. |
+
+### Housing insecurity
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [County eviction estimates, 2000-2018](https://evictionlab.org/methods/)<br>`eviction_lab_county_estimates` | Annual | Historical research release covering 2000-2018; no rolling update schedule | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source eviction_lab_county_estimates` | Re-downloading cannot add recent eviction counts. Any successor needs a separate coverage/method review. |
+| [2007-2025 Point-in-Time Estimates by Continuum of Care](https://www.huduser.gov/portal/datasets/ahar.html)<br>`hud_pit_coc_2007_2025` | Annual point-in-time count | Annual PIT/AHAR release; this source selects the 2007-2025 workbook | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source hud_pit_coc_2007_2025` | Review the next official edition and update configuration. CoC geography is not county geography. |
+
+### Vacancy
+
+Refresh checks this filename only. Review the rates page and configure the next edition when published; do not splice definitions silently.
+
+Retain the historical edition; newer years belong to a separately configured current edition.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [HVS Rental Vacancy Rates by State, 2005-present](https://www.census.gov/housing/hvs/data/faq.html)<br>`census_hvs_state_rental_vacancy` | Quarterly | Quarterly releases; this source selects a named historical/current file edition | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_hvs_state_rental_vacancy` | See group note above. |
+| [HVS Rental Vacancy Rates for 75 Largest MSAs, 2005-2014](https://www.census.gov/housing/hvs/data/faq.html)<br>`census_hvs_metro_rental_vacancy_2005_2014` | Quarterly | Quarterly releases; this source selects a named historical/current file edition | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_hvs_metro_rental_vacancy_2005_2014` | See group note above. |
+| [HVS Rental Vacancy Rates for 75 Largest MSAs, 2015-2025](https://www.census.gov/housing/hvs/data/faq.html)<br>`census_hvs_metro_rental_vacancy_2015_2025` | Quarterly | Quarterly releases; this source selects a named historical/current file edition | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_hvs_metro_rental_vacancy_2015_2025` | See group note above. |
+| [HVS Rental Vacancy Rates for 75 Largest MSAs, 2026](https://www.census.gov/housing/hvs/data/faq.html)<br>`census_hvs_metro_rental_vacancy_2026` | Quarterly | Quarterly releases; this source selects a named historical/current file edition | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_hvs_metro_rental_vacancy_2026` | See group note above. |
+| [HUD aggregated USPS administrative data on residential address vacancies](https://www.huduser.gov/portal/datasets/usps.html)<br>`hud_usps_ncwm_quarterly` | Quarterly | Quarterly | **Fixed edition:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source hud_usps_ncwm_quarterly` | Strict refresh requires HUDUSER_API_TOKEN even when archives exist, to verify the latest provider period. A release newer than the approved 2026Q1 geography/crosswalk scope blocks refresh until reviewed. Restricted data stay outside public exports. |
+
+### ACS demographic and housing tables
+
+Official group-endpoint discovery checks newest published vintage. Census API access rules apply.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [ACS 5-Year Detailed Table B05002 Place of Birth by Nativity and Citizenship Status, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b05002` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b05002` | See group note above. |
+| [ACS 5-Year Detailed Table B07001 Geographical Mobility in the Past Year by Age for Current Residence, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b07001` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b07001` | See group note above. |
+| [ACS 5-Year Detailed Table B11001 Household Type, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b11001` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b11001` | See group note above. |
+| [ACS 5-Year Detailed Table B19013 Median Household Income, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b19013` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b19013` | See group note above. |
+| [ACS 5-Year Detailed Table B25001 Housing Units, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25001` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25001` | See group note above. |
+| [ACS 5-Year Detailed Table B25002 Occupancy Status, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25002` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25002` | See group note above. |
+| [ACS 5-Year Detailed Table B25003 Tenure, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25003` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25003` | See group note above. |
+| [ACS 5-Year Detailed Table B25004 Vacancy Status, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25004` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25004` | See group note above. |
+| [ACS 5-Year Detailed Table B25064 Median Gross Rent, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25064` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25064` | See group note above. |
+| [ACS 5-Year Detailed Table B25077 Median Home Value, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25077` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25077` | See group note above. |
+| [ACS 5-Year Detailed Table B25081 Mortgage Status, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25081` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25081` | See group note above. |
+| [ACS 5-Year Detailed Table B25032 Tenure by Units in Structure, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25032` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25032` | See group note above. |
+| [ACS 5-Year Detailed Table B25127 Tenure by Year Structure Built by Units in Structure, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25127` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25127` | See group note above. |
+| [ACS 5-Year Detailed Table B25106 Tenure by Housing Costs as a Percentage of Household Income, 2010-2024 vintages](https://www.census.gov/programs-surveys/acs/news/data-releases/2024/release-schedule.html)<br>`census_acs_5year_b25106` | Annual vintage / 5-year estimate | Annual release of overlapping five-year estimates | **Automatic:** `.\.venv\Scripts\python.exe run_pipeline.py --stage refresh --source census_acs_5year_b25106` | See group note above. |
+
+### Separate finance inputs
+
+Version A file hashes are verified, not rebuilt, by run_system_refresh.py.
+
+Retain the relationship vintage compatible with its PUMS geography.
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [ACS five-year county finance benchmark tables](https://www.census.gov/data/developers/data-sets/acs-5year.html)<br>`census_acs5_finance` | 5-year estimate | Annual release of overlapping five-year estimates | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | See group note above. |
+| [ACS five-year California housing PUMS](https://www.census.gov/programs-surveys/acs/microdata/access.html)<br>`census_acs5_pums_housing_ca` | 5-year estimate | Annual release of overlapping five-year estimates | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | See group note above. |
+| [2020 Census tract-to-PUMA relationship file](https://www2.census.gov/geo/docs/maps-data/data/rel2020/2020_Census_Tract_to_2020_PUMA.txt)<br>`census_tract_to_puma_2020` | Decennial geography | Decennial relationship-file edition; corrections only within the named edition | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | See group note above. |
+| [2010 Census tract-to-PUMA relationship file](https://www2.census.gov/geo/docs/maps-data/data/rel/2010_Census_Tract_to_2010_PUMA.txt)<br>`census_tract_to_puma_2010` | Decennial geography | Decennial relationship-file edition; corrections only within the named edition | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | See group note above. |
+| [HMDA combined Modified Loan Application Register](https://ffiec.cfpb.gov/data-publication/modified-lar)<br>`cfpb_hmda_modified_lar` | Annual | Annual activity-year publication; provider corrections may follow | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | Official combined ZIP is a manual finance import. Do not silently replace frozen benchmark loan records. |
+| [NMDB joint outstanding-rate and remaining-term parameter](https://www.fhfa.gov/programs/nmdb)<br>`fhfa_nmdb_joint_distribution` | Quarterly / published aggregate | Quarterly NMDB program; required exported parameter may be unavailable | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | Do not construct a joint distribution from separate marginals. Frozen benchmark inputs change only in a separately reviewed revision. |
+| [NMDB California unpaid principal balance](https://www.fhfa.gov/programs/nmdb)<br>`fhfa_nmdb_ca_upb` | Quarterly / published aggregate | Quarterly NMDB program; required exported parameter may be unavailable | **Manual:** Export the official NMDB file; archive with run_version_a.py --stage download --source fhfa_nmdb_ca_upb using explicit --start-year, --release-date and --local-file; then run `the unified refresh. See the finance guide before importing.` | Latest archived all-mortgage UPB supports B as a growth indicator only. It is not a compatible calibration level; unified refresh does not download it. |
+| [CPI-U US city average, published annual average for finance deflation](https://www.bls.gov/cpi/news.htm)<br>`bls_cpi_u_us_city_average` | Monthly plus published annual average | Monthly CPI releases; published M13 annual average added after year end | **Frozen:** Preserve the frozen Version A inputs. A separate benchmark revision requires explicit vintage/release dates and the finance guide; the unified refresh does not reacquire this input. | Frozen benchmark uses published M13 and its explicit release date; do not recompute the annual average. |
+
+### Database products
+
+| Dataset and source ID | Observation frequency | Provider release cadence | Update command or required action | Additional notes |
+|---|---|---|---|---|
+| [General clean tables, analytical panels and derived features](database_build_and_refresh.md)<br>`general_analytical_products` | Source-specific frequencies | On each successful project refresh; no independent provider release | **Derived:** `.\.venv\Scripts\python.exe run_system_refresh.py` | Rebuilt from available official inputs using the configured geography/frequency rules. Missing values are preserved. |
+| [Version A frozen housing-finance benchmark](housing_finance_versions.md)<br>`version_a_housing_finance_benchmark` | Mixed native frequencies | On each successful project refresh; no independent provider release | **Frozen:** `.\.venv\Scripts\python.exe run_system_refresh.py` | Preserved with exact hash verification. A routine update must not overwrite the benchmark or its freeze manifest. |
+| [Version B retrospective monthly finance estimates](housing_finance_versions.md)<br>`version_b_housing_finance_monthly_hist` | Monthly | On each successful project refresh; no independent provider release | **Derived:** `.\.venv\Scripts\python.exe run_system_refresh.py` | Rebuilt using frozen A and latest eligible archived supporting inputs; modeled history may use later benchmark information. |
+| [Version C monthly finance information-cutoff vintages](housing_finance_versions.md)<br>`version_c_housing_finance_monthly_rt` | Monthly estimates by cutoff vintage | On each successful project refresh; no independent provider release | **Derived:** `.\.venv\Scripts\python.exe run_system_refresh.py` | Appends/reuses the chosen cutoff; default is today UTC. Only inputs available by the cutoff are eligible; prior vintages remain immutable. |
+
 ## Open the working folder and run commands
 
 1. Open **Windows PowerShell** from the Start menu. Type commands there, not in
@@ -230,9 +498,43 @@ For LA County LAUS, the official BLS Public Data API requests series
 invalid JSON, or an empty numeric response stop that download. Inspect the newest
 manifest row rather than relying on a date copied into a document.
 
-For manual Redfin ZIP import, first obtain the official provider CSV and review
-the [ZIP source rules](county_and_zip_housing_indicators.md). This command is a
-**template**: replace the quoted example path with the real CSV path before running:
+## Redfin downloads
+
+The ZIP source now attempts the official Data Center's public browser controls:
+Housing Market Tracker, Monthly, Zip Codes, All Zip Codes, Key Metrics, and YoY.
+It selects the latest enabled end month, downloads the original national CSV,
+validates the exact schema, ZIP identifiers, rolling windows, and date coverage,
+then archives compatible files with the provider filename, publication date,
+retrieval time, and checksum. It does not guess a private API endpoint.
+Install the Chromium runtime once as described above.
+
+To attempt acquisition alone, in project **PowerShell**, run:
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage download --source redfin_zip_monthly --force-download
+```
+
+Acquisition alone does not update the analytical database. The one-command integrated
+refresh includes acquisition, cleaning, and rebuilding when all required contracts pass.
+
+**Current verified limitations (September 25, 2026):** the ordinary browser download
+works, but Redfin denies the unattended Chromium session on this computer. The
+adapter reports that failure and does not reuse an old file as a successful refresh.
+The September 3 ZIP release also changes `MEDIAN DAYS ON MARKET YOY (%)` to
+`MEDIAN DAYS ON MARKET YOY (DAYS)` and adds listing-price-per-square-foot fields.
+The existing percentage variable cannot receive the new days-valued field. The
+source contract therefore rejects that successor CSV, including a manual import,
+pending an explicit variable/method migration. This is recorded as a refresh hold.
+
+The county source has a separate hold: its legacy series and the newer calendar-month
+exports have unresolved definition/normalization differences, described in the
+[county indicator guide](county_and_zip_housing_indicators.md#current-redfin-source-limitation).
+Until these holds are resolved, an all-source refresh cannot report the complete
+database as current. Do not remove a hold just to make a run succeed.
+
+The manual importer remains available for **contract-compatible** official ZIP files.
+First review the [ZIP source rules](county_and_zip_housing_indicators.md). This is a
+**template**: replace the quoted path with the real CSV path before running:
 
 ```powershell
 .\.venv\Scripts\python.exe run_pipeline.py --stage download --source redfin_zip_monthly --local-file "C:\path\to\official_redfin.csv"
@@ -252,7 +554,9 @@ for preflight, build, validation, lineage, and cutoff rules.
 
 On a fully provisioned research workspace, complete the finance guide's preflight
 and stop database readers. The integrated runner refreshes general sources,
-rebuilds retrospective B, appends a C cutoff, then registers and validates.
+rebuilds retrospective B, appends a new C cutoff or validates an existing one,
+then registers and validates. For the usual current update, use the no-argument
+command under [Refresh everything before modeling](#refresh-everything-before-modeling).
 The following is a **template**: replace `YYYY-MM-DD` with the intended information
 cutoff in year-month-day form, following the finance guide's availability rules.
 Do not paste the placeholder literally:
@@ -262,8 +566,10 @@ Do not paste the placeholder literally:
 ```
 
 After the prompt returns, check `$LASTEXITCODE` and the newest row of
-`metadata/system_refresh_run_log.csv`: match the cutoff, require `status=succeeded`,
-and review `error`. Review the source refresh and QA reports too; the log alone
+`metadata/system_refresh_run_log.csv`: match the cutoff and inspect `status`,
+`integrated_completed`, `version_c_action`, and `error`. A
+`completed_with_action_required` result exits with code 2 and retains the pending
+manual release checks. Review the source refresh and QA reports too; the log alone
 does not establish current releases for manual sources. A failed run can leave
 partially updated products, so do not describe it as a completed integrated refresh.
 The runner verifies, but does not rebuild, frozen Version A. Do not change its

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from typing import Any
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -33,12 +35,33 @@ class BPSAnnualDownloadError(RuntimeError):
 def annual_county_url(year: int) -> str:
     """Return the documented official URL for a supported survey year."""
     year = int(year)
-    if not FIRST_SUPPORTED_YEAR <= year <= LAST_SUPPORTED_YEAR:
+    latest_calendar_year = datetime.now(timezone.utc).year - 1
+    if not FIRST_SUPPORTED_YEAR <= year <= latest_calendar_year:
         raise ValueError(
             f"BPS annual county year must be {FIRST_SUPPORTED_YEAR}-"
-            f"{LAST_SUPPORTED_YEAR}; got {year}"
+            f"{latest_calendar_year}; got {year}"
         )
     return ANNUAL_URL_TEMPLATE.format(year=year)
+
+
+def _published_annual_years(session: Any | None = None) -> set[int]:
+    """Use the provider's directory to discover published final annual files."""
+    client = session or requests.Session()
+    response = client.get(
+        SOURCE_PAGE_URL, timeout=60, headers={"User-Agent": USER_AGENT}
+    )
+    response.raise_for_status()
+    years: set[int] = set()
+    for href in re.findall(r'''href\s*=\s*["']([^"']+)["']''', response.text, re.I):
+        match = re.fullmatch(
+            r"https://www2\.census\.gov/econ/bps/County/co(\d{4})a\.txt",
+            urljoin(SOURCE_PAGE_URL, href),
+        )
+        if match and FIRST_SUPPORTED_YEAR <= int(match[1]) < datetime.now(timezone.utc).year:
+            years.add(int(match[1]))
+    if not years:
+        raise BPSAnnualDownloadError("Official BPS directory contains no recognized final annual links")
+    return years
 
 
 def annual_county_targets(
@@ -232,16 +255,27 @@ def download_bps_annual_county(
     root: Path,
     *,
     start_year: int = FIRST_SUPPORTED_YEAR,
-    end_year: int = LAST_SUPPORTED_YEAR,
+    end_year: int | None = LAST_SUPPORTED_YEAR,
     force: bool = False,
     session: Any | None = None,
+    refresh_latest: bool = False,
 ) -> list[dict[str, Any]]:
     """Acquire an inclusive range of final-annual county files."""
+    if refresh_latest:
+        published = _published_annual_years(session)
+        end_year = min(int(end_year), max(published)) if end_year is not None else max(published)
+        missing = set(range(int(start_year), end_year + 1)).difference(published)
+        if missing:
+            raise BPSAnnualDownloadError(
+                f"Official BPS annual directory is missing required years: {sorted(missing)}"
+            )
+    elif end_year is None:
+        end_year = LAST_SUPPORTED_YEAR
     return [
         download_annual_county_file(
             root,
             int(target["survey_year"]),
-            force=force,
+            force=force or (refresh_latest and int(target["survey_year"]) == end_year),
             session=session,
         )
         for target in annual_county_targets(start_year, end_year)

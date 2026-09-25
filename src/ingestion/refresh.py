@@ -12,7 +12,7 @@ import pyarrow.parquet as pq
 
 from src.common.config import ProjectConfig, SourceConfig
 from src.common.io import latest_manifest_rows, sha256_file
-from src.ingestion.download import download_sources
+from src.ingestion.download import LOCAL_FILE_SOURCE_IDS, download_sources
 
 
 REFRESH_STATUS_COLUMNS = (
@@ -244,6 +244,12 @@ def _action_for_manual_source(source: SourceConfig, *, has_archive: bool) -> str
         return (
             source.manual_reason
             or "Acquire and import the official provider file before rebuilding."
+        )
+    if source.source_id not in LOCAL_FILE_SOURCE_IDS:
+        return (
+            "Check the provider for a newer release using the source-specific "
+            "approved ingestion workflow; this source has no generic --local-file importer. "
+            f"{source.manual_reason or source.source_page_url}"
         )
     return (
         "Check the provider for a newer release. If one exists, import it with "

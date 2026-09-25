@@ -67,6 +67,29 @@ def _quarters(start_date: str, end_date: str) -> list[pd.Period]:
     return list(pd.period_range(start, end, freq="Q"))
 
 
+def _latest_published_quarter(token: str) -> pd.Period:
+    """Ask the documented endpoint for its latest published USPS period.
+
+    HUD documents omitted year/month as selecting the latest available release:
+    https://www.huduser.gov/portal/dataset/uspsncwm-api.html
+    Only the returned period is used here; observations remain in immutable archives.
+    """
+    response = _session(token).get(
+        NCWM_API, params={"type": 1, "stateid": STATE_FIPS}, timeout=120
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or not payload.get("results"):
+        raise ValueError("HUD latest-release response contains no USPS results")
+    try:
+        year, month = int(payload["year"]), int(payload["month"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("HUD latest-release response lacks a valid year/month") from exc
+    if month not in {3, 6, 9, 12} or not 2008 <= year <= datetime.now(timezone.utc).year:
+        raise ValueError("HUD latest-release response has an invalid quarterly period")
+    return pd.Period(year=year, quarter=month // 3, freq="Q")
+
+
 def _targets(source: SourceConfig, start_date: str, end_date: str) -> list[dict[str, Any]]:
     quarters = _quarters(start_date, end_date)
     targets: list[dict[str, Any]] = []
@@ -152,6 +175,7 @@ def _existing_files(config: ProjectConfig, source_id: str) -> pd.DataFrame:
     )
     exists = [
         (config.root / str(row.relative_path)).is_file()
+        and sha256_file(config.root / str(row.relative_path)) == str(row.checksum_sha256)
         for row in frame.itertuples()
     ]
     return frame.loc[exists].drop(columns="_retrieved")
@@ -280,6 +304,8 @@ def _archive_one(
             f"{retrieved_at:%Y%m%dT%H%M%SZ}_{checksum[:12]}.{extension}"
         )
         destination = raw_dir / filename
+        if destination.exists():
+            raise FileExistsError(f"Refusing to replace immutable HUD archive: {destination}")
         temp.replace(destination)
         record = {
             "source_id": source.source_id,
@@ -381,12 +407,31 @@ def download_hud_usps_archive(
     force: bool,
     start_date: str | None,
     end_date: str | None,
+    refresh_latest: bool = False,
 ) -> dict:
     """Archive every quarterly NCWM response and the exact support vintages."""
 
     logger = logging.getLogger("la_housing.download.hud_usps")
     effective_start = start_date or source.selected_start_date or "2008-01-01"
     effective_end = end_date or source.selected_end_date or "2026-03-31"
+    if refresh_latest:
+        token = (os.getenv("HUDUSER_API_TOKEN") or "").strip()
+        if not token:
+            raise PermissionError(
+                "Set HUDUSER_API_TOKEN to verify the latest official HUD-USPS release; "
+                "a cached archive alone cannot establish freshness."
+            )
+        latest = _latest_published_quarter(token)
+        supported = pd.Timestamp(source.selected_end_date or "2026-03-31").to_period("Q")
+        requested = pd.Timestamp(effective_end).to_period("Q")
+        if requested > supported or (end_date is None and latest > supported):
+            raise RuntimeError(
+                f"HUD publishes {latest}, but the active cleaner and fixed ZIP crosswalk "
+                f"are approved only through {supported}. Review and version the "
+                "geography/coverage contract before extending the archive."
+            )
+        if requested > latest:
+            raise RuntimeError(f"HUD latest release {latest} precedes requested endpoint {requested}")
     targets = _targets(source, effective_start, effective_end)
     existing = _existing_files(config, source.source_id)
     existing_keys = (
@@ -410,7 +455,12 @@ def download_hud_usps_archive(
     for target in targets:
         key = (str(target["artifact_role"]), str(target["archive_period"]))
         prior = existing_keys.get(key)
-        if not force and prior is not None:
+        recheck_latest = (
+            refresh_latest
+            and key[0] == "ncwm_standardized_2020"
+            and key[1] == f"{pd.Timestamp(effective_end).year}-Q{pd.Timestamp(effective_end).quarter}"
+        )
+        if not force and prior is not None and not recheck_latest:
             coverage.append(
                 {
                     "source_id": source.source_id,

@@ -276,13 +276,15 @@ sources:
   - redfin_zip_active_listings_rolling_3m
   - redfin_zip_pending_sales_rolling_3m
   enabled: true
-  auto_download: false
-  manual_reason: Redfin does not publish a verified stable direct endpoint for the
-    user-selected ZIP Key Metrics CSV. Import the official Data Center download with
-    --local-file.
+  auto_download: true
+  access_method: official_browser_download
+  manual_reason: The browser adapter uses the public download form. Provider access
+    restrictions can block unattended requests; compatible official CSVs can still
+    be imported with --local-file. The September 2026 export changes days-on-market
+    YoY from percent to days, so the current successor schema requires a versioned
+    migration before active ingestion.
   manual_filename: redfin_housing_market_monthly_all_zips_key_metrics_2019_Jan_to_2026_May.csv
   selected_start_date: '2019-01-01'
-  selected_end_date: '2026-05-31'
   rolling_window_months: 3
   expected_columns:
   - LAST UPDATED
@@ -308,11 +310,14 @@ sources:
   methodology_notes: Key Metrics download dated by PERIOD END; every observation is
     an overlapping Rolling 3 Months window. Only ZIPs verified to primary county FIPS
     06037 are loaded into clean analytics.
-  license_or_use_notes: Official Redfin Data Center manual download; the complete
+  license_or_use_notes: Official Redfin Data Center download; the complete
     national file remains immutable raw data and provider postal ZIPs are not Census
     ZCTAs.
   revision_notes: Historical values can be revised. Provider YoY percentages are retained
-    as percentage points and active listings are not relabeled as inventory.
+    as percentage points and active listings are not relabeled as inventory. The
+    September 3, 2026 ZIP export replaces the days-on-market YoY percent field with
+    a YoY change in days and adds listing-price-per-square-foot fields. This successor
+    is rejected until an explicit variable and source-contract migration is implemented.
 - source_id: bls_laus_la_county
   provider: U.S. Bureau of Labor Statistics
   dataset_name: Local Area Unemployment Statistics, Los Angeles and seven comparable California counties
