@@ -357,16 +357,33 @@ It also explains [DuckDB's graphical table viewer and SQL editor](docs/duckdb_sq
 
 ## 5. Find tables, datasets, and variables
 
-Reopen DuckDB using step 4 if you have exited it. At **`D`**, run:
+Reopen DuckDB using step 4 if you have exited it. At the **DuckDB `D` prompt**,
+first enter this display command and press Enter, **without a semicolon**:
+
+```text
+.mode table
+```
+
+This prints the complete result instead of DuckDB's shortened preview. Now paste
+the whole SQL block below, including its final semicolon, and press Enter:
 
 ```sql
 SELECT table_schema, table_name, table_type
 FROM information_schema.tables
-WHERE table_schema IN ('analytics', 'metadata')
+WHERE table_catalog = current_database()
 ORDER BY table_schema, table_name;
 ```
 
-This lists what actually exists in your database. A *schema* is a group of related
+This lists **every table and view in every schema of the open database**. Scroll
+up in the terminal to see the beginning of the list; the output can extend beyond
+one screen. Maximize the window if long names wrap. After reading it, restore the
+usual compact display by entering this at **`D`**, without a semicolon:
+
+```text
+.mode duckbox
+```
+
+A *schema* is a group of related
 tables; `analytics.county_monthly_panel` means the `county_monthly_panel` table
 inside the `analytics` schema. A *view* is a saved query presented like a table.
 A table's presence does not guarantee non-missing values for every variable/date.

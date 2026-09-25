@@ -90,14 +90,38 @@ Reopen the database with the same launch command on your next visit.
 
 ## 2. See which tables and datasets are installed
 
-At **`D`**, list the available tables and views:
+At the **DuckDB `D` prompt**, first enter this display command and press Enter,
+**without a semicolon**:
+
+```text
+.mode table
+```
+
+DuckDB's usual `duckbox` display shows only 40 rows by default and can hide the
+middle of a long result. `table` mode prints every result row and the complete
+table names. Now paste this whole SQL statement at **`D`** and press Enter:
 
 ```sql
 SELECT table_schema, table_name, table_type
 FROM information_schema.tables
-WHERE table_schema IN ('analytics', 'metadata', 'quality', 'raw', 'clean')
+WHERE table_catalog = current_database()
 ORDER BY table_schema, table_name;
 ```
+
+This lists **all tables and views across every schema in the open database**,
+including schemas added in later builds. It has no SQL row limit. Scroll up in
+the terminal to read the beginning of the list; more than one screen of output
+is normal. Maximize the window if long names wrap onto another line.
+
+After reading the complete list, enter this at **`D`**, without a semicolon:
+
+```text
+.mode duckbox
+```
+
+This restores the compact display for later data previews. Display commands
+change only how results appear; they do not alter the database. See DuckDB's
+[output formats](https://duckdb.org/docs/current/clients/cli/output_formats).
 
 A *schema* groups related tables. A name such as
 `analytics.county_monthly_panel` means table `county_monthly_panel` in schema
@@ -127,10 +151,11 @@ The listing reflects your actual database. A table can exist with no rows or
 explicit missing values. Use the checks in section 7 to establish usable coverage.
 The [data inventory](data_inventory_and_limitations.md) explains other products.
 
-The terminal displays only a limited number of result rows by default. This is
-different from a SQL `LIMIT`, which changes the result itself. To adjust the display,
-enter `.maxrows 60` at `D`, without a semicolon. For a wide result, `.mode line`
-prints each row vertically; `.mode duckbox` restores the normal table display.
+For any later result that needs a complete display, enter `.mode table` at `D`
+and rerun the query, then restore `.mode duckbox` when finished. For a wide result,
+`.mode line` prints each row vertically. These settings do not remove a SQL
+`LIMIT`, which restricts the query result itself. A display setting such as
+`.maxrows 60` still caps the preview and does not guarantee a complete list.
 These are [DuckDB display commands](https://duckdb.org/docs/current/clients/cli/dot_commands).
 
 ## 3. Inspect columns and preview a table
@@ -593,7 +618,7 @@ UI extension according to its current documentation.
 | DuckDB waits instead of showing results | Finish SQL with `;`, or cancel with Ctrl+C and paste the complete statement. |
 | Table or column does not exist | Run sections 2–3; check that the snapshot has the product and matches the checkout. |
 | No rows | Inspect geography, date range, variable ID, and cutoff; metadata definitions alone do not prove observations exist. |
-| Some columns/rows are not visible | Choose fewer columns, use `.mode line`, or adjust `.maxrows`; display truncation differs from SQL `LIMIT`. |
+| The table list or another result omits rows/names | At `D`, enter `.mode table` without a semicolon and rerun the query, as in section 2. Scroll up for earlier rows. Use `.mode line` for wide results and `.mode duckbox` to restore previews. A SQL `LIMIT` still restricts the result. |
 | Database is locked | Close other applications/builders using it before reopening. Stop all readers before a rebuild. |
 | Cannot create or change a table | The supplied research database is opened read-only. Keep your model results separately from it. |
 | Python cannot import `scripts` | Save and run `model_example.py` from the project root, as described in section 8. |
