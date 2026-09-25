@@ -1,0 +1,2 @@
+rebuild_date,coverage_start,coverage_end,ncwm_response_files,crosswalk_files,census_reference_files,restricted_archive_bytes,county_quarter_rows,la_tract_quarter_rows,la_zip_county_part_rows,normalized_observations,geographies,variables,la_county_2026_q1_vacancy_rate,provenance_status
+2026-08-03,2008-03-31,2026-03-31,73,1,1,1395219331,4234,182062,31828,1744992,2988,8,0.012169774552092925,official_authorized_api
