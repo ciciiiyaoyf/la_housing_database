@@ -314,8 +314,8 @@ def test_new_panel_parquet_csv_and_duckdb_row_counts_agree():
             assert parquet_rows == csv_rows == database_rows
 
 
-def test_readme_refresh_commands_match_cli():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+def test_maintenance_guide_refresh_commands_match_cli():
+    readme = (ROOT / "docs/database_build_and_refresh.md").read_text(encoding="utf-8")
     assert "catalog" in STAGES
     assert (
         "python run_pipeline.py --stage download --source "

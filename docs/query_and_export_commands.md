@@ -1,9 +1,9 @@
-# LA housing database: reproducible command reference
+# Query and export commands
 
 For dropdowns and CSV download buttons, start with the
-[point-and-click guide](query_and_csv_guide.md). This optional command reference
-supports saved, repeatable queries. It starts with the **Variable Inventory** sheet in
-`LA_Housing_Database_Overview.xlsx`, the workbook used with Clement. It covers
+[beginner tutorial in the README](../README.md). This optional command reference
+supports saved, repeatable queries. Filters correspond to the **Variable Inventory**
+sheet in the [reference overview workbook](../outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx). It covers
 both finding variables and downloading their data. All examples use the local
 database snapshot; they do not download new releases from providers.
 
@@ -17,11 +17,12 @@ workbook. The same filters also work for the 76 newer variables.
 Open **Windows PowerShell** and paste these two lines:
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\yifan\Downloads\la_housing_database'
+Set-Location -LiteralPath (Join-Path $HOME 'Downloads\la_housing_database')
 $HousingPython = '.\.venv\Scripts\python.exe'
 ```
 
-If the project is saved elsewhere, change the folder on the first line.
+If the project is saved elsewhere, use that folder on the first line.
+Complete the README setup, including a compatible local database, first.
 Keep this PowerShell window open for the following steps. The `&` at the start
 of each command runs the project's Python environment.
 
@@ -106,7 +107,8 @@ List the current choices directly from the database:
 & $HousingPython run_query.py options --field geography
 ```
 
-List the datasets you can download:
+List supported dataset selectors (this works without a database and does not
+confirm that their observations are installed):
 
 ```powershell
 & $HousingPython run_query.py datasets
@@ -272,7 +274,7 @@ roles intersect, selecting the scenario with that combination.
 Files in these examples are saved under:
 
 ```text
-C:\Users\yifan\Downloads\la_housing_database\output\exports
+<your project folder>\output\exports
 ```
 
 To open a CSV in Excel while preserving identifiers:
@@ -305,5 +307,80 @@ Parquet instead, change `.csv` to `.parquet`; the companion dictionary remains C
 
 Use `& $HousingPython run_query.py table --help` or
 `& $HousingPython run_query.py observations --help` to see all options.
-The [unit and temporal-type reference](variable_units_temporal_types.md) explains
-the classifications and their aggregation limits.
+The following reference explains the classifications and their aggregation limits.
+
+## 9. Units and temporal types
+
+The variable dictionary covers all 558 configured variables. `unit_simplified`
+and `temporal_type` are stable query fields; the existing `unit` remains the
+original unit. Labels never rescale values or change observation dates,
+frequency, geography, source vintage, or aggregation rules.
+
+`config/variable_metadata.csv` is the explicit per-variable registry.
+`config/variable_metadata_provenance.json` records the supplied workbook's
+filename, SHA-256, import timestamp, definitions, additions, and corrections.
+The workbook covers 482 IDs; 76 later additions are classified from the current
+configuration and transformation definitions. The source workbook remains intact.
+
+| Temporal type | Meaning |
+|---|---|
+| `stock` | Outstanding level; do not sum through time. |
+| `flow` | Quantity during a period; additive only across compatible, nonoverlapping periods. |
+| `period_average` | An explicitly defined average; inspect its averaging basis. |
+| `period_statistic` | A non-additive index, median, modeled level, or cross-sectional statistic. |
+| `derived_ratio` | Ratio, rate, share, or yield; recompute from components where appropriate. |
+| `growth_change` | Change between observations; recompute for a different horizon. |
+| `rolling_window` | Overlapping-window observation; do not sum adjacent observations. |
+| `cumulative` | Cumulative-to-date amount; do not sum successive totals. Currently unused. |
+| `metadata_or_assumption` | Uncertainty, flags, diagnostics, or assumptions with no general economic aggregation rule. |
+
+These categories describe observations; they do not select frequency-conversion
+algorithms. In particular, Redfin ZIP observations remain overlapping rolling
+three-month windows, and repeated annual controls retain their annual source
+meaning. Annualized GDP and income rates are not unadjusted quarterly flows.
+
+Unit simplifications include `current_dollars` to `USD`, `housing_units` to
+`units`, and `fraction`/`proportion` to `share`. `percent`,
+`percentage_points`, dollar scaling, annualization, constant-dollar bases, and
+index bases remain distinct. `monetary_basis` preserves inflation information
+when the simplified label is less specific. A growth fraction labeled `share`
+can be negative or exceed one; the label does not impose a zero-to-one bound.
+
+Five reviewed classification corrections are recorded in `metadata_review_note`,
+with the original supplied type retained in `workbook_temporal_type`: three
+average-premium variables are derived ratios; annual total BEA personal income
+is a flow; the cross-sectional implied average mortgage balance is a period
+statistic. No numerical data were changed.
+
+## 10. Query labeled SQL views
+
+```python
+import duckdb
+
+with duckdb.connect("database/housing.duckdb", read_only=True) as connection:
+    data = connection.sql("""
+        SELECT observation_date, geo_id, variable_id, value, unit,
+               unit_simplified, temporal_type, monetary_basis, source_vintage
+        FROM analytics.fact_housing_observation_labeled
+        WHERE temporal_type = 'flow' AND geo_id = 'COUNTY_06037'
+        ORDER BY observation_date, variable_id
+    """).df()
+```
+
+The other labeled views are `analytics.housing_finance_benchmark_labeled`,
+`analytics.housing_finance_monthly_hist_labeled`, and
+`analytics.housing_finance_monthly_rt_labeled`. Direct SQL access is a research
+interface: the ordinary download tool enforces export restrictions and should be
+used for shareable public CSVs.
+
+For wide datasets, the companion dictionary gives the exact `table_column` to
+`variable_id` mapping. For example, ZIP `homes_sold` maps to the Redfin
+rolling-window identifier. Each column retains its own temporal classification;
+a mixed table does not receive one collective stock/flow type. Scenario mappings
+also contain `row_identifier_column` and `row_identifier_value`.
+
+Use `--temporal-type stock --unit units` with `catalog` to find stock quantities,
+or add the filters to an export command above. `--unit` aliases
+`--unit-simplified`; neither option converts numerical values. See
+[database build and refresh](database_build_and_refresh.md#change-a-source-or-method)
+for updating the explicit classification registry and SQL views.

@@ -1,4 +1,4 @@
-# Housing-finance Versions B and C
+# Housing finance versions
 
 This document records the repository contract for the monthly housing-finance layers derived from the source-faithful Version A benchmark. It follows `LA_CA_Housing_Finance_Variables_Methodology.docx`; the authoritative machine-readable definitions are [the Version B configuration](../config/version_b_monthly_hist.yaml), [Version B variable dictionary](../config/version_b_variables.yaml), [Version B transformation catalog](../metadata/version_b_transformation_catalog.csv), [the Version C configuration](../config/version_c_monthly_rt.yaml), [Version C variable dictionary](../config/version_c_variables.yaml), and [Version C transformation catalog](../metadata/version_c_transformation_catalog.csv).
 

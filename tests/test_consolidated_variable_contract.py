@@ -163,7 +163,9 @@ def test_hud_usps_is_active_proxy_and_not_rental_inventory() -> None:
     assert "hud_usps_ncwm_quarterly" in {
         source_config.source_id for source_config in configured.selected_sources()
     }
-    assert (ROOT / "docs/hud_usps_residential_vacancy_proxy.md").is_file()
+    assert "## HUD USPS vacancy" in (
+        ROOT / "docs/source_definitions_and_methods.md"
+    ).read_text(encoding="utf-8")
     source_manifest = pd.read_csv(
         ROOT / "metadata/hud_usps_source_manifest.csv", dtype=str
     )
@@ -386,7 +388,9 @@ def test_noncontrolled_acs_contract_is_annual_bounded_and_policy_safe() -> None:
     assert not crosswalk.loc[
         crosswalk["policy_id"].eq("LA_COUNTY_RSTPO"), "repo_geo_id"
     ].any()
-    assert (ROOT / "docs" / "noncontrolled_rental_exposure.md").is_file()
+    assert "## Noncontrolled rental exposure" in (
+        ROOT / "docs/source_definitions_and_methods.md"
+    ).read_text(encoding="utf-8")
 
 
 def test_acs_rental_availability_is_annual_and_separate_from_listings() -> None:
@@ -626,8 +630,9 @@ def test_new_official_annual_sources_and_outputs_are_source_limited() -> None:
     assert "ca_coc_annual_controls.csv" in exports
 
 
-def test_readme_records_the_consolidated_contract_and_refresh_examples() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+def test_guides_record_the_consolidated_contract_and_refresh_examples() -> None:
+    reference = (ROOT / "docs/data_inventory_and_limitations.md").read_text(encoding="utf-8")
+    reference = " ".join(reference.split())
     for phrase in (
         "558 unique variables",
         "375 general variables",
@@ -638,15 +643,15 @@ def test_readme_records_the_consolidated_contract_and_refresh_examples() -> None
         "legacy modeled scenario",
         "all-residential administrative vacancy proxy",
         "not true rental-listing inventory",
-        "(docs/hud_usps_residential_vacancy_proxy.md)",
-        "(metadata/hud_usps_source_manifest.csv)",
-        "(metadata/hud_usps_quarantine_manifest.csv)",
-        "(docs/noncontrolled_rental_exposure.md)",
+        "(source_definitions_and_methods.md#hud-usps-vacancy)",
+        "(../metadata/hud_usps_source_manifest.csv)",
+        "(../metadata/hud_usps_quarantine_manifest.csv)",
     ):
-        assert phrase in readme
+        assert phrase in reference
 
+    maintenance = (ROOT / "docs/database_build_and_refresh.md").read_text(encoding="utf-8")
     for source_id in REQUIRED_REFRESH_SOURCE_IDS:
         assert (
             "python run_pipeline.py --stage download --source "
             f"{source_id} --force-download"
-        ) in readme
+        ) in maintenance

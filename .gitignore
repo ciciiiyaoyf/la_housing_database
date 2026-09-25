@@ -11,18 +11,17 @@ tmp/
 scripts/build_database_system_overview.mjs
 scripts/build_variable_data_summary.mjs
 
-# Publish final reference documents, excluding previews and temporary QA tools.
+# Publish named reference documents; exclude previews and temporary QA files.
 outputs/**
-!outputs/database_system_overview_20260824/
-!outputs/database_system_overview_20260824/LA_Housing_Database_Outsider_Overview.xlsx
-!outputs/abc_variable_comparison_20260824/
-!outputs/abc_variable_comparison_20260824/Version_A_B_C_Variable_Parallel_Comparison.xlsx
-!outputs/01a00953-b044-7c23-92e2-b58c4ff42a9d/
-!outputs/01a00953-b044-7c23-92e2-b58c4ff42a9d/LA_Housing_Database_Outsider_Overview.xlsx
-!outputs/019fc5e2-f04c-7f71-8fa8-836e424589c3/
-!outputs/019fc5e2-f04c-7f71-8fa8-836e424589c3/LA_CA_Housing_Data_Summary_Source_Limited*.xlsx
+!outputs/reference_workbooks/
+!outputs/reference_workbooks/housing_database_overview_2026-08-24.xlsx
+!outputs/reference_workbooks/housing_database_overview_2026-08-24_base.xlsx
+!outputs/reference_workbooks/housing_finance_versions_comparison_2026-08-24.xlsx
+!outputs/reference_workbooks/housing_variables_source_limited_legacy_251_ids_2026-08-07.xlsx
+!outputs/reference_workbooks/housing_variables_source_limited_2026-08-07.xlsx
+!outputs/reference_workbooks/housing_variables_source_limited_2026-08-10.xlsx
 !outputs/mentor_reports/
-!outputs/mentor_reports/MSA_Variables_and_More_Granular_Alternatives_Report.docx
+!outputs/mentor_reports/msa_variables_and_geography_alternatives.docx
 
 # Raw and generated data are reproducible artifacts, not source.
 data/raw/**

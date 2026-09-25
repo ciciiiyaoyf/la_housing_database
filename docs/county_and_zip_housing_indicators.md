@@ -1,4 +1,4 @@
-# Los Angeles and comparable-county housing analytics
+# County and ZIP housing indicators
 
 ## Scope and status
 
@@ -14,7 +14,7 @@ Redfin county tightness inputs, and therefore tightness and housing heat, still
 end in May 2026 in the verified legacy download. Later Redfin publications exist,
 and the user has supplied successor county CSVs, but their compatibility has not
 yet been verified or accepted into the active series.
-See the [September 22 implementation report](september_22_2026_implementation_report.md)
+See the [dated coverage and limitations](data_inventory_and_limitations.md)
 for the current completed-versus-unavailable assessment.
 
 The county comparison set is fixed and identified by five-character FIPS codes:
