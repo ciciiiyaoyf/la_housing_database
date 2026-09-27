@@ -125,12 +125,16 @@ def test_variable_options_only_offer_selected_dataset_ids_and_human_labels(brows
     assert options["zori_smoothed_sa"].endswith("(zori_smoothed_sa)")
     assert options["zori_smoothed_sa"] != "zori_smoothed_sa (zori_smoothed_sa)"
     assert "homes_sold" not in options
+    assert all(set(item) == {"value", "label", "category_id", "category_label"} for item in result["options"])
+    categories = {item["value"]: item["category_label"] for item in result["options"]}
+    assert categories == {"permits_total": "Construction and permits", "zori_smoothed_sa": "Rents and rental market"}
 
 
 def test_source_variable_options_use_actual_geography_rows(browser):
     address, _ = browser
     result = read_json(address + "/api/options?kind=observations&dataset=main&field=variable&geography=postal_zip")
     assert [item["value"] for item in result["options"]] == ["zori_smoothed_sa"]
+    assert result["options"][0]["category_label"] == "Rents and rental market"
     empty = read_json(address + "/api/options?kind=observations&dataset=main&field=variable&geography=zcta")
     assert empty["options"] == []
 
@@ -152,6 +156,95 @@ def test_single_variable_download_and_definitions_match_preview(browser):
         definitions = list(csv.DictReader(io.StringIO(response.read().decode("utf-8"))))
     assert [row["variable_id"] for row in definitions] == ["zori_smoothed_sa"]
     assert definitions[0]["table_column"] == "zori"
+
+
+@pytest.mark.parametrize("kind,dataset", [("table", "county-monthly"), ("observations", "main")])
+def test_repeated_variables_match_preview_data_and_definitions(browser, kind, dataset):
+    address, _ = browser
+    query = (
+        f"?kind={kind}&dataset={dataset}&geo_id=COUNTY_06037"
+        "&variable=zori_smoothed_sa&variable=permits_total"
+    )
+    result = read_json(address + "/api/preview" + query)
+    assert result["metadata_count"] == 2
+    with urlopen(address + "/api/download" + query, timeout=15) as response:
+        rows = list(csv.DictReader(io.StringIO(response.read().decode("utf-8"))))
+    if kind == "table":
+        assert len(result["rows"]) == len(rows) == 1
+        assert result["rows"][0]["zori"] == float(rows[0]["zori"]) == 2100.0
+        assert result["rows"][0]["permits_total"] == float(rows[0]["permits_total"]) == 12.0
+    else:
+        expected = {"zori_smoothed_sa": 2100.0, "permits_total": 12.0}
+        assert {row["variable_id"]: row["value"] for row in result["rows"]} == expected
+        assert {row["variable_id"]: float(row["value"]) for row in rows} == expected
+    assert {row["county_fips"] if kind == "table" else row["geo_id"] for row in rows} == {
+        "06037" if kind == "table" else "COUNTY_06037"
+    }
+    with urlopen(address + "/api/definitions" + query, timeout=15) as response:
+        definitions = list(csv.DictReader(io.StringIO(response.read().decode("utf-8"))))
+    assert {row["variable_id"] for row in definitions} == {"zori_smoothed_sa", "permits_total"}
+
+
+def test_repeated_construction_variables_keep_applicable_null_rows_and_family_definitions(browser):
+    address, database = browser
+    momentum = "zhvi_momentum_3m_annualized_log_pct"
+    regime = "zip_market_regime_id"
+    share = "zip_market_regime_share"
+    # Populate only this temporary test database; browser readers open per request.
+    with duckdb.connect(str(database)) as connection:
+        connection.execute(
+            "CREATE TABLE analytics.nine_constructions AS "
+            "SELECT DATE '2026-03-31' date, 'county_monthly' row_type, 'monthly' frequency, "
+            "'COUNTY_06037' geo_id, 'county' geography_type, '06037' county_fips, "
+            "NULL::VARCHAR postal_zip, 'analytics.comparable_county_monthly_analytics' source_table, "
+            f"'{momentum}' applicable_variable_ids, NULL::DOUBLE {momentum}, "
+            f"NULL::DOUBLE {regime}, NULL::DOUBLE {share}, 'fixture-source' source_file "
+            "UNION ALL SELECT DATE '2026-03-31', 'zip_monthly', 'monthly', 'ZIP_00501', "
+            "'postal_zip', '06037', '00501', 'analytics.zip_monthly_panel', "
+            f"'{momentum}', 3.0, NULL, NULL, 'fixture-source' "
+            "UNION ALL SELECT DATE '2026-03-31', 'zip_regime_quarterly', 'quarterly', 'ZIP_00501', "
+            "'postal_zip', '06037', '00501', 'analytics.zip_market_regime_quarterly', "
+            f"'{regime}', NULL, NULL, NULL, 'fixture-source' "
+            "UNION ALL SELECT DATE '2026-03-31', 'zip_regime_summary_quarterly', 'quarterly', 'COUNTY_06037', "
+            "'county', '06037', NULL, 'analytics.la_zip_market_regime_summary_quarterly', "
+            f"'{share}', NULL, NULL, 0.25, 'fixture-source'"
+        )
+        connection.execute(
+            "CREATE TABLE metadata.nine_constructions_dictionary AS "
+            f"SELECT '{momentum}' variable_id, '1' construction_number, 'Home-price momentum' construction_name "
+            f"UNION ALL SELECT '{regime}', '8', 'LA postal-ZIP market regimes' "
+            f"UNION ALL SELECT '{share}', '8', 'LA postal-ZIP market regimes'"
+        )
+    query = f"?kind=table&dataset=nine-constructions&variable={momentum}&variable={regime}"
+    result = read_json(address + "/api/preview" + query)
+    assert len(result["rows"]) == 3
+    assert result["metadata_count"] == 2
+    assert share not in result["columns"]
+    preview_rows = {row["row_type"]: row for row in result["rows"]}
+    assert preview_rows["county_monthly"][momentum] is None
+    assert preview_rows["zip_regime_quarterly"][regime] is None
+    assert preview_rows["zip_monthly"][momentum] == 3.0
+    assert preview_rows["zip_regime_quarterly"]["applicable_variable_ids"] == regime
+    with urlopen(address + "/api/download" + query, timeout=15) as response:
+        rows = list(csv.DictReader(io.StringIO(response.read().decode("utf-8"))))
+    assert {row["row_type"] for row in rows} == set(preview_rows)
+    csv_rows = {row["row_type"]: row for row in rows}
+    assert csv_rows["county_monthly"][momentum] == ""
+    assert csv_rows["zip_regime_quarterly"][regime] == ""
+    assert csv_rows["zip_monthly"]["postal_zip"] == "00501"
+    assert {row["frequency"] for row in rows} == {"monthly", "quarterly"}
+    with urlopen(address + "/api/definitions" + query, timeout=15) as response:
+        definitions = list(csv.DictReader(io.StringIO(response.read().decode("utf-8"))))
+    assert {row["variable_id"] for row in definitions} == {momentum, regime}
+    assert {row["construction_number"] for row in definitions} == {"1", "8"}
+    assert {row["construction_name"] for row in definitions} == {
+        "Home-price momentum", "LA postal-ZIP market regimes"
+    }
+    options = read_json(address + "/api/options?kind=table&dataset=nine-constructions&field=variable")["options"]
+    assert [row["construction_number"] for row in options] == [1, 8, 8]
+    assert options[0]["value"] == momentum
+    assert options[0]["category_id"] == "construction_1"
+    assert options[0]["category_label"] == "1. Home-price momentum"
 
 
 def test_single_source_variable_csv_retains_native_id_and_provenance(browser):

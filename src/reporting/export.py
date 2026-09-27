@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 import pandas as pd
+import duckdb
 
 from src.common.config import ProjectConfig
 from src.common.variable_metadata import enrich_variable_metadata
@@ -165,6 +166,15 @@ def export_outputs(config: ProjectConfig) -> dict[str, int]:
         ),
     }
     counts: dict[str, int] = {}
+    if (final / "nine_constructions.parquet").is_file():
+        from src.database.nine_constructions import export_nine_constructions
+        from src.validation.nine_constructions import nine_constructions_failures
+
+        with duckdb.connect(str(config.root / config.pipeline["database_path"]), read_only=True) as connection:
+            failures = nine_constructions_failures(config, connection=connection)
+            if not failures.empty:
+                raise ValueError("Nine-construction export requires reconciled final and database products: " + failures.to_json(orient="records"))
+            counts["nine_constructions_rows"] = export_nine_constructions(connection, config.root)
     for name, (parquet_path, csv_path) in exports.items():
         if not parquet_path.exists():
             continue

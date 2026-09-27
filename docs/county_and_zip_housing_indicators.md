@@ -231,10 +231,79 @@ Configuration/model mismatches, missing artifacts, changed fingerprints, missing
 
 ## Outputs and where they live
 
+### One table for all nine constructions
+
+`analytics.nine_constructions` combines the nine constructions into one wide,
+downloadable table. It projects accepted values from the five products below
+and stacks their records; it does not recalculate the methods above.
+
+| `row_type` | Source product | Original row key |
+|---|---|---|
+| `county_monthly` | `comparable_county_monthly_analytics` | County and month. |
+| `zip_monthly` | `zip_monthly_panel` | Postal ZIP and month. |
+| `zip_regime_quarterly` | `zip_market_regime_quarterly` | Postal ZIP and quarter end. |
+| `zip_regime_summary_quarterly` | `la_zip_market_regime_summary_quarterly` | Quarter end and regime. |
+| `zip_regime_transition_quarterly` | `la_zip_market_regime_transitions_quarterly` | Quarter end, from-regime, and to-regime. |
+
+Shared context includes `date`, `frequency`, `geo_id`, `geography_type`,
+`geography_scope`, source-table/file references, and `applicable_variable_ids`.
+The LA ZIP aggregate rows use county geography with an explicit postal-ZIP
+aggregate scope; they do not become county housing measurements or individual
+ZIP records. Original coverage, nulls, model/normalization diagnostics, and
+transition denominators remain attached. The monthly ZIP projection retains
+the explicitly named LA County price-to-rent reference used by relative
+valuation; it introduces no additional county-to-ZIP copying.
+
+Use `applicable_variable_ids` with
+[the combined-table dictionary](../metadata/nine_constructions_dictionary.csv)
+to distinguish an inapplicable cell from a missing applicable value. The mapping
+uses existing canonical IDs and records each construction and row type;
+[configuration](../config/nine_constructions.yaml) defines the projections.
+A monthly variable appearing as an input to a quarterly classification retains
+its input meaning; the containing record remains a quarterly classification.
+No quarterly classification, share, or transition is repeated into months.
+Counts repeated as context across four summary rows or sixteen transition rows
+are not additive across those rows.
+
+In the Data Browser, select **Nine housing constructions — All geographies and
+periods** and leave all filters at **All** for the complete download. See
+[the download walkthrough](query_and_export_commands.md#download-all-nine-housing-constructions-together).
+The source products remain available separately. The combined product lives at
+`data/final/nine_constructions.parquet`, with the standard CSV at
+`output/exports/la_nine_constructions.csv`.
+
+To inspect it at the DuckDB prompt:
+
+```sql
+SELECT *
+FROM analytics.nine_constructions
+ORDER BY row_type, date DESC, geo_id
+LIMIT 10;
+```
+
+To retrieve monthly county observations only:
+
+```sql
+SELECT date, geo_id, county_housing_market_heat_index,
+       market_tightness_index_3c_fixed, panel_quality_flag
+FROM analytics.nine_constructions
+WHERE row_type = 'county_monthly'
+ORDER BY date, geo_id;
+```
+
+Ordinary harmonization/database builds include the combined product. To build,
+register, and export it from already accepted local final products without
+refreshing providers, close database readers and run:
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage nine-constructions
+```
+
 ### Parquet and CSV
 
 | Product | Parquet | CSV export |
 |---|---|---|
+| All nine constructions with explicit row types | `data/final/nine_constructions.parquet` | `output/exports/la_nine_constructions.csv` |
 | Eight-county monthly analytics | `data/final/comparable_county_monthly_analytics.parquet` | `output/exports/la_comparable_county_monthly_analytics.csv` |
 | Los Angeles County monthly panel, including LA copies of the comparable features | `data/final/county_monthly_panel.parquet` | `output/exports/la_county_monthly_panel.csv` |
 | LA postal-ZIP monthly panel, including momentum, PTR, and relative valuation | `data/final/zip_monthly_panel.parquet` | `output/exports/la_zip_monthly_panel.csv` |

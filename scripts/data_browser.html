@@ -37,6 +37,16 @@
     details { border-top:1px solid var(--line); margin-top:23px; padding-top:17px; }
     summary { cursor:pointer; font-size:14px; font-weight:650; width:fit-content; }
     details .grid { margin-top:17px; }
+    .variable-picker { margin:0; padding:0; border:1px solid #bfcfd2; border-radius:6px; }
+    .variable-picker > summary { width:100%; padding:10px 12px; }
+    .variable-picker-body { padding:0 12px 12px; border-top:1px solid var(--line); }
+    .variable-picker-body > .hint { margin:10px 0; }
+    .variable-picker .variable-option { display:flex; align-items:flex-start; gap:9px; font-size:13px; font-weight:400; margin:0; padding:7px 2px; cursor:pointer; overflow-wrap:anywhere; }
+    .variable-option input { flex:0 0 17px; width:17px; height:17px; min-height:17px; margin:2px 0 0; padding:0; accent-color:var(--accent); }
+    #variable-options { max-height:330px; overflow:auto; margin-top:10px; }
+    #variable-options fieldset { min-width:0; margin:0 0 12px; padding:4px 8px; border:1px solid var(--line); border-radius:5px; }
+    #variable-options legend { font-size:13px; font-weight:650; padding:0 4px; }
+    #construction-explanation { margin:9px 0; }
     .actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:25px; }
     button { border:1px solid #b4c6c9; background:white; padding:10px 16px; min-height:42px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:650; color:var(--ink); }
     button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
@@ -81,7 +91,22 @@
   <form id="filters" class="card filters">
     <div class="section-head"><h2>Select your data</h2><p class="hint">Leave a filter on “All” to include every available choice.</p></div>
     <div class="field dataset"><label for="dataset">Dataset</label><select id="dataset" required disabled><option>Loading available datasets…</option></select></div>
-    <div class="field dataset"><label for="variable">Variable</label><select id="variable" data-field="variable" disabled><option value="">All variables</option></select></div>
+    <div class="field dataset">
+      <span class="date-title" id="variables-label">Variables</span>
+      <p id="construction-explanation" class="hint" hidden>The nine constructions are nine indicator families. Each can include several measures, such as year-over-year and three-month momentum, plus supporting diagnostics. The choices below are grouped by family.</p>
+      <details id="variable-picker" class="variable-picker">
+        <summary aria-describedby="variables-label"><span id="variable-summary">All variables</span></summary>
+        <div class="variable-picker-body">
+          <p class="hint">Variables are grouped by category. Check one or more variables from any category to include them together. Searching keeps your selections.</p>
+          <label class="variable-option"><input type="checkbox" id="all-variables" checked disabled><span>All variables</span></label>
+          <label for="variable-search">Search variables</label>
+          <input type="search" id="variable-search" placeholder="Search by name, ID or category" disabled>
+          <div id="variable-options"></div>
+          <p id="variable-empty" class="hint" hidden>No variables match this search.</p>
+          <p id="variable-selection-note" class="hint" aria-live="polite">All available variables are included.</p>
+        </div>
+      </details>
+    </div>
     <div class="grid">
       <div class="field"><label for="geography">Geography type</label><select id="geography" data-field="geography" disabled><option value="">All geography types</option></select></div>
       <div class="field"><label for="geo_id">Place</label><select id="geo_id" data-field="geo-id" disabled><option value="">All places</option></select></div>
@@ -127,12 +152,15 @@
   const buttons = [...document.querySelectorAll("button")];
   const defaultLabels = new Map(filterSelects.map(select => [select.id, select.options[0].text]));
   let datasets = [], pending = false, optionRevision = 0, previewRevision = 0;
+  let variableOptions = [], selectedVariables = new Set(), allVariables = true;
 
   function selectedDataset() { return datasets[Number(byId("dataset").value)]; }
   function parameters() {
     const dataset = selectedDataset();
     if (!dataset) throw new Error("There are no available datasets to browse yet.");
     const params = new URLSearchParams({kind:dataset.kind, dataset:dataset.dataset});
+    if (!allVariables && !selectedVariables.size) throw new Error("Choose at least one variable, or select All variables.");
+    if (!allVariables) selectedVariables.forEach(variable => params.append("variable", variable));
     for (const control of [...filterSelects, byId("start_date"), byId("end_date")]) {
       if (control.value) params.set(control.id, control.value);
     }
@@ -155,6 +183,7 @@
     buttons.forEach(button => button.disabled = busy || !datasets.length);
     byId("dataset").disabled = busy || !datasets.length;
     filterSelects.forEach(select => select.disabled = busy || !datasets.length);
+    document.querySelectorAll("#variable-picker input").forEach(input => input.disabled = busy || !datasets.length);
     byId("start_date").disabled = busy || !datasets.length;
     byId("end_date").disabled = busy || !datasets.length;
     if (message) status(message, busy);
@@ -184,10 +213,52 @@
     }
     if ([...select.options].some(option => option.value === previous)) select.value = previous;
   }
-  async function loadOptions(select, dataset, geography="") {
-    const params = new URLSearchParams({kind:dataset.kind, dataset:dataset.dataset, field:select.dataset.field});
+  async function loadOptions(field, dataset, geography="") {
+    const params = new URLSearchParams({kind:dataset.kind, dataset:dataset.dataset, field});
     if (geography) params.set("geography", geography);
     return (await (await getResponse(`/api/options?${params}`)).json()).options || [];
+  }
+  function updateVariableSelection() {
+    byId("all-variables").checked = allVariables;
+    byId("variable-summary").textContent = allVariables ? "All variables"
+      : selectedVariables.size ? `${selectedVariables.size} variable${selectedVariables.size === 1 ? "" : "s"} selected` : "Choose variables";
+    byId("variable-selection-note").textContent = allVariables ? `All ${variableOptions.length} available variables are included.`
+      : selectedVariables.size ? `${selectedVariables.size} selected. The preview, CSV and definitions will use this selection.`
+      : "Choose at least one variable, or select All variables.";
+    document.querySelectorAll("#variable-options input").forEach(input => input.checked = !allVariables && selectedVariables.has(input.value));
+  }
+  function renderVariableOptions() {
+    const search = byId("variable-search").value.trim().toLocaleLowerCase();
+    const groups = new Map();
+    byId("variable-options").replaceChildren();
+    let matches = 0;
+    variableOptions.forEach((item, index) => {
+      const category = item.category_label || (item.construction_number && item.construction_name ? `${item.construction_number}. ${item.construction_name}` : "Uncategorized");
+      const categoryId = item.category_id || category;
+      if (search && !`${item.label} ${item.value} ${category} ${categoryId}`.toLocaleLowerCase().includes(search)) return;
+      matches++;
+      if (!groups.has(categoryId)) {
+        const group = document.createElement("fieldset"), legend = document.createElement("legend");
+        legend.textContent = category; group.append(legend); groups.set(categoryId, group); byId("variable-options").append(group);
+      }
+      const label = document.createElement("label"), input = document.createElement("input"), text = document.createElement("span");
+      label.className = "variable-option"; input.type = "checkbox"; input.value = item.value; input.id = `variable-choice-${index}`;
+      input.disabled = pending || !datasets.length; text.textContent = item.label || item.value;
+      label.append(input, text); groups.get(categoryId).append(label);
+    });
+    byId("variable-empty").hidden = matches > 0;
+    byId("variable-empty").textContent = variableOptions.length ? "No variables match this search. Your selections are kept." : "No variables are available for this dataset and geography.";
+    updateVariableSelection();
+  }
+  function fillVariableOptions(options) {
+    variableOptions = options;
+    const available = new Set(options.map(item => item.value));
+    selectedVariables = new Set([...selectedVariables].filter(value => available.has(value)));
+    renderVariableOptions();
+  }
+  function variableSelectionChanged() {
+    clearError(); invalidatePreview(); updateVariableSelection();
+    status(!allVariables && !selectedVariables.size ? "Choose at least one variable, or select All variables." : "Variables updated. Preview or download your selection.");
   }
   function invalidatePreview() {
     previewRevision++;
@@ -202,13 +273,19 @@
   async function resetFilters() {
     const revision = ++optionRevision;
     clearError(); invalidatePreview(); setBusy(true, "Loading available filters…");
+    allVariables = true; selectedVariables.clear(); byId("variable-search").value = ""; fillVariableOptions([]);
+    byId("construction-explanation").hidden = selectedDataset().dataset !== "nine-constructions";
     filterSelects.forEach(select => fillOptions(select, []));
     byId("start_date").value = ""; byId("end_date").value = "";
     try {
-      const values = await Promise.all(filterSelects.map(select => loadOptions(select, selectedDataset())));
+      const [variables, ...values] = await Promise.all([
+        loadOptions("variable", selectedDataset()),
+        ...filterSelects.map(select => loadOptions(select.dataset.field, selectedDataset())),
+      ]);
       if (revision !== optionRevision) return;
+      fillVariableOptions(variables);
       filterSelects.forEach((select, index) => fillOptions(select, values[index]));
-      status("Ready. Choose a variable and filters, or preview the full dataset.");
+      status("Ready. Choose one or more variables and filters, or preview the full dataset.");
     } catch (error) { if (revision === optionRevision) showError(error); }
     finally { if (revision === optionRevision) setBusy(false); }
   }
@@ -216,18 +293,26 @@
     const revision = ++optionRevision;
     const dependentSelects = filterSelects.filter(select => select.id !== "geography");
     const previous = new Map(dependentSelects.map(select => [select.id, select.value]));
+    const previousVariables = new Set(selectedVariables);
     clearError(); invalidatePreview(); setBusy(true, "Updating filters for this geography…");
     try {
-      const options = await Promise.all(dependentSelects.map(select => loadOptions(select, selectedDataset(), byId("geography").value)));
+      const [variables, ...options] = await Promise.all([
+        loadOptions("variable", selectedDataset(), byId("geography").value),
+        ...dependentSelects.map(select => loadOptions(select.dataset.field, selectedDataset(), byId("geography").value)),
+      ]);
       if (revision !== optionRevision) return;
+      fillVariableOptions(variables);
       const reset = [];
       dependentSelects.forEach((select, index) => {
         fillOptions(select, options[index], previous.get(select.id));
         if (previous.get(select.id) && !select.value) reset.push(select.labels[0].textContent);
       });
-      status(reset.length
-        ? `Reset to All: ${reset.join(", ")}. Their previous selections are unavailable for this geography. Other selections and dates were kept.`
-        : "Available choices updated for this geography. Your other selections and dates were kept.");
+      const removed = previousVariables.size - selectedVariables.size;
+      const messages = ["Available choices updated for this geography."];
+      if (removed) messages.push(`Removed ${removed} selected variable${removed === 1 ? "" : "s"} unavailable for this geography.`);
+      if (!allVariables && !selectedVariables.size) messages.push("Choose at least one variable, or select All variables.");
+      if (reset.length) messages.push(`Reset to All: ${reset.join(", ")}. Their previous selections are unavailable for this geography.`);
+      messages.push("Other selections and dates were kept."); status(messages.join(" "));
     } catch (error) { if (revision === optionRevision) showError(error); }
     finally { if (revision === optionRevision) setBusy(false); }
   }
@@ -241,7 +326,12 @@
       const record = document.createElement("tr");
       columns.forEach(column => {
         const cell = document.createElement("td"), value = row[column];
-        if (value === null || value === undefined) { cell.textContent = "—"; cell.className = "missing"; cell.title = "Missing value"; }
+        if (value === null || value === undefined) {
+          cell.textContent = "—"; cell.className = "missing";
+          cell.title = selectedDataset().dataset === "nine-constructions"
+            ? "Not applicable or missing; see applicable_variable_ids and variable definitions."
+            : "Missing value";
+        }
         else cell.textContent = typeof value === "object" ? JSON.stringify(value) : String(value);
         record.append(cell);
       });
@@ -294,6 +384,17 @@
   byId("reset").addEventListener("click", resetFilters);
   byId("download").addEventListener("click", () => download());
   byId("definitions").addEventListener("click", () => download(true));
+  byId("variable-search").addEventListener("input", renderVariableOptions);
+  byId("variable-search").addEventListener("keydown", event => { if (event.key === "Enter") event.preventDefault(); });
+  byId("all-variables").addEventListener("change", event => {
+    allVariables = event.target.checked; selectedVariables.clear(); variableSelectionChanged();
+  });
+  byId("variable-options").addEventListener("change", event => {
+    if (!event.target.matches('input[type="checkbox"]')) return;
+    allVariables = false;
+    if (event.target.checked) selectedVariables.add(event.target.value); else selectedVariables.delete(event.target.value);
+    variableSelectionChanged();
+  });
   [...filterSelects.filter(select => select.id !== "geography"), byId("start_date"), byId("end_date")].forEach(control => control.addEventListener("change", () => {
     clearError(); invalidatePreview(); status("Filters updated. Preview or download your selection.");
   }));
@@ -306,7 +407,10 @@
       datasets.forEach((dataset,index) => byId("dataset").add(new Option(dataset.label, String(index))));
       if (!datasets.length) { byId("dataset").add(new Option("No datasets available", "")); status("No datasets are available yet. Build the database or provide a compatible snapshot, then reopen this browser."); setBusy(false); return; }
       const countyMonthly = datasets.findIndex(dataset => dataset.kind === "table" && dataset.dataset === "county-monthly");
-      if (countyMonthly >= 0) byId("dataset").value = String(countyMonthly);
+      const requested = new URLSearchParams(window.location.search).get("dataset");
+      const requestedIndex = datasets.findIndex(dataset => dataset.dataset === requested);
+      const initialIndex = requestedIndex >= 0 ? requestedIndex : countyMonthly;
+      if (initialIndex >= 0) byId("dataset").value = String(initialIndex);
       await resetFilters();
     } catch (error) { showError(error); setBusy(false); }
   }

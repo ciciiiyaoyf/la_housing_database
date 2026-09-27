@@ -1,0 +1,97 @@
+methodology_id: nine_constructions_native_rows_v1
+output_path: data/final/nine_constructions.parquet
+dictionary_path: metadata/nine_constructions_dictionary.csv
+missing_value_policy: preserve_source_nulls_and_leave_inapplicable_columns_null
+frequency_policy: retain_monthly_and_quarterly_rows_without_conversion
+geography_policy: retain_county_and_postal_zip_rows_without_broadcast
+variable_geography_restrictions:
+  la_relative_zhvi_momentum_yoy_log_pct: COUNTY_06037
+  la_relative_zhvi_momentum_3m_annualized_log_pct: COUNTY_06037
+  la_relative_zori_momentum_yoy_log_pct: COUNTY_06037
+  la_relative_zori_momentum_3m_annualized_log_pct: COUNTY_06037
+  la_relative_market_tightness_index_3c_fixed: COUNTY_06037
+  la_relative_price_to_rent_ratio_zillow: COUNTY_06037
+families:
+  1:
+    name: Home price momentum
+    variables: [zhvi_momentum_yoy_log_pct, zhvi_momentum_3m_annualized_log_pct]
+  2:
+    name: Rent momentum
+    variables: [zori_momentum_yoy_log_pct, zori_momentum_3m_annualized_log_pct]
+  3:
+    name: County market tightness
+    variables: [market_tightness_index_3c_fixed, market_tightness_components_3c, months_of_supply_z_fixed, days_on_market_z_fixed, price_drop_share_z_fixed]
+  4:
+    name: Zillow price-to-rent ratio
+    variables: [price_to_rent_ratio_zillow, price_to_rent_ratio_log_change_mom_pct, price_to_rent_ratio_log_change_yoy_pct]
+  5:
+    name: LA postal-ZIP relative valuation pressure
+    variables: [relative_valuation_pressure_la_zip, la_county_price_to_rent_ratio_zillow]
+  6:
+    name: Local economic momentum
+    variables: [laus_employment_momentum_yoy_log_pct, unemployment_rate]
+  7:
+    name: Los Angeles relative performance
+    variables: [la_relative_zhvi_momentum_yoy_log_pct, la_relative_zhvi_momentum_3m_annualized_log_pct, la_relative_zori_momentum_yoy_log_pct, la_relative_zori_momentum_3m_annualized_log_pct, la_relative_market_tightness_index_3c_fixed, la_relative_price_to_rent_ratio_zillow, la_relative_required_peer_count]
+  8:
+    name: LA postal-ZIP market regimes
+    variables: [zhvi_monthly_log_growth_volatility_24m, zip_market_regime_id, zip_market_regime_distance, missing_regime_input_count, zhvi_momentum_3m_annualized_log_pct_z_fixed, zori_momentum_3m_annualized_log_pct_z_fixed, price_to_rent_ratio_zillow_z_fixed, zhvi_monthly_log_growth_volatility_24m_z_fixed, zip_market_regime_share, zip_market_regime_changed_share, zip_market_regime_entry_share, zip_market_regime_classified_coverage, zip_market_regime_transition_share]
+  9:
+    name: County housing market heat
+    variables: [county_housing_market_heat_index, county_housing_market_heat_rank, county_housing_market_heat_count, zhvi_momentum_3m_z_fixed_for_heat, market_tightness_z_fixed_for_heat]
+sources:
+  - row_type: county_monthly
+    source_table: analytics.comparable_county_monthly_analytics
+    source_file: data/final/comparable_county_monthly_analytics.parquet
+    date_column: date
+    frequency: monthly
+    geography_type: county
+    geography_scope: Los Angeles County and seven fixed California peer counties
+    id_column: county_fips
+    key_columns: [date, county_fips]
+    variable_columns: [zhvi_momentum_yoy_log_pct, zhvi_momentum_3m_annualized_log_pct, zori_momentum_yoy_log_pct, zori_momentum_3m_annualized_log_pct, market_tightness_index_3c_fixed, market_tightness_components_3c, months_of_supply_z_fixed, days_on_market_z_fixed, price_drop_share_z_fixed, price_to_rent_ratio_zillow, price_to_rent_ratio_log_change_mom_pct, price_to_rent_ratio_log_change_yoy_pct, laus_employment_momentum_yoy_log_pct, unemployment_rate, la_relative_zhvi_momentum_yoy_log_pct, la_relative_zhvi_momentum_3m_annualized_log_pct, la_relative_zori_momentum_yoy_log_pct, la_relative_zori_momentum_3m_annualized_log_pct, la_relative_market_tightness_index_3c_fixed, la_relative_price_to_rent_ratio_zillow, la_relative_required_peer_count, county_housing_market_heat_index, county_housing_market_heat_rank, county_housing_market_heat_count, zhvi_momentum_3m_z_fixed_for_heat, market_tightness_z_fixed_for_heat]
+    context_columns: [geo_id, county_name, state_fips, latest_source_vintage, source_coverage_count, panel_quality_flag, normalization_assumption_status]
+  - row_type: zip_monthly
+    source_table: analytics.zip_monthly_panel
+    source_file: data/final/zip_monthly_panel.parquet
+    date_column: date
+    frequency: monthly
+    geography_type: postal_zip
+    geography_scope: Verified Los Angeles County postal ZIPs
+    id_column: postal_zip
+    key_columns: [date, postal_zip]
+    variable_columns: [zhvi_momentum_yoy_log_pct, zhvi_momentum_3m_annualized_log_pct, zori_momentum_yoy_log_pct, zori_momentum_3m_annualized_log_pct, price_to_rent_ratio_zillow, price_to_rent_ratio_log_change_mom_pct, price_to_rent_ratio_log_change_yoy_pct, relative_valuation_pressure_la_zip, la_county_price_to_rent_ratio_zillow]
+    context_columns: [primary_county_fips, zhvi_available, zori_available, source_coverage_count, data_quality_flag]
+  - row_type: zip_regime_quarterly
+    source_table: analytics.zip_market_regime_quarterly
+    source_file: data/final/zip_market_regime_quarterly.parquet
+    date_column: quarter_end
+    frequency: quarterly
+    geography_type: postal_zip
+    geography_scope: Verified Los Angeles County postal ZIPs
+    id_column: postal_zip
+    key_columns: [quarter_end, postal_zip]
+    variable_columns: [zhvi_momentum_3m_annualized_log_pct, zori_momentum_3m_annualized_log_pct, price_to_rent_ratio_zillow, zhvi_monthly_log_growth_volatility_24m, zip_market_regime_id, zip_market_regime_distance, missing_regime_input_count, zhvi_momentum_3m_annualized_log_pct_z_fixed, zori_momentum_3m_annualized_log_pct_z_fixed, price_to_rent_ratio_zillow_z_fixed, zhvi_monthly_log_growth_volatility_24m_z_fixed]
+    context_columns: [complete_regime_inputs, missing_regime_inputs, classification_status, zip_market_regime_label, market_regime_model_version, market_regime_model_fingerprint_sha256, county_fips, source_vintage, retrieved_at, source_filename, checksum_sha256]
+  - row_type: zip_regime_summary_quarterly
+    source_table: analytics.la_zip_market_regime_summary_quarterly
+    source_file: data/final/la_zip_market_regime_summary_quarterly.parquet
+    date_column: quarter_end
+    frequency: quarterly
+    geography_type: county
+    geography_scope: Los Angeles County postal-ZIP aggregate
+    id_column: county_fips
+    key_columns: [quarter_end, county_fips, regime_id]
+    variable_columns: [zip_market_regime_share, zip_market_regime_changed_share, zip_market_regime_entry_share, zip_market_regime_classified_coverage]
+    context_columns: [regime_id, regime_label, regime_zip_count, classified_zip_count, universe_zip_count, regime_share_of_classified, classification_coverage_share_of_universe, comparable_zip_count, missing_previous_classification_count, transition_denominator_status, changed_regime_zip_count, changed_regime_share_of_classified, changed_regime_share_of_comparable, entered_regime_zip_count, entered_regime_share_of_classified, entered_regime_share_of_comparable, exited_regime_zip_count, exited_regime_share_of_classified, exited_regime_share_of_comparable, source_vintage, retrieved_at, source_filename, checksum_sha256, market_regime_model_version, market_regime_model_fingerprint_sha256]
+  - row_type: zip_regime_transition_quarterly
+    source_table: analytics.la_zip_market_regime_transitions_quarterly
+    source_file: data/final/la_zip_market_regime_transitions_quarterly.parquet
+    date_column: quarter_end
+    frequency: quarterly
+    geography_type: county
+    geography_scope: Los Angeles County postal-ZIP aggregate
+    id_column: county_fips
+    key_columns: [quarter_end, county_fips, from_regime_id, to_regime_id]
+    variable_columns: [zip_market_regime_transition_share]
+    context_columns: [previous_quarter_end, from_regime_id, from_regime_label, to_regime_id, to_regime_label, transition_zip_count, classified_zip_count, comparable_zip_count, missing_previous_classification_count, transition_denominator_status, transition_share_of_classified, transition_share_of_comparable, changed_regime_zip_count, changed_regime_share_of_classified, changed_regime_share_of_comparable, is_regime_change, source_vintage, retrieved_at, source_filename, checksum_sha256, market_regime_model_version, market_regime_model_fingerprint_sha256]

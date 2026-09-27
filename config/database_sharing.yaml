@@ -1,0 +1,21 @@
+# GitHub Releases inherit repository access. Full research snapshots stay private.
+repository: ciciiiyaoyf/la_housing_database
+tag_prefix: housing-db-
+database_path: database/housing.duckdb
+output_dir: output/snapshots
+state_path: output/snapshots/installed.json
+backup_path: output/archive/database_snapshots/housing.previous.duckdb
+max_download_bytes: 2147483647
+required_tables:
+  metadata.variable_dictionary:
+    - variable_id
+  raw.file_manifest:
+    - source_id
+  analytics.fact_housing_observation:
+    - observation_date
+    - geo_id
+    - variable_id
+    - value
+    - source_vintage
+    - source_filename
+    - checksum_sha256

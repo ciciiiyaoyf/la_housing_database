@@ -16,6 +16,21 @@ For readers who prefer spreadsheet files, the
 [CSV browser and export tutorial](docs/query_and_export_commands.md#browser-downloads)
 is an alternative. CSV export is not required for SQL analysis or modeling.
 
+For the nine county and ZIP housing constructions in one download, choose
+**Nine housing constructions — All geographies and periods** in the Data Browser,
+or query `analytics.nine_constructions`. Here, **nine** means nine indicator
+families containing **41 existing variables**, including alternate measures and
+supporting diagnostics. Expand **Variables** to search and check several measures,
+or keep **All variables** checked for the full selection. The table keeps county months, ZIP months,
+ZIP-quarter classifications, quarterly summaries, and quarterly transitions as
+separate row types. Follow the [combined-table instructions](docs/query_and_export_commands.md#download-all-nine-housing-constructions-together)
+before interpreting its blanks or combining rows.
+
+Every Data Browser dataset groups its variable choices by subject or an existing
+indicator family. Finance, homebuying scenarios, and regime datasets use more
+specific groups so related measures are easier to find. These headings organize
+the picker; variable definitions, Domain filters, and exported values stay the same.
+
 ## Before you start
 
 The numbered walkthrough below is for **Windows**. You will use these interfaces:
@@ -68,10 +83,12 @@ For macOS/Linux, use the separate [Terminal commands](#macos-and-linux) below.
 | Clone from GitHub | Programs, configuration, variable definitions, and reference guides. |
 | Supply or build a database | Actual observations queried directly in DuckDB. |
 
-**GitHub does not include `database/housing.duckdb` or the raw source archives.**
-Cloning and installing Python alone will not provide housing observations.
-Step 3 explains this requirement. You can inspect the published
-[variable dictionary](metadata/data_dictionary.csv) immediately without setup.
+**The Git clone does not include `database/housing.duckdb` or raw source archives.**
+Cloning and installing Python alone will not provide housing observations. The
+[collaboration workflow](#collaborate-through-database-snapshots) distributes the
+database separately through private GitHub Releases after the first publisher
+release. Step 3 explains installation. The published
+[variable dictionary](metadata/data_dictionary.csv) is available immediately without setup.
 
 ## 1. Install the tools and clone the project
 
@@ -251,31 +268,54 @@ for the database check in step 3.
 
 ## 3. Get a local database
 
-To use the existing research dataset, obtain a **compatible, permitted database
-snapshot** from the project maintainer. **No ready-made database download is
-currently supplied by this repository.** Request its build date, coverage, and
-access restrictions with the file. A public copy must exclude licensed HUD-USPS
-detail; the maintainer's full research database is not automatically suitable for
-redistribution.
+The project uses **database snapshots**: complete database files published after
+validation. No snapshot is bundled with the Git clone. A publisher must create
+the first private release before automatic installation can succeed; adding the
+snapshot tools alone does not publish any data. Raw source archives are not
+included in a database release.
 
-Here, a *snapshot* means a database file containing the data available at a
-particular build date. It is a separate file from the programs downloaded in step 1.
-If the maintainer already set up this computer and `database/housing.duckdb` exists,
-keep that file and go straight to the checks below.
+### Install a published snapshot
+
+After steps 1–2, a collaborator completes the
+[one-time GitHub CLI setup](#one-time-setup-for-publishers-and-collaborators). From
+the project folder in **PowerShell**, the collaborator runs:
+
+```powershell
+.\.venv\Scripts\python.exe run_snapshot.py update
+```
+
+The command installs the newest published `housing-db-` release at
+`database/housing.duckdb`, verifies its checksum and database structure, and
+requires the clean local Git revision to match the release's recorded revision.
+The [collaboration workflow](#collaborate-through-database-snapshots) explains
+later updates, local edits, and publisher responsibilities. macOS/Linux commands
+appear in the [Terminal walkthrough](#macos-and-linux).
+
+An existing database is preserved when its origin is unknown or its contents have
+changed locally. The tool does not overwrite that work. The
+[existing-database instructions](#existing-databases-and-local-changes) explain the
+next step. A missing release requires the publisher to complete a first release;
+recloning will not create one.
+
+### Manually supplied snapshot alternative
+
+A maintainer may instead supply a compatible permitted database file. Its build
+information, coverage, and access restrictions must accompany it. The full
+research database may contain licensed HUD-USPS detail; private repository access
+does not itself confer redistribution permission. An existing manually supplied
+database can continue to use the direct DuckDB commands below without enrolling
+in automatic updates.
 
 ### Place the supplied file using File Explorer
 
-1. Press **Windows key + E** to open **File Explorer**. Open **Downloads**, then
-   double-click **la_housing_database**, then **database**. If you cloned elsewhere,
-   open that location instead.
-2. Locate the file supplied by the maintainer. If it came in a ZIP archive,
-   right-click the ZIP, choose **Extract All**, and locate the extracted `.duckdb`
-   file. The file must be named exactly **`housing.duckdb`**.
-3. Copy the supplied file into the project's **database** folder. The result is
-   `la_housing_database\database\housing.duckdb`. Keep it directly in `database`,
-   without an extra containing folder. If Windows asks to replace an existing file,
-   preserve that existing database and confirm which snapshot you should use with
-   the maintainer before replacing it.
+1. The collaborator opens **File Explorer** with **Windows key + E**, then opens
+   **Downloads → la_housing_database → database**, or the actual clone location.
+2. The collaborator locates the supplied file. For a ZIP archive, **Extract All**
+   exposes the actual `.duckdb` file. Its name must be exactly **`housing.duckdb`**.
+3. The collaborator copies the supplied file into the project's **database** folder. The result is
+   `la_housing_database\database\housing.duckdb`. The file stays directly in `database`,
+   without an extra containing folder. Any existing database must be preserved
+   before an intentional replacement; the maintainer identifies the correct snapshot.
 
 ### Check the database in PowerShell
 
@@ -561,7 +601,7 @@ before creating a training sample.
 If you prefer to inspect data in Excel or share permitted tables as files, use the
 [step-by-step CSV browser tutorial](docs/query_and_export_commands.md#browser-downloads).
 It explains where to double-click `Open_Data_Browser.cmd`, how to choose a whole
-dataset or one variable, where the files are saved, and how to import them into
+dataset or selected variables, where the files are saved, and how to import them into
 Excel without losing leading zeros. The same guide covers saved command-line
 exports and their companion variable definitions.
 
@@ -606,11 +646,265 @@ work to force it through.
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Wait for package installation to finish without errors. **`git pull` updates code and
-documentation; it does not refresh housing observations.** To update the data on
-a provisioned workspace, follow [Refresh the data before modeling](#refresh-the-data-before-modeling).
-If you only have a supplied database snapshot, obtain a newer compatible snapshot
-from the maintainer. Reopen DuckDB using step 4 after the chosen update is complete.
+After package installation succeeds, **`git pull` has updated code and
+documentation, but has not refreshed housing observations**. A collaborator using
+published releases installs the matching snapshot with:
+
+```powershell
+.\.venv\Scripts\python.exe run_snapshot.py update
+```
+
+A provisioned publisher workspace instead follows
+[Refresh the data before modeling](#refresh-the-data-before-modeling) before
+publishing a completed build. A manually supplied database can continue through
+the manual file handoff. Database sessions reopen only after the chosen update
+finishes. The workflow below distinguishes these roles.
+
+## Collaborate through database snapshots
+
+GitHub collaborators can contribute Python, SQL, configuration, and documentation.
+One **publisher** initially runs accepted changes on a computer with the required
+source archives and build inputs. A **collaborator** downloads each completed
+database and works locally. Either person can become a publisher after obtaining
+the required inputs and permissions. Downloading a snapshot does not provide the
+raw archives needed to rebuild it.
+
+The workflow is: **contribute code → integrate changes → build and validate →
+publish a release → update local copies**. Editing a local table alone does not
+send changes to another computer. This workflow does not synchronize two open
+databases or merge independent database edits.
+
+### One-time setup for publishers and collaborators
+
+The repository owner keeps the configured repository private and confirms that
+every repository reader is authorized to receive the full database, including any
+licensed detail. [config/database_sharing.yaml](config/database_sharing.yaml)
+selects the repository, release prefix, and local paths. Publication refuses a
+public repository. The sharing acknowledgement confirms the operator's audience
+review; it does not grant data rights or sanitize the database.
+
+Both roles complete the Python setup above and install **GitHub CLI** in addition
+to Git. On **Windows PowerShell**, the installation command is:
+
+```powershell
+winget install --id GitHub.cli --exact
+```
+
+On **macOS Terminal**, with Homebrew installed:
+
+```bash
+brew install gh
+```
+
+Linux installations and alternatives are listed in the official
+[GitHub CLI installation guide](https://github.com/cli/cli#installation). A newly
+opened terminal then runs these commands, separately, on either platform:
+
+```text
+gh --version
+gh auth login
+gh auth status
+```
+
+Each person signs in to GitHub.com using that person's own account with repository
+access; the publisher additionally needs release-writing permission. Browser
+authentication is supported by [GitHub CLI](https://cli.github.com/manual/gh_auth_login).
+Credentials remain in the CLI's credential storage, outside project files.
+
+### Publisher: first release and every later update
+
+1. The publisher integrates reviewed code contributions and builds the intended
+   database using the [build and refresh guide](docs/database_build_and_refresh.md).
+   The command depends on the change and available source inputs. The existing
+   Redfin county refresh hold remains in force; a blocked all-source refresh is
+   not a successful complete refresh. A release of an existing validated snapshot
+   must describe that snapshot's actual coverage rather than claim new ingestion.
+2. The publisher closes database applications and runs the verification commands
+   below **before the final review and commit**. Pipeline validation regenerates
+   tracked `metadata/source_coverage.csv` and may update the database's QA tables.
+   The resulting metadata changes belong in the review; they must not be reverted
+   merely to obtain a clean checkout.
+3. The publisher reviews and commits the relevant code, configuration, and
+   metadata changes, then pushes the commit to the configured repository. The
+   working tree must be clean. Unrelated local work must be preserved and resolved
+   before publishing. The publisher closes DuckDB, Python connections, and the
+   Data Browser before packaging.
+4. From the project folder, the publisher runs the platform's publish command below.
+   `housing-db-20260927-01` is an example; each release needs a new tag using the
+   current date and an incremented suffix for additional releases that day.
+
+**Verification before the final commit — Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests
+.\.venv\Scripts\python.exe run_pipeline.py --stage validate
+git status --short
+```
+
+**Verification before the final commit — macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python -m pytest -q tests
+.venv/bin/python run_pipeline.py --stage validate
+git status --short
+```
+
+Each command runs separately and the publisher stops on any failed check. After
+reviewing, committing, and pushing the changes, the publisher proceeds with the
+appropriate command below.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe run_snapshot.py publish --tag housing-db-20260927-01 --acknowledge-authorized-sharing
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python run_snapshot.py publish --tag housing-db-20260927-01 --acknowledge-authorized-sharing
+```
+
+`publish` runs `pytest` and `run_pipeline.py --stage validate` against the existing
+build, stops on failure, packages the database, and uploads the release. It does
+**not** rebuild the database or download provider updates. Its manifest records
+the exact code commit used for validation, SHA-256 checksum, file size, database
+structure, and packaging time. Packaging time is not an inferred original build
+date; source vintages and provenance remain in the database. Validation may update
+the database's QA metadata; the package is made after those checks succeed.
+Existing tags are not reused to replace an earlier release.
+Publication reruns both verification commands and refuses the package if those
+checks introduce tracked file changes. In that case, the publisher reviews the
+new metadata, commits and pushes the intended result, and retries after the
+checkout is clean. The tool never discards those changes automatically.
+Publisher packages remain under `output/snapshots/publish/<tag>/`, and check logs
+remain under `output/snapshots/logs/`. These publisher records are separate from
+the collaborator's temporary download staging. An upload failure can leave a draft
+release for inspection; it must not be reported as a successful publication.
+
+For local review without an upload, the publisher can replace `publish` and its
+acknowledgement with `prepare --tag housing-db-20260927-01`. This still runs the
+validation gates and requires a clean committed checkout. Preparation alone does
+not make a release available to collaborators. It retains a package for that tag;
+a later publish command uses a new unused tag rather than overwriting the prepared
+package, for example a suffix of `-02` after a preparation ending in `-01`.
+
+### Collaborator: first download and every later update
+
+1. The collaborator closes all sessions using `database/housing.duckdb`, including
+   Python, DuckDB, and the Data Browser. Local code work is saved, committed, and
+   reconciled through Git before updating; generated database edits are handled
+   separately as described below.
+2. From the project folder, the collaborator checks `git status --short`. Once the
+   working tree is clean, the collaborator runs `git pull --ff-only`, then the
+   platform's package-install command from step 2. A divergent branch requires
+   normal Git reconciliation rather than discarding local work. The snapshot
+   installer never changes Git branches or discards files to force a match.
+3. The collaborator runs one of the following commands. The first run downloads
+   the published database; later runs reuse the local file when its checksum is
+   unchanged. `open` checks for a new
+   snapshot, installs it when needed, and starts DuckDB in the same terminal.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe run_snapshot.py open
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python run_snapshot.py open
+```
+
+At DuckDB's `D` prompt, SQL statements run as in step 4; `.quit` returns to the
+terminal. The default local session permits edits. `open --read-only` is an
+optional viewing mode that prevents accidental local changes; it does not alter
+GitHub collaborator permissions. Direct local changes stay on that computer and
+cause later replacement to be refused. Durable shared changes belong in reviewed
+Python or SQL scripts so a publisher can reproduce them in the next build.
+The `open` command needs the DuckDB CLI included in `requirements.txt`. If it is
+missing, the collaborator reruns the platform's package-install command; the
+snapshot command stops before installation rather than starting without a client.
+
+Replacing `open` with `update` installs the snapshot without launching DuckDB.
+`check` reads the remote manifest without downloading or installing the database;
+it reports the required code revision even when local code does not match.
+`status` reports local installation state without contacting GitHub. An optional
+`--tag housing-db-20260927-01` on `check`, `update`, or `open` selects a particular
+release. The clean local Git commit must equal that release's
+`validated_with_code_commit`; a newer unrelated code revision is not automatically
+compatible. A mismatch reports the needed revision. A collaborator retaining an
+older release can use a separate checkout at its recorded commit after preserving
+local work. If the main branch has advanced since the most recent snapshot, a
+successful `git pull` alone may still leave a mismatch. The publisher can publish
+a snapshot validated with the new code; otherwise the collaborator selects the
+existing release's code. For example, a separate Git worktree avoids switching or
+discarding the working branch:
+
+```text
+git fetch origin --tags
+git worktree add --detach ../la_housing_database_snapshot housing-db-20260927-01
+cd ../la_housing_database_snapshot
+```
+
+The example tag must be replaced by the tag reported by `check`, and the new
+folder name must be unused. The collaborator then enters that folder, repeats
+the Python environment and package setup there, and runs `run_snapshot.py open`
+with that environment's Python. This is an optional compatibility checkout, not
+a new download folder created on every snapshot update. Normal contributions
+continue in the collaborator's working branch; a detached checkout is for using
+the matching published snapshot.
+
+There is no background scheduler. An update check happens when `check`, `update`,
+or `open` runs. `open` checks before starting the session; it does not interrupt an
+existing session. A collaborator who launches DuckDB directly continues using the
+currently installed file until an update command runs.
+
+### Contributing changes to the shared database
+
+1. The collaborator makes a Git branch for the proposed change and keeps database
+   experiments in a separate local copy. Reusable SQL belongs in `sql/`; Python
+   changes belong in the appropriate existing module under `src/`.
+2. The collaborator commits the scripts and any required tests, variable dictionary,
+   and transformation-log updates, then pushes the branch and opens a pull request.
+   Changes typed only into a DuckDB session are not captured by Git or the updater.
+3. The publisher reviews and integrates the contribution, runs the relevant build
+   with the required source inputs, validates the result, and publishes a new tag.
+4. Collaborators obtain the integrated code and run `open` or `update` to receive
+   the resulting shared database. Independent database files are never merged.
+
+### Existing databases and local changes
+
+The active path stays **`database/housing.duckdb`** on every update. A new snapshot
+downloads to temporary staging, is verified, and replaces the closed database only
+when the installed file still matches its recorded baseline. The previous managed
+version is retained at
+`output/archive/database_snapshots/housing.previous.duckdb`; only one previous
+managed version is retained, with its `housing.previous.snapshot.json` record.
+Temporary staging is removed after the command.
+Each changed snapshot downloads in full; this is not an incremental transfer.
+
+An existing identical snapshot can be recognized without replacing it. An unknown
+existing database, a locally modified database, an active connection, or a
+remaining `housing.duckdb.wal` causes installation to stop. There is no force
+overwrite switch. For an intentional switch, the collaborator closes applications
+normally and preserves the local database in a separate working or archive folder
+before moving it away from the managed path. A remaining WAL must stay with its
+database and must not be deleted: recovery requires the matching pair. After safe
+recovery and closure, `update` can install into the vacant managed path.
+
+Experiments can use a separate database copy so the managed path remains available
+for releases. A code contribution is shared through Git, reviewed, integrated, and
+built by a publisher; uploading a collaborator's independently edited file does
+not merge it with the published database. Installation records live in
+`output/snapshots/installed.json`. A lost or changed record is treated
+conservatively rather than authorizing replacement.
+
+If the updater process stops during installation, the next update uses
+`output/snapshots/install-pending.json` to reconcile the recorded snapshot with
+the actual file. Unexpected bytes cause recovery to stop. The pending record
+remains in place until recovery succeeds; it is not a substitute for backups.
 
 ## Troubleshooting
 
@@ -635,6 +929,11 @@ from the maintainer. Reopen DuckDB using step 4 after the chosen update is compl
 | Browser cannot reach the database | Keep the launcher running; reopen it if closed. |
 | No matching rows or variables | Reset filters, check coverage, and widen the date range. |
 | Restricted HUD-USPS download refused | Licensed detail is excluded from ordinary exports; select public measures. |
+| Snapshot tool cannot find `gh` or authenticate | The collaborator completes the one-time GitHub CLI setup and checks `gh auth status` with the repository-authorized account. |
+| No published database snapshot found | The publisher must complete the first `run_snapshot.py publish` release. A Git clone alone does not include the database. |
+| Snapshot code revision mismatch | The collaborator preserves local code work, updates Git, and uses the exact clean revision recorded in the selected release. No forced reset is required. |
+| Snapshot refuses an unmanaged or locally changed database | The local file is preserved. The collaborator follows the existing-database instructions before intentionally switching, or keeps using that working copy. |
+| Snapshot reports an active database or WAL | Applications close normally before retrying. A remaining WAL is retained with its database for recovery, never deleted to bypass the check. |
 
 When asking for help, include the step number, the command you entered, and the
 full error text. A screenshot can help for a browser or File Explorer problem.
@@ -720,9 +1019,23 @@ python3 -m venv .venv
 Environment creation may be silent; package installation prints progress. Wait
 for completion without errors. The last command should show query-tool help.
 
-Use **Finder** on macOS or your Linux **Files** application to place the permitted
-snapshot directly at `la_housing_database/database/housing.duckdb`, following
-step 3's requirements. Back in Terminal, check it:
+For published releases, the collaborator completes the
+[one-time GitHub CLI setup](#one-time-setup-for-publishers-and-collaborators), then
+runs the following from the project folder in **Terminal**:
+
+```bash
+.venv/bin/python run_snapshot.py update
+```
+
+The publisher must have created the first release, and the collaborator's clean
+code revision must match it. The file is installed directly at
+`database/housing.duckdb`. The
+[collaboration workflow](#collaborate-through-database-snapshots) covers later
+updates and preservation of local edits. For the manual alternative, the
+collaborator uses **Finder** or the Linux **Files** application to place a permitted
+snapshot at that same path, following step 3's requirements.
+
+The catalog check in Terminal is:
 
 ```bash
 .venv/bin/python run_query.py catalog --variable zori_smoothed_sa
@@ -766,9 +1079,18 @@ git pull --ff-only
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-These commands update programs and packages. Use `run_system_refresh.py` as
-described above to refresh observations on a provisioned workspace, or obtain a
-newer permitted snapshot. Open DuckDB again after that update is complete.
+These commands update programs and packages. A collaborator using private
+database releases then runs:
+
+```bash
+.venv/bin/python run_snapshot.py open
+```
+
+This checks for and installs the matching snapshot before starting a local
+writable DuckDB session. `open --read-only` is available for viewing, and `update`
+installs without opening a session. A provisioned publisher instead follows the
+documented refresh/build steps, then publishes the validated result. A manually
+supplied file can continue through the manual handoff alternative.
 
 </details>
 
@@ -793,6 +1115,7 @@ key files, and inputs/outputs. Nested modules are described in their parent guid
 |---|---|
 | `Open_Data_Browser.cmd` | Windows launcher for the alternative CSV browser. |
 | `run_system_refresh.py` | One-command data refresh and rebuild; see the update schedule in the build and refresh guide. |
+| `run_snapshot.py` | Publisher packaging and private release uploads; collaborator checks, protected installation, and update-before-open. |
 | [docs/](docs/README.md) | Index of the seven guides above. |
 | `metadata/data_dictionary.csv` | Variable names, IDs, definitions, units, and classifications. |
 | [metadata/](metadata/README.md) | Inventories, coverage, provenance, audit evidence, and frozen model parameters. |

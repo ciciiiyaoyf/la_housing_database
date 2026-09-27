@@ -1,7 +1,7 @@
 # CSV downloads and metadata exports
 
 This guide provides two alternatives for downloading CSVs and variable definitions:
-[browser dropdowns](#browser-downloads) or [saved export commands](#1-open-the-project-in-powershell).
+[browser controls](#browser-downloads) or [saved export commands](#1-open-the-project-in-powershell).
 For interactive SQL queries, start with the [DuckDB SQL guide](duckdb_sql_guide.md).
 Complete the [README setup](../README.md#1-install-the-tools-and-clone-the-project),
 including [a compatible local database](../README.md#3-get-a-local-database), first.
@@ -21,7 +21,7 @@ not guarantee observations in every snapshot, dataset, place, or date range.
 
 ## Browser downloads
 
-Choose this route for dropdowns and CSV download buttons. The following Windows
+Choose this route for dropdowns, variable checkboxes, and CSV download buttons. The following Windows
 steps start after the README setup; the browser runs on your own computer.
 
 ### Open the Data Browser
@@ -102,8 +102,10 @@ that your database contain the postal-ZIP housing panel.
    **Postal ZIP housing — Monthly**. Wait for the filters to finish loading.
 2. Open **Geography type** and choose **postal_zip**. Wait for the choices to update.
 3. Open **Place** and choose **ZIP_90024**.
-4. Open **Variable** and choose the Zillow Observed Rent Index entry ending in
-   **`(zori_smoothed_sa)`**. For the whole dataset, keep **All variables**.
+4. Expand **Variables**, search for `zori_smoothed_sa`, and check the Zillow
+   Observed Rent Index entry ending in **`(zori_smoothed_sa)`**. Checking it
+   switches from **All variables** to that selection. For the whole dataset,
+   keep **All variables** checked instead.
 5. Open **Frequency** and choose **monthly**. Leave the other filters at their
    **All** choices.
 6. Under **Date range**, optionally set **From** to January 1, 2020, using the date
@@ -139,10 +141,164 @@ selection, click **Reset filters**; this clears the filters and dates but keeps
 the dataset. Changing **Dataset** also resets the earlier filters. CSV recipients
 do not need to install this project.
 
+### Select several variables
+
+Expand **Variables** to open the searchable checkbox list. Each entry shows a
+readable name and its exact variable ID in parentheses. You can select several
+entries for one download without holding Ctrl or Shift.
+
+Every dataset organizes these choices under category headings. Most use the
+existing subject domains with readable names; finance, homebuying, and market
+regime datasets use more specific families of related measures. The nine
+constructions retain their nine named indicator families. Only categories with
+available choices for the selected dataset and geography appear.
+
+| Dataset | Examples of category headings |
+|---|---|
+| County or postal-ZIP housing | **Home sales and market conditions**, **Rents and rental market**. |
+| Housing finance — Versions A, B, C | **Mortgage payments and payment parameters**, **Down-payment rates and borrower shares**, **Mortgage debt and sensitivities**, **Home equity and loan-to-value**. |
+| Homebuying cost scenarios | **Sale-price inputs**, **Down-payment scenarios**, **Closing-cost scenarios**, **Mortgage amount and cash to close**. |
+| ZIP market classifications — Quarterly | **Regime classification and diagnostics**, **Model inputs**, **Standardized model inputs**. |
+| ZIP market summary — Quarterly | **Regime shares and changes**, **Classification coverage**. |
+
+Category headings organize the variable list. They do not change a variable's
+definition or its **Domain**, **Layer**, **Proxy**, or **Constructed** classification,
+and they do not alter the data or companion definitions you download. Use the
+checkbox beside a variable to select it; a category is not an additional data
+filter. You can select variables from different categories in the same download.
+
+- **All variables** is checked initially. Individual boxes are unchecked in this
+  mode; that means no variable restriction is applied, not that the download is empty.
+- Check an individual variable to leave All mode. Check further variables to
+  add them to the same selection, or uncheck one to remove it.
+- Use the search box to find a name or ID. Searching narrows the displayed list;
+  it does not change already checked variables. Clear the search to inspect the
+  full list again.
+- Check **All variables** to restore the unrestricted selection. If you uncheck
+  every individual variable while in selected-variable mode, choose at least
+  one variable or restore **All variables** before previewing or downloading.
+
+For ordinary tables and observations, selected variables are alternatives:
+choosing price momentum and rent momentum includes both. In **Homebuying cost
+scenarios**, alternatives within a scenario group are combined with selections
+from the other groups: for example, a 10% down payment and a 3% loan-based
+closing cost select their shared scenario rows. Geography, dates, frequency, and the
+other filters still apply. For wide tables, selected measures appear as separate
+columns with their retained row context; long observation datasets retain their
+`variable_id` and `value` columns. Download the matching definitions with the data.
+
+### Download all nine housing constructions together
+
+For one table containing the nine constructions described in the
+[county and ZIP indicator guide](county_and_zip_housing_indicators.md), choose
+**Nine housing constructions — All geographies and periods** in **Dataset**.
+Here, **nine** means nine indicator families. Together they contain **41 existing
+variables**, including different measurement horizons and supporting diagnostics:
+
+| Indicator family | Variables | What the choices include |
+|---|---:|---|
+| 1. Home price momentum | 2 | Year-over-year and three-month annualized momentum. |
+| 2. Rent momentum | 2 | The same two horizons for rents. |
+| 3. County market tightness | 5 | Tightness index, input count, and three standardized components. |
+| 4. Zillow price-to-rent ratio | 3 | Ratio level and one-month/year-over-year changes. |
+| 5. LA postal-ZIP relative valuation pressure | 2 | Relative pressure and its matched LA County reference. |
+| 6. Local economic momentum | 2 | Resident-employment momentum and unemployment-rate context. |
+| 7. Los Angeles relative performance | 7 | Six comparisons with the peer counties and the required peer count. |
+| 8. LA postal-ZIP market regimes | 13 | Classification, distance, input diagnostics, regime shares, transitions, and coverage. |
+| 9. County housing market heat | 5 | Heat index, rank, coverage count, and two standardized components. |
+| **Total** | **41** | Existing variable IDs grouped for selection. |
+
+These counts come from [the mapping dictionary](../metadata/nine_constructions_dictionary.csv).
+Dates, geographic identifiers, source information, and other retained context
+columns are additional fields, not additional indicator families. A variable
+may appear on several applicable row types without becoming a new variable.
+
+In **Variables**, choices for this dataset are grouped under their construction
+names. The search and checkboxes work across those groups. For the complete table,
+leave every filter at **All** and both dates blank, click **Preview data**, then
+**Download CSV** and **Download variable definitions**. Keep the resulting
+`nine-constructions.csv` and `nine-constructions.variables.csv` together.
+The download contains all matching records, including those beyond the preview.
+
+For example, to compare two measures in the same LA County monthly download:
+
+1. Select **county** in **Geography type**, **COUNTY_06037** in **Place**, and
+   **monthly** in **Frequency**.
+2. Expand **Variables**. Under **Home price momentum**, check
+   **ZHVI year-over-year log momentum (`zhvi_momentum_yoy_log_pct`)**.
+3. Under **Rent momentum**, also check
+   **ZORI year-over-year log momentum (`zori_momentum_yoy_log_pct`)**.
+4. Click **Preview data**. Confirm both measure columns, the LA County identifier,
+   and monthly rows, then download the CSV and definitions.
+
+Keep the other filters at **All** for this example because price and rent
+momentum belong to different subject domains. Selecting both variables includes
+applicable rows even when one or both values are missing.
+
+This is one wide table with different kinds of rows. Start by reading
+`row_type`, `date`, `frequency`, `geography_type`, and `geo_id`:
+
+| `row_type` | One row represents |
+|---|---|
+| `county_monthly` | One of the eight comparison counties in one month. |
+| `zip_monthly` | One LA postal ZIP in one month. |
+| `zip_regime_quarterly` | One LA postal ZIP's classification and inputs at a quarter end. |
+| `zip_regime_summary_quarterly` | One regime's LA ZIP summary in one quarter. |
+| `zip_regime_transition_quarterly` | One from-regime/to-regime pair in one quarter. |
+
+County and ZIP records retain their own measures. Quarterly classifications,
+summary shares, and transition shares are not repeated into months or copied
+onto each ZIP. Summary and transition rows describe the LA postal-ZIP universe;
+they are not individual ZIP observations. The existing
+`la_county_price_to_rent_ratio_zillow` field remains the explicitly named county
+reference used in ZIP relative valuation.
+
+A blank can mean either **this measure does not apply to this row** or
+**this measure applies but its value is unavailable**. The pipe-separated
+`applicable_variable_ids` field and companion definitions distinguish these
+cases: match a column to its variable ID in the definitions, then check whether
+that ID applies to the row. Do not replace either kind of blank with zero.
+Retain classification, denominator, coverage, and quality diagnostics when
+interpreting missing values.
+
+Geography, frequency, place, and variable filters restrict applicable records.
+For example, **postal_zip** plus **monthly** selects ZIP monthly records;
+**quarterly** includes classifications and aggregate summaries/transitions.
+Choosing a variable does not manufacture values where it is missing. Counts or
+shares repeated as context on summary/transition rows must not be summed across
+those rows. Filter `row_type` in SQL or Excel before treating a selection as one
+uniform dataset.
+
+For the same complete download from PowerShell after the setup in section 1:
+
+```powershell
+& $HousingPython run_query.py table --dataset nine-constructions --output output/exports/my_nine_constructions.csv
+```
+
+The prepared product is `data/final/nine_constructions.parquet`, queried as
+`analytics.nine_constructions`; its standard export is
+`output/exports/la_nine_constructions.csv`. Its columns reuse existing variable
+IDs; [the mapping dictionary](../metadata/nine_constructions_dictionary.csv)
+records the construction and applicable row types.
+
+If an older local database lacks this table but the five accepted final source
+tables are present, a maintainer can build and register only this product.
+Close DuckDB readers and stop the Data Browser first, then run from the project
+folder in PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe run_pipeline.py --stage nine-constructions
+```
+
+This reads accepted local products; it does not download providers or resolve
+source review holds. Ordinary harmonization/database builds also include it.
+Reopen the browser after the command succeeds.
+
 ### Find other data and use the filters
 
 | Dataset choice | Typical use |
 |---|---|
+| Nine housing constructions — All geographies and periods | Nine indicator families containing 41 variables, with explicit county/ZIP monthly and quarterly row types. |
 | LA County housing — Monthly | County prices, rents, housing activity, and derived measures. |
 | LA and comparable counties — Monthly | Separate observations for LA and seven comparison counties. |
 | Postal ZIP housing — Monthly | Housing measures for individual postal ZIPs. |
@@ -164,7 +320,7 @@ another dataset or ask the maintainer for a compatible snapshot containing it.
 
 | Filter | What it selects |
 |---|---|
-| Variable | One measure and its identifier. |
+| Variables | All measures, or one or more checked measures identified by name and ID. |
 | Geography type / Place | A geography class and location. `COUNTY_06037` is LA County. |
 | Frequency | Output cadence, such as monthly or annual. |
 | Domain | Subject group, such as `rental_market`, `construction`, or `labor_market`. |
@@ -178,16 +334,17 @@ heading below the main filters. This reveals **Simplified unit**, **Temporal typ
 and **Native frequency**. For example, selecting **flow** under Temporal type
 keeps measures classified as flows; it does not calculate new values.
 
-Filters use the [current variable dictionary](../metadata/data_dictionary.csv) and
-combine with **AND**: every selected condition must be satisfied. **All** leaves
-that condition unrestricted. Proxy and Constructed are independent; an unknown
-flag is not the same as No.
+Filters use the [current variable dictionary](../metadata/data_dictionary.csv).
+Different filters combine with **AND**: each filter must be satisfied. Multiple
+checked **Variables** are alternatives within that filter; a record need not
+contain every selected measure. **All** leaves a condition unrestricted. Proxy
+and Constructed are independent; an unknown flag is not the same as No.
 
 For example, to find LA County monthly construction proxies:
 
 1. Choose **LA County housing — Monthly** in Dataset and wait for the filters.
 2. Choose **county** in Geography type, then **COUNTY_06037** in Place.
-3. Leave Variable at **All variables** and choose **monthly** in Frequency.
+3. Keep **All variables** checked under **Variables** and choose **monthly** in Frequency.
 4. Choose **construction** in Domain and **General** in Layer.
 5. Choose **Yes** in both Proxy variable and Constructed variable.
 6. Click **Preview data**, review the rows and notes, then download both CSVs.
@@ -475,6 +632,7 @@ commands. The examples in parts B and C show where to use them:
 
 | `--dataset` value | Contents |
 |---|---|
+| `nine-constructions` | All nine county/ZIP constructions with explicit monthly/quarterly row types |
 | `county-monthly` | LA County monthly housing panel |
 | `comparable-county-monthly` | Monthly housing measures for LA and comparable counties |
 | `zip-monthly` | Postal-ZIP monthly housing panel |

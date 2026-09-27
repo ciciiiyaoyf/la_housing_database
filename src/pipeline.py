@@ -12,6 +12,7 @@ from src.common.config import load_config
 from src.common.io import append_csv, ensure_directories
 from src.common.logging import configure_logging
 from src.database import build_database, sync_source_metadata
+from src.database.nine_constructions import publish_nine_constructions
 from src.harmonization import build_analytical_outputs
 from src.ingestion.discover import discover_sources
 from src.ingestion.download import download_sources
@@ -33,7 +34,7 @@ PIPELINE_STAGES = (
     "catalog",
     "export",
 )
-STAGES = (*PIPELINE_STAGES, "variable-metadata", "all", "refresh")
+STAGES = (*PIPELINE_STAGES, "variable-metadata", "nine-constructions", "all", "refresh")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -113,6 +114,8 @@ def _run_stage(
         export_outputs(config)
     elif stage == "variable-metadata":
         refresh_variable_metadata(config)
+    elif stage == "nine-constructions":
+        publish_nine_constructions(config)
     else:
         raise ValueError(stage)
 

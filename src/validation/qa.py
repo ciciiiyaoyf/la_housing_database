@@ -51,6 +51,7 @@ from src.validation.macro_financial import (
     macro_financial_failures,
     macro_monthly_panel_failures,
 )
+from src.validation.nine_constructions import nine_constructions_failures
 
 
 GEO_ID_PATTERN = re.compile(
@@ -4197,6 +4198,12 @@ def run_qa(config: ProjectConfig, raise_on_error: bool = True) -> pd.DataFrame:
             failures.append(failure)
 
     primary_key = ["observation_date", "geo_id", "variable_id", "source_vintage"]
+    check(
+        "nine_constructions_native_grain_delivery", "error",
+        nine_constructions_failures(config),
+        "Combined CSV/SQL delivery must exactly preserve all five source projections, "
+        "native row keys, frequencies, geography, values, nulls, and provenance; no broadcast or filling.",
+    )
     duplicate_fact = fact.loc[fact.duplicated(primary_key, keep=False), primary_key]
     check("duplicate_fact_primary_key", "error", duplicate_fact, "Fact PK must be unique.")
     observation_key = ["observation_date", "geo_id", "variable_id"]

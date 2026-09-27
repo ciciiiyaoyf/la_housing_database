@@ -13,6 +13,8 @@ from src.benchmark.acquisition import MANIFEST_COLUMNS
 from src.common.config import ProjectConfig
 from src.common.variable_metadata import enrich_variable_metadata
 from src.database.variable_metadata import register_variable_metadata_views
+from src.database.nine_constructions import register_nine_constructions_dictionary
+from src.harmonization.nine_constructions import build_nine_constructions
 from src.database.housing_finance import (
     VERSION_B_LINEAGE,
     VERSION_B_OBSERVATIONS,
@@ -411,6 +413,8 @@ def build_database(
         database_path = config.root / database_path
     database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = duckdb.connect(str(database_path))
+    if (config.root / "config" / "nine_constructions.yaml").is_file():
+        build_nine_constructions(config)
     for schema in ("metadata", "raw", "clean", "analytics", "quality"):
         connection.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
     connection.execute((config.root / "sql" / "create_schema.sql").read_text())
@@ -460,6 +464,7 @@ def build_database(
         "analytics.county_quarterly_controls": "county_quarterly_controls.parquet",
     }
     optional_parquet_tables = {
+        "analytics.nine_constructions": "nine_constructions.parquet",
         "analytics.macro_financial_monthly": "macro_financial_monthly.parquet",
         "analytics.comparable_county_monthly_analytics": (
             "comparable_county_monthly_analytics.parquet"
@@ -573,6 +578,8 @@ def build_database(
         "SELECT * FROM metadata.source_registry WHERE source_filename IS NOT NULL"
     )
     _create_analytical_views(connection)
+    if "analytics.nine_constructions" in parquet_tables:
+        register_nine_constructions_dictionary(connection, config.root)
     if "analytics.comparable_county_monthly_analytics" in parquet_tables:
         connection.execute(
             """

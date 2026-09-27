@@ -66,6 +66,7 @@ inventory gives their exact keys, storage paths, and recorded coverage.
 
 | Product | Appropriate use |
 |---|---|
+| `nine_constructions` | One wide download of the nine county/ZIP constructions; filter its explicit row types before analysis. It preserves monthly county/ZIP rows and quarterly assignments, summaries, and transitions without frequency conversion or geography broadcasting. |
 | `fact_housing_observation` | Long observations with variable IDs and source lineage; mixed native frequencies and geographies. |
 | `county_monthly_panel`, `zip_monthly_panel` | Monthly housing analysis at LA County or postal-ZIP geography; individual measures can have different coverage and source windows. |
 | `comparable_county_monthly_analytics` | LA and the seven fixed comparison counties, with the separate frozen-reference constructions. |

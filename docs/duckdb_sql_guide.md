@@ -139,6 +139,7 @@ Useful starting products, when present in your snapshot:
 
 | SQL table/view | Shape and purpose |
 |---|---|
+| `analytics.nine_constructions` | All nine county/ZIP constructions in one wide table; explicit `row_type` and `frequency` preserve different observation keys. |
 | `analytics.county_monthly_panel` | One row per county/month, with measure columns such as `zori`. |
 | `analytics.zip_monthly_panel` | One row per postal ZIP/month. |
 | `analytics.fact_housing_observation_labeled` | Long observations with `geo_id`, `variable_id`, `value`, units, and temporal labels. |
@@ -337,6 +338,62 @@ WHERE geo_id IN ('COUNTY_06037', 'ZIP_90024');
 In wide panels, filter `county_fips = '06037'` or `postal_zip = '90024'`. In long
 observations, use `geo_id = 'COUNTY_06037'` or `'ZIP_90024'`. Changing the filter
 does not substitute broader-geography data for missing local observations.
+
+### Query all nine housing constructions from one table
+
+The combined product keeps county months, ZIP months, ZIP-quarter classifications,
+regime summaries, and transitions as separate row types. Inspect its columns and
+a small sample at the DuckDB **`D` prompt**:
+
+```sql
+DESCRIBE analytics.nine_constructions;
+```
+
+```sql
+SELECT *
+FROM analytics.nine_constructions
+ORDER BY row_type, date DESC, geo_id
+LIMIT 10;
+```
+
+Filter `row_type` before analyzing a uniform set. This example retrieves LA
+County's monthly price and rent momentum:
+
+```sql
+SELECT date::DATE AS month, county_fips,
+       zhvi_momentum_yoy_log_pct, zori_momentum_yoy_log_pct
+FROM analytics.nine_constructions
+WHERE row_type = 'county_monthly'
+  AND geo_id = 'COUNTY_06037'
+ORDER BY date;
+```
+
+For a quarterly transition matrix, keep the from/to regime keys and denominator
+diagnostics together:
+
+```sql
+SELECT date::DATE AS quarter_end, from_regime_id, to_regime_id,
+       transition_zip_count, zip_market_regime_transition_share,
+       classified_zip_count, comparable_zip_count,
+       missing_previous_classification_count, transition_denominator_status
+FROM analytics.nine_constructions
+WHERE row_type = 'zip_regime_transition_quarterly'
+ORDER BY date DESC, from_regime_id, to_regime_id
+LIMIT 16;
+```
+
+The other row types are `zip_monthly`, `zip_regime_quarterly`, and
+`zip_regime_summary_quarterly`. A blank value is not automatically a missing
+source observation: some columns do not apply to that row type. Match columns
+to existing IDs using
+[the combined-table dictionary](../metadata/nine_constructions_dictionary.csv),
+then inspect the row's `applicable_variable_ids`. Applicable blanks retain the
+source's missingness. County measures are not copied onto ZIP observations, and
+quarterly results are not expanded into monthly rows. Shared monthly inputs can
+appear again on a quarterly classification row as model inputs; do not count
+those as additional monthly observations. The
+[combined-table download guide](query_and_export_commands.md#download-all-nine-housing-constructions-together)
+explains filters and the CSV/definitions pair.
 
 ## 6. Join observations to definitions
 

@@ -143,6 +143,8 @@ def _source_inventory(
 
 
 def _relation_frequency(name: str) -> str:
+    if name == "nine_constructions":
+        return "monthly | quarterly (distinct native-grain rows)"
     if name == "fact_housing_observation":
         return "mixed native/analytical frequencies"
     if "monthly" in name or "homebuying" in name:
@@ -157,6 +159,8 @@ def _relation_frequency(name: str) -> str:
 
 
 def _relation_geography(name: str) -> str:
+    if name == "nine_constructions":
+        return "eight California counties | LA postal ZIPs | LA postal-ZIP aggregate (distinct rows)"
     if name == "macro_financial_monthly":
         return "United States / California / LA metropolitan division (distinct rows)"
     if name == "comparable_county_monthly_analytics":
@@ -443,12 +447,18 @@ def _variable_inventory(
                 locations.append(str(primary["location"]))
                 locations = sorted(set(locations))
         if primary is None and wide_locations.get(variable_id):
-            table_name = wide_locations[variable_id][0]
+            # The mixed-grain delivery repeats existing measures as inputs and
+            # contains inapplicable rows. Keep it discoverable, but measure
+            # primary coverage from a native product whenever one is present.
+            table_name = min(
+                wide_locations[variable_id],
+                key=lambda name: (name == "nine_constructions", name),
+            )
             relation = f"analytics.{_quote(table_name)}"
             date_column = next(
                 (
                     name
-                    for name in ("date", "observation_date", "month", "reference_date")
+                    for name in ("date", "observation_date", "month", "quarter_end", "reference_date")
                     if connection.execute(
                         """
                         SELECT count(*) FROM information_schema.columns
@@ -464,8 +474,14 @@ def _variable_inventory(
                 if date_column
                 else ", NULL, NULL"
             )
+            where = ""
+            parameters: list[str] = []
+            if table_name == "nine_constructions":
+                where = " WHERE list_contains(string_split(applicable_variable_ids, '|'), ?)"
+                parameters.append(variable_id)
             values = connection.execute(
-                f"SELECT count(*), count({_quote(variable_id)}){date_sql} FROM {relation}"
+                f"SELECT count(*), count({_quote(variable_id)}){date_sql} FROM {relation}{where}",
+                parameters,
             ).fetchone()
             primary = {
                 "row_count": values[0],

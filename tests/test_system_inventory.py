@@ -5,12 +5,14 @@ from pathlib import Path
 
 import duckdb
 import pandas as pd
+import pytest
 
 from src.common.config import ProjectConfig, SourceConfig
 from src.common.variable_metadata import ENRICHMENT_COLUMNS
 from src.reporting.system_inventory import (
     _estimate_inventory,
     _storage_inventory,
+    _variable_inventory,
     build_system_inventory,
 )
 
@@ -312,6 +314,46 @@ def test_estimate_inventory_accepts_provider_constructed_rows() -> None:
     assert result["variable_id"].tolist() == ["market_tightness_index"]
     assert result.loc[0, "estimate_family"] == "Market tightness"
     assert "Full-history z-score" in result.loc[0, "important_limitation"]
+
+
+@pytest.mark.parametrize("native_present", [True, False])
+def test_nine_constructions_does_not_inflate_native_variable_coverage(
+    tmp_path: Path, native_present: bool,
+) -> None:
+    _write_inventory_inputs(tmp_path)
+    _write_inventory_database(tmp_path)
+    dictionary_path = tmp_path / "metadata" / "data_dictionary.csv"
+    dictionary = pd.read_csv(dictionary_path)
+    regime = dictionary.iloc[0].to_dict()
+    regime.update(variable_id="zip_market_regime_id", final_frequency="quarterly")
+    pd.concat([dictionary, pd.DataFrame([regime])], ignore_index=True).to_csv(
+        dictionary_path, index=False,
+    )
+    with duckdb.connect(str(tmp_path / "database" / "housing.duckdb")) as connection:
+        connection.execute("""
+            CREATE TABLE analytics.zip_market_regime_quarterly AS
+            SELECT DATE '2026-03-31' AS quarter_end, 1::BIGINT AS zip_market_regime_id
+            UNION ALL SELECT DATE '2026-06-30', NULL
+        """)
+        connection.execute("""
+            CREATE TABLE analytics.nine_constructions AS
+            SELECT quarter_end AS date, zip_market_regime_id,
+                   'zip_market_regime_id'::VARCHAR AS applicable_variable_ids
+            FROM analytics.zip_market_regime_quarterly
+            UNION ALL SELECT DATE '1990-01-31', NULL, 'unemployment_rate'
+            UNION ALL SELECT DATE '2026-08-31', NULL, 'zhvi_momentum_yoy_log_pct'
+        """)
+        if not native_present:
+            connection.execute("DROP TABLE analytics.zip_market_regime_quarterly")
+        result = _variable_inventory(tmp_path, connection).set_index("variable_id")
+    row = result.loc["zip_market_regime_id"]
+    assert row.primary_row_count == 2  # Includes the applicable missing classification.
+    assert row.primary_nonnull_count == 1
+    assert row.first_materialized_date == "2026-03-31"
+    assert row.latest_materialized_date == "2026-06-30"
+    locations = set(row.materialized_locations.split("|"))
+    assert "analytics.nine_constructions" in locations
+    assert ("analytics.zip_market_regime_quarterly" in locations) == native_present
 
 
 def test_estimate_inventory_preserves_available_variable_metadata_and_order() -> None:

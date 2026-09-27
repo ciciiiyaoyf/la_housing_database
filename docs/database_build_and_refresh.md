@@ -526,6 +526,7 @@ tables below are reference information, not commands to paste on their own.
 | `catalog` | Generate source, variable, gap, and storage inventories and workbooks. |
 | `export` | Write permitted CSV exports from final analytical files. |
 | `variable-metadata` | Refresh unit/temporal labels and labeled views without changing observations. |
+| `nine-constructions` | Combine the five accepted county/ZIP analytical products into one table, register it in DuckDB, reconcile it against those inputs, and export its CSV and definitions. No provider download or finance rebuild. |
 | `all` | Run discovery through export in the order above, excluding `variable-metadata`. |
 | `refresh` | Verify newest eligible releases and strictly clean sources before rebuilding. |
 

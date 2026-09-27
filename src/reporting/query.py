@@ -60,6 +60,7 @@ TABLE_DATASETS = {
     "zip-regime-summary-quarterly": "la_zip_market_regime_summary_quarterly",
     "zip-regime-transitions-quarterly": "la_zip_market_regime_transitions_quarterly",
     "homebuying-scenarios": "homebuying_cost_scenarios",
+    "nine-constructions": "nine_constructions",
 }
 # These aliases are explicit display-column mappings, never value conversions.
 PANEL_ALIASES = {"zori": "zori_smoothed_sa"}
@@ -86,6 +87,22 @@ PANEL_CONTEXT_COLUMNS = {
     "transition_denominator_status", "homes_sold_months_reported",
     "coc_id", "coc_name", "metro_id", "metro_division_id", "cbsa_code", "cbsa_name",
     "geoid", "tract_geoid",
+}
+# These are row identities and denominator diagnostics for the mixed-period
+# construction delivery. They are not silently promoted to economic measures.
+NINE_CONSTRUCTIONS_CONTEXT_COLUMNS = PANEL_CONTEXT_COLUMNS | {
+    "row_type", "frequency", "geography_scope", "applicable_variable_ids", "source_table", "source_file",
+    "source_file_checksum_sha256", "regime_id", "regime_label", "from_regime_id",
+    "from_regime_label", "to_regime_id", "to_regime_label", "previous_quarter_end",
+    "regime_zip_count", "classified_zip_count", "universe_zip_count",
+    "comparable_zip_count", "missing_previous_classification_count",
+    "transition_zip_count", "changed_regime_zip_count", "entered_regime_zip_count",
+    "exited_regime_zip_count", "regime_share_of_classified",
+    "classification_coverage_share_of_universe", "transition_share_of_classified",
+    "transition_share_of_comparable", "changed_regime_share_of_classified",
+    "changed_regime_share_of_comparable", "entered_regime_share_of_classified",
+    "entered_regime_share_of_comparable", "exited_regime_share_of_classified",
+    "exited_regime_share_of_comparable",
 }
 LAYERS = ("General", "Version A", "Version B", "Version C")
 GEOGRAPHY_ALIASES = {
@@ -577,6 +594,12 @@ def list_options(
     if relation is not None and (field == "frequency" or field == "native-frequency" and dataset == "main"):
         row_clauses, row_parameters = _row_geography_filters(connection, columns, geographies=geographies, alias="q")
         where = " WHERE " + " AND ".join(row_clauses) if row_clauses else ""
+        if kind == "table" and dataset == "nine-constructions" and field == "frequency":
+            values = connection.execute(
+                f"SELECT DISTINCT frequency FROM {relation} q{where} ORDER BY frequency",
+                row_parameters,
+            ).fetchall()
+            return pd.DataFrame({"value": [str(row[0]) for row in values if row[0] is not None]})
         if field == "frequency" and (kind == "table" or dataset in {"version-b", "version-c"}):
             exists = connection.execute(f"SELECT 1 FROM {relation} q{where} LIMIT 1", row_parameters).fetchone()
             return pd.DataFrame({"value": [_table_frequency(dataset)] if exists else []})
@@ -641,6 +664,13 @@ def _table_query(
 ) -> tuple[str, list[object], pd.DataFrame]:
     if dataset not in TABLE_DATASETS:
         raise ValueError(f"Unknown table dataset {dataset!r}.")
+    if dataset == "nine-constructions":
+        return _nine_constructions_table_query(
+            connection, variable_ids=variable_ids, units=units, temporal_types=temporal_types,
+            geographies=geographies, frequencies=frequencies, native_frequencies=native_frequencies,
+            domains=domains, layers=layers, proxy=proxy, constructed=constructed, geo_ids=geo_ids,
+            start_date=start_date, end_date=end_date,
+        )
     if dataset == "homebuying-scenarios":
         return _scenario_table_query(
             connection, variable_ids=variable_ids, units=units, temporal_types=temporal_types,
@@ -718,6 +748,136 @@ def _table_query(
     order_columns = [column for column in ("geo_id", "county_fips", "postal_zip", "zcta", date_column) if column in columns]
     order = " ORDER BY " + ", ".join(_quote(column) for column in order_columns) if order_columns else ""
     sql = f"SELECT {', '.join(_quote(column) for column in output_columns)} FROM {table} q{where}{order}"
+    return sql, parameters, metadata
+
+
+def _nine_constructions_table_query(
+    connection: duckdb.DuckDBPyConnection, *, variable_ids: Sequence[str],
+    units: Sequence[str], temporal_types: Sequence[str], geographies: Sequence[str],
+    frequencies: Sequence[str], native_frequencies: Sequence[str], domains: Sequence[str],
+    layers: Sequence[str], proxy: bool | None, constructed: bool | None,
+    geo_ids: Sequence[str], start_date: str | None, end_date: str | None,
+) -> tuple[str, list[object], pd.DataFrame]:
+    """Filter a union by structural applicability, never by non-null values."""
+    table = "analytics.nine_constructions"
+    try:
+        columns = [row[0] for row in connection.execute(f"DESCRIBE {table}").fetchall()]
+    except duckdb.Error as exc:
+        raise ValueError("Table dataset 'nine-constructions' has not been built.") from exc
+    required = {"row_type", "date", "frequency", "geo_id", "source_table", "applicable_variable_ids"}
+    if not required <= set(columns):
+        raise ValueError(f"Nine-constructions table is missing required columns: {sorted(required - set(columns))}.")
+    if any(column.startswith("usps_") for column in columns):
+        raise ValueError("Refusing ordinary download from a table containing restricted HUD-USPS fields.")
+    dictionary = query_catalog(connection)
+    column_geographies = _column_geographies_for_ids(
+        connection, table, columns, geo_ids, geographies
+    ) if "geography" in dictionary else geographies
+    selected = query_catalog(
+        connection, variable_ids=variable_ids, units=units, temporal_types=temporal_types,
+        geographies=column_geographies, native_frequencies=native_frequencies,
+        domains=domains, layers=layers, proxy=proxy, constructed=constructed,
+    ).set_index("variable_id", drop=False)
+    known = set(dictionary["variable_id"])
+    mapping = {column: PANEL_ALIASES.get(column, column) for column in columns}
+    present = set(mapping.values()) & known
+    absent = set(variable_ids) - present
+    if absent:
+        raise ValueError(f"Requested variables are absent from table 'nine-constructions': {sorted(absent)}.")
+    candidates = [column for column in columns if mapping[column] in selected.index]
+    if not candidates:
+        raise ValueError("No classified variable columns match the filters in table 'nine-constructions'.")
+    start, end = _iso_date(start_date), _iso_date(end_date)
+    if start is not None and end is not None and start > end:
+        raise ValueError("start_date must be on or before end_date.")
+    clauses, parameters = _row_geography_filters(
+        connection, columns, geographies=geographies, geo_ids=geo_ids, alias="q"
+    )
+    if frequencies:
+        clause, values = _in_clause('q."frequency"', frequencies)
+        clauses.append(clause)
+        parameters.extend(values)
+    for operator, bound in ((">=", start), ("<=", end)):
+        if bound is not None:
+            clauses.append(f'CAST(q."date" AS DATE) {operator} ?')
+            parameters.append(bound)
+    where = " WHERE " + " AND ".join(clauses) if clauses else ""
+    # A branch can legitimately contain entirely missing measurements. Its
+    # schema-level applicability, not the observed values, determines inclusion.
+    applicability: dict[str, dict[str, set[str]]] = {}
+    for row_type, source_table, frequency, ids in connection.execute(
+        f"SELECT DISTINCT row_type, source_table, frequency, applicable_variable_ids FROM {table} q{where}",
+        parameters,
+    ).fetchall():
+        for variable_id in str(ids or "").split("|"):
+            if not variable_id:
+                continue
+            entry = applicability.setdefault(
+                variable_id, {"row_types": set(), "source_tables": set(), "frequencies": set()}
+            )
+            entry["row_types"].add(str(row_type))
+            entry["source_tables"].add(str(source_table))
+            entry["frequencies"].add(str(frequency))
+    variable_columns = [column for column in candidates if mapping[column] in applicability]
+    selected_ids = sorted({mapping[column] for column in variable_columns})
+    if selected_ids:
+        clauses.append("(" + " OR ".join(
+            "list_contains(string_split(q.applicable_variable_ids, '|'), ?)" for _ in selected_ids
+        ) + ")")
+        parameters.extend(selected_ids)
+    else:
+        clauses.append("FALSE")
+    context = {
+        column for column in columns
+        if mapping[column] not in known and (
+            column in NINE_CONSTRUCTIONS_CONTEXT_COLUMNS
+            or column.endswith((
+                "_quality_flag", "_source_vintage", "_source_filename", "_checksum_sha256",
+                "_retrieved_at", "_source_date", "_source_id", "_available", "_method",
+                "_regime_id", "_regime_label", "_model_version", "_fingerprint_sha256",
+            ))
+            or column.startswith(("source_", "is_"))
+        )
+    }
+    output_columns = [column for column in columns if column in context or column in variable_columns]
+    rows = []
+    for column in variable_columns:
+        variable_id = mapping[column]
+        entry = applicability[variable_id]
+        rows.append({
+            "table_name": table, "table_column": column, **selected.loc[variable_id].to_dict(),
+            "applicable_row_types": "|".join(sorted(entry["row_types"])),
+            "applicable_source_tables": "|".join(sorted(entry["source_tables"])),
+            "delivery_frequencies": "|".join(sorted(entry["frequencies"])),
+        })
+    metadata = pd.DataFrame(rows, columns=[
+        "table_name", "table_column", *selected.columns,
+        "applicable_row_types", "applicable_source_tables", "delivery_frequencies",
+    ])
+    family_table = connection.execute(
+        "SELECT 1 FROM information_schema.tables "
+        "WHERE table_schema = 'metadata' AND table_name = 'nine_constructions_dictionary'"
+    ).fetchone()
+    if family_table is not None:
+        families = connection.execute("SELECT * FROM metadata.nine_constructions_dictionary").fetchdf()
+        extra_columns = [column for column in (
+            "construction_number", "construction_name", "applicable_geo_id", "packaging_note"
+        ) if column in families]
+        if families["variable_id"].duplicated().any():
+            raise ValueError("Nine-constructions dictionary requires one row per variable_id.")
+        if extra_columns:
+            metadata = metadata.merge(
+                families[["variable_id", *extra_columns]], on="variable_id", how="left", validate="many_to_one"
+            )
+    metadata.attrs["unclassified_columns"] = [
+        column for column in columns if column not in context and mapping[column] not in known
+    ]
+    where = " WHERE " + " AND ".join(clauses)
+    order_columns = [column for column in (
+        "row_type", "geo_id", "frequency", "date", "regime_id", "from_regime_id", "to_regime_id"
+    ) if column in columns]
+    sql = (f"SELECT {', '.join(_quote(column) for column in output_columns)} FROM {table} q{where}"
+           + " ORDER BY " + ", ".join(_quote(column) for column in order_columns))
     return sql, parameters, metadata
 
 

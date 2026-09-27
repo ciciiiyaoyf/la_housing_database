@@ -11,6 +11,9 @@ not a ready-to-query database.
   discovery, download, clean, harmonize, database, validation, catalog, and export stages.
 - [run_system_refresh.py](../run_system_refresh.py) calls [system_refresh.py](system_refresh.py)
   for strict source refresh and eligible monthly finance builds, preserving frozen Version A.
+- [run_snapshot.py](../run_snapshot.py) packages validated local databases for
+  private GitHub Releases and installs compatible snapshots through protected
+  same-path replacement. It neither rebuilds data nor synchronizes direct edits.
 - [run_version_a.py](../run_version_a.py), [run_version_b.py](../run_version_b.py), and
   [run_version_c.py](../run_version_c.py) expose the separate finance pipelines.
 - Direct SQL analysis reads the existing database through DuckDB; follow the
@@ -18,6 +21,14 @@ not a ready-to-query database.
 - [run_query.py](../run_query.py) and [run_data_browser.py](../run_data_browser.py)
   provide optional filtered exports and browser downloads from that database;
   they do not fetch new provider releases.
+- [browser_categories.py](reporting/browser_categories.py) organizes the browser's
+  variable picker using existing domains and explicit finance, scenario, regime,
+  and nine-construction families. These display categories do not rewrite the
+  variable dictionary, query filters, observations, or export definitions.
+- `run_pipeline.py --stage nine-constructions` builds, registers, and exports the
+  combined nine-construction table from five accepted final products. The union
+  retains monthly and quarterly row types, source keys, applicability, and
+  diagnostics; it performs no new geographic allocation or frequency conversion.
 
 The general path is official files → immutable `data/raw/` → `data/clean/`
 observations → `data/final/` tables → local DuckDB → SQL analysis or optional exports. Configuration
@@ -35,6 +46,7 @@ defines contracts; `metadata/` records provenance, variables, models, and transf
 | [benchmark](benchmark/) | [pipeline.py](benchmark/pipeline.py), [build.py](benchmark/build.py), [finance.py](benchmark/finance.py): native-frequency Version A; source adapters, schema, and QA remain separate. | Official finance inputs → benchmark clean files, benchmark observations, manifests, and QA. |
 | [housing_finance_monthly](housing_finance_monthly/) | [pipeline.py](housing_finance_monthly/pipeline.py), [retrospective.py](housing_finance_monthly/retrospective.py), [realtime.py](housing_finance_monthly/realtime.py): monthly Versions B/C with source, schema, QA, and metadata helpers. | Frozen A anchors + eligible inputs → paired observations/lineage, manifests, completion markers. |
 | [database](database/) | [build.py](database/build.py), [housing_finance.py](database/housing_finance.py), [variable_metadata.py](database/variable_metadata.py): DuckDB materialization and labeled views. | Accepted Parquet + metadata + SQL definitions → clean, analytical, metadata, provenance, and quality relations. |
+| [distribution](distribution/) | [common.py](distribution/common.py), [publish.py](distribution/publish.py), [update.py](distribution/update.py): manifest/structure checks, validated snapshot packaging, private release transport, and protected local installation. | Existing database + clean code revision → versioned database/manifest; compatible release → same managed database path with one backup and local installation state. |
 | [reporting](reporting/) | [query.py](reporting/query.py), [data_browser.py](reporting/data_browser.py), [export.py](reporting/export.py), [catalog.py](reporting/catalog.py), [system_inventory.py](reporting/system_inventory.py): filtering, downloads, catalogs, and inventories. | Local database/configuration → metadata workbooks/CSVs, user exports, and browser responses. |
 | [validation](validation/) | [qa.py](validation/qa.py), [macro_financial.py](validation/macro_financial.py): structural, arithmetic, geography, and coverage checks; finance modules add dedicated QA. | Materialized data + contracts → local QA/coverage reports and DuckDB quality tables. |
 | [common](common/) | [config.py](common/config.py), [io.py](common/io.py), [logging.py](common/logging.py), [variable_metadata.py](common/variable_metadata.py): shared configuration, file/provenance helpers, logging, and labels. | Configuration/manifests/frames → validated objects, registry enrichment, and explicit metadata updates. |
@@ -48,6 +60,11 @@ defines contracts; `metadata/` records provenance, variables, models, and transf
 - Missing compatible finance inputs leave canonical targets null. Scenarios stay labeled, and panel features need not also be fact-table rows.
 - Unit/temporal enrichment does not rescale values or select aggregation rules. Structural failures stop validation; plausible economic outliers remain review warnings.
 - Licensed HUD USPS archives/derivatives stay access-controlled under `data/restricted/`. The local database may contain restricted records; ordinary public exports reject them.
+- Snapshot publication transfers the full existing database only to an acknowledged
+  authorized private-repository audience. Required tests and validation precede
+  packaging; validation may update QA metadata. Installation verifies bytes and
+  schema, requires the matching code revision, refuses active or locally changed
+  databases, and never overwrites source archives or modifies Git worktrees.
 
 See the [project README](../README.md), [DuckDB SQL guide](../docs/duckdb_sql_guide.md),
 [optional CSV/export reference](../docs/query_and_export_commands.md),

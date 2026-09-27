@@ -52,6 +52,7 @@ from src.features.market_regimes import (
 from src.geography.build import build_geography
 from src.features.macro_financial import macro_monthly_panel, MACRO_SOURCE_IDS
 from src.housing_finance_monthly.metadata import register_monthly_finance_contracts
+from src.harmonization.nine_constructions import build_nine_constructions
 
 COUNTY_VARIABLES = [
     "zhvi",
@@ -3731,6 +3732,8 @@ def build_analytical_outputs(
     )
     transformations.to_csv(transformation_path, index=False)
     register_monthly_finance_contracts(root=config.root)
+    if (config.root / "config" / "nine_constructions.yaml").is_file():
+        build_nine_constructions(config)
     logger.info(
         "Built fact=%s, county=%s, comparable_county=%s, ZIP=%s observations/rows",
         len(fact),

@@ -14,6 +14,7 @@ import webbrowser
 import duckdb
 
 from src.common.config import ROOT, load_config
+from src.reporting.browser_categories import variable_category
 from src.reporting.query import (
     DATASETS, TABLE_DATASETS, _observation_query, _row_geography_filters, _table_query,
     export_catalog, export_observations, export_table,
@@ -44,6 +45,7 @@ DATASET_LABELS = {
     "zip-regime-summary-quarterly": "ZIP market summary — Quarterly",
     "zip-regime-transitions-quarterly": "ZIP market transitions — Quarterly",
     "homebuying-scenarios": "Homebuying cost scenarios",
+    "nine-constructions": "Nine housing constructions — All geographies and periods",
 }
 MULTI_FILTERS = {
     "domain": "domains", "layer": "layers", "geography": "geographies",
@@ -85,7 +87,7 @@ def selected_query(connection, kind: str, dataset: str, filters: dict):
     return sql, parameters, metadata
 
 
-def variable_options(connection, kind: str, dataset: str, geographies=()) -> list[dict[str, str]]:
+def variable_options(connection, kind: str, dataset: str, geographies=()) -> list[dict[str, str | int]]:
     """List only IDs represented by the selected dataset and actual geography."""
     if kind == "table":
         if dataset not in TABLE_DATASETS:
@@ -126,12 +128,29 @@ def variable_options(connection, kind: str, dataset: str, geographies=()) -> lis
     else:
         raise ValueError("Choose a supported dataset.")
     options = []
+    category_order = {}
     for row in metadata.drop_duplicates("variable_id").fillna("").to_dict("records"):
         variable_id = str(row["variable_id"])
         display_name = str(row.get("display_name", "")).strip()
         label = f"{display_name} ({variable_id})" if display_name and display_name != variable_id else variable_id
-        options.append({"value": variable_id, "label": label})
-    return sorted(options, key=lambda option: (option["label"].casefold(), option["value"]))
+        category = variable_category(dataset, row)
+        category_order[category.category_id] = category.order
+        option: dict[str, str | int] = {
+            "value": variable_id, "label": label,
+            "category_id": category.category_id, "category_label": category.category_label,
+        }
+        if dataset == "nine-constructions":
+            number = str(row.get("construction_number", "")).strip().removesuffix(".0")
+            name = str(row.get("construction_name", "")).strip()
+            if number:
+                option["construction_number"] = int(number)
+            if name:
+                option["construction_name"] = name
+        options.append(option)
+    return sorted(options, key=lambda option: (
+        category_order[option["category_id"]], str(option["category_label"]).casefold(),
+        str(option["label"]).casefold(), option["value"],
+    ))
 
 
 def preview(connection, kind: str, dataset: str, filters: dict) -> dict:
@@ -143,6 +162,14 @@ def preview(connection, kind: str, dataset: str, filters: dict) -> dict:
         notes.append("Unregistered measure columns omitted: " + ", ".join(omitted))
     if kind == "observations" and dataset == "version-c":
         notes.append("All information cutoffs are retained; check vintage fields before combining rows.")
+    if kind == "table" and dataset == "nine-constructions":
+        notes.append(
+            "This dataset combines distinct county-month, ZIP-month, and quarterly regime rows. "
+            "Use row_type, geography, frequency, and regime identifiers together; periods and "
+            "geographies are not converted or filled. Blanks can mean an inapplicable measure "
+            "or a missing value; applicable_variable_ids distinguishes them. Leave all filters "
+            "on All and dates blank to download the complete nine-family product."
+        )
     return {
         "columns": frame.columns.tolist(),
         "rows": json.loads(frame.head(20).to_json(orient="records", date_format="iso")),
