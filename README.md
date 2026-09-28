@@ -5,12 +5,23 @@ tables or individual series with SQL, and load query results directly into Pytho
 for modeling and forecasting research. The database includes observations,
 analytical panels, variable definitions, and provenance.
 
-**Start here:** [clone](#1-install-the-tools-and-clone-the-project) →
-[install the tools](#2-set-up-the-project) → [get the database](#3-get-a-local-database) →
-[open DuckDB](#4-open-duckdb-and-run-your-first-query) →
-[learn SQL](docs/duckdb_sql_guide.md) → [use results in Python](#6-use-query-results-for-modeling).
-Already set up? Start at step 4 to explore the database, or
-[refresh the data before modeling](#refresh-the-data-before-modeling).
+**First-time collaborator setup: steps 1–4, in order.** Each step contains its
+Windows and macOS/Linux commands; the collaborator uses only the matching
+platform's block. GitHub sign-in, Python setup, release selection, database
+installation, and the first query are included in that sequence.
+
+| Stage | When it is needed |
+|---|---|
+| **1–4: setup and first query** | Once for a new collaborator's local copy. |
+| **5: explore tables and variables** | After setup, when choosing data. |
+| **6: modeling** | Optional Python analysis; source-refresh commands are for a provisioned publisher. |
+| **7: CSV downloads** | Optional alternative to SQL/Python. |
+| **8: later updates** | When another database release becomes available. |
+
+The collaboration section after step 8 is a reference for publishing and
+contributing changes, not an additional prerequisite. An existing publisher keeps
+the working branch and built database and uses the publisher instructions; the
+collaborator's release-selection/download steps do not apply to that build workspace.
 
 For readers who prefer spreadsheet files, the
 [CSV browser and export tutorial](docs/query_and_export_commands.md#browser-downloads)
@@ -33,338 +44,331 @@ the picker; variable definitions, Domain filters, and exported values stay the s
 
 ## Before you start
 
-The numbered walkthrough below is for **Windows**. You will use these interfaces:
+A collaborator needs repository access, an internet connection, and enough local
+space for the database, a temporary download, and one previous-version backup.
+The Git clone contains programs and documentation. The published database is a
+separate download installed in step 3; source archives are not included.
 
-| Window | What you do there |
+| Window or prompt | Purpose |
 |---|---|
-| **Windows PowerShell** (`PS ... >`) | Paste setup commands and start DuckDB or Python programs. |
-| **DuckDB** (`D` prompt, in the same terminal window) | Type SQL to inspect tables and retrieve data after step 4. |
-| **File Explorer** | Find the downloaded project and place the database file. Open it with **Windows key + E**. |
-| **Your web browser**, such as Edge or Chrome | Read this guide; use the separate CSV browser only if you want downloads. |
+| **Windows PowerShell** (`PS ... >`) | Windows installation and project commands. |
+| **macOS/Linux Terminal** | macOS/Linux installation and project commands. |
+| **Web browser** | GitHub sign-in and this guide. |
+| **DuckDB** (`D` prompt inside the terminal) | SQL, after step 4 starts the database client. |
 
-A *command* is a line of text that tells the computer to do something. A
-*terminal* is the window that accepts commands; this guide uses PowerShell.
-*Cloning* means downloading a working copy of the project from GitHub.
-SQL is the language used to ask DuckDB for data. This guide explains where to
-enter it and includes queries you can copy before adapting them.
+Each command runs separately. The collaborator copies one command line into the
+terminal, presses **Enter**, waits for the prompt to return, and stops if the
+command fails. Pasting uses **Ctrl+V** on Windows and **Command+V** on macOS.
+The `PS ... >` or `D` prompt itself is not
+part of a command. Commands are not entered in GitHub's webpage, a browser address
+bar, or a Python prompt (`>>>`). A Python prompt closes with `exit()`.
 
-**How to enter a PowerShell command:**
+On Windows, the Start menu's **Windows PowerShell** opens the correct shell.
+A window showing only `C:\...>` is Command Prompt; entering `powershell` there
+starts PowerShell. Administrator mode is not required for the project commands.
 
-1. Click the Windows **Start** button, type **Windows PowerShell**, and open it.
-   A window or terminal tab opens with a line starting with `PS` and ending in `>`.
-   This line is the *prompt*: it means PowerShell is ready for a command.
-2. Copy **one command line** from a code box in this guide. Click after the `>`
-   in PowerShell, paste with **Ctrl+V** (or right-click), and press **Enter**.
-   Paste only the command, without the surrounding explanation or code-box label.
-   Do not combine several commands into one line.
-3. Wait until the `PS ... >` prompt returns before entering the next command.
-   Installation can print many lines and take several minutes. If it reports an
-   error, stop at that step and use [Troubleshooting](#troubleshooting).
+### macOS and Linux
 
-**Already have a terminal open?** A prompt such as
-`C:\Users\yourname\Downloads\la_housing_database>` without the initial `PS`
-is **Command Prompt**, a different program. In that window, type `powershell`
-and press Enter. Wait for a prompt starting with `PS`; then use this guide's
-PowerShell commands. The folder stays the same. If you are already inside
-`la_housing_database`, you do not need to enter a second folder with that name.
-
-Enter the `powershell` commands in **PowerShell**, not in GitHub's page, your browser's
-address bar, a Python window showing `>>>`, or an Excel cell. If you accidentally
-opened Python, type `exit()` and press Enter, then open PowerShell as above.
-Opening PowerShell as administrator is not needed for this walkthrough.
-Keep this guide open in your browser while following the steps. After starting
-DuckDB in step 4, enter `sql` blocks at its `D` prompt instead; the guide marks
-that change explicitly.
-
-For macOS/Linux, use the separate [Terminal commands](#macos-and-linux) below.
-
-| Setup step | What you receive |
-|---|---|
-| Clone from GitHub | Programs, configuration, variable definitions, and reference guides. |
-| Supply or build a database | Actual observations queried directly in DuckDB. |
-
-**The Git clone does not include `database/housing.duckdb` or raw source archives.**
-Cloning and installing Python alone will not provide housing observations. The
-[collaboration workflow](#collaborate-through-database-snapshots) distributes the
-database separately through private GitHub Releases after the first publisher
-release. Step 3 explains installation. The published
-[variable dictionary](metadata/data_dictionary.csv) is available immediately without setup.
+On macOS, **Command+Space → Terminal** opens the correct window. Linux uses its
+Terminal application. Both platforms follow the same numbered steps below using
+the macOS/Linux blocks. There is no separate setup walkthrough to complete later.
 
 ## 1. Install the tools and clone the project
 
 ### Install the tools
 
-Git downloads and updates the project. Python runs its programs. If Git and
-Python 3.11 are already installed, go to the version checks below.
+The required tools are **Git**, **Python 3.11 or newer**, and **GitHub CLI (`gh`)**.
+An already installed tool can be kept if its version check succeeds.
 
-1. In your web browser, open [Git for Windows](https://git-scm.com/downloads/win),
-   download the installer for your computer, open the downloaded file, and complete
-   the installer. The default choices are sufficient for this walkthrough.
-2. Open [Python for Windows](https://www.python.org/downloads/windows/). For a new
-   installation, choose the **Python install manager**, open the downloaded file,
-   and complete installation. Close any existing PowerShell window and open a new
-   one using the Start menu.
-3. **Only if you just installed the Python install manager**, enter this command
-   in the new PowerShell window to install the version used in this guide:
+**Windows:** the collaborator installs Git from
+[Git for Windows](https://git-scm.com/downloads/win) and Python from
+[Python for Windows](https://www.python.org/downloads/windows/). A new installation
+can use the Python install manager; after installation, a new PowerShell window
+runs the following command to install Python 3.11:
 
 ```powershell
 pymanager install 3.11
 ```
 
-Wait for installation to finish. The manager is described in the official
-[Python Windows installation guide](https://docs.python.org/3/using/windows.html#python-install-manager).
-The project supports Python **3.11 or newer**; these examples explicitly use 3.11.
+GitHub CLI is installed separately in PowerShell:
 
-### Check the tools
+```powershell
+winget install --id GitHub.cli --exact
+```
 
-In **PowerShell**, enter the following commands separately, pressing Enter after
-each. The current folder does not matter for these two checks.
+The collaborator closes and reopens PowerShell after installation, then checks:
 
 ```powershell
 git --version
+py -3.11 --version
+gh --version
 ```
 
-Expect a line starting with `git version`. Then run:
+Each line runs separately. A different supported Python version can replace
+`-3.11` consistently in the Windows commands. If `gh` is installed in its normal
+location but an existing PowerShell window cannot find it, that window runs:
 
 ```powershell
-py -3.11 --version
+$env:Path = "$env:ProgramFiles\GitHub CLI;$env:Path"
+gh --version
 ```
 
-Expect `Python 3.11` followed by a patch version. If either command fails, complete
-its installation before continuing. If you already use another supported Python
-version, replace `-3.11` consistently in this guide with that version, for example
-`-3.12`; first verify that `py -3.12 --version` works.
+**macOS:** with [Homebrew](https://brew.sh/) installed, Terminal runs:
+
+```bash
+brew install git python gh
+git --version
+python3 --version
+gh --version
+```
+
+**Linux:** the collaborator installs Git and Python 3.11+ using the distribution's
+package manager and GitHub CLI using its
+[official installation instructions](https://github.com/cli/cli#installation),
+then runs the same three version checks as macOS. Some distributions also require
+their Python `venv` package.
+
+### Sign in to GitHub
+
+In the same terminal, on either platform:
+
+```text
+gh auth login
+```
+
+The collaborator chooses **GitHub.com**, **HTTPS**, and **browser sign-in**, using
+the account granted access to this repository. If asked to authenticate Git with
+the GitHub credentials, the collaborator chooses **Yes**.
+
+The terminal displays a one-time code. The collaborator copies that code into the
+browser's **Authorize your device** page, approves **GitHub CLI**, and waits for
+the terminal's authentication-success message. The code comes from the terminal,
+not email; GitHub Desktop is not required. An expired code requires another
+`gh auth login` attempt. Sign-in is checked with:
+
+```text
+gh auth status
+```
 
 ### Download the project
 
-Keep using the **same PowerShell window**. First, move into your Downloads folder:
+**For a new local copy**, the collaborator runs the matching block, one line at
+a time. The clone command runs only when the destination folder does not exist.
+
+**Windows PowerShell:**
 
 ```powershell
 Set-Location -LiteralPath (Join-Path $HOME 'Downloads')
-```
-
-`$HOME` means your Windows user folder; leave it exactly as written. This command
-changes the folder where subsequent commands run. The prompt should now end in
-`\Downloads>`. Next, download the project:
-
-```powershell
 git clone https://github.com/ciciiiyaoyf/la_housing_database.git
+Set-Location -LiteralPath 'la_housing_database'
 ```
 
-Wait for the download to finish and the PowerShell prompt to return. GitHub may
-open a sign-in window; sign in with the account granted access to this repository.
-A “repository not found” message can mean your account lacks permission. Ask the
-project owner for access before retrying. GitHub's
-[cloning guide](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
-and [sign-in guidance](https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git)
-explain that process.
+**macOS/Linux Terminal:**
 
-After a successful download, enter the new project folder:
-
-```powershell
-Set-Location -LiteralPath '.\la_housing_database'
+```bash
+cd "$HOME/Downloads"
+git clone https://github.com/ciciiiyaoyf/la_housing_database.git
+cd la_housing_database
 ```
-
-The prompt should end in `\Downloads\la_housing_database>`. This is the
-**project folder** used throughout this guide. In File Explorer, you can find
-the same folder by opening **Downloads → la_housing_database**.
-
-If the folder already exists, use that copy instead of repeating `git clone`.
-Return to it as described below, then continue setup or follow
-[step 8](#8-update-an-existing-copy) to update it.
 
 ### Return to the project folder in PowerShell
 
-**Use this whenever you reopen PowerShell after cloning.** Opening File Explorer
-does not change PowerShell's current folder. For the Downloads location used above,
-paste this into PowerShell and press Enter:
+**For an existing copy**, or after reopening a terminal, the collaborator enters
+the existing project instead of cloning again. A different clone location
+replaces the example path.
+
+**Windows PowerShell:**
 
 ```powershell
 Set-Location -LiteralPath (Join-Path $HOME 'Downloads\la_housing_database')
-```
-
-If you saved the project somewhere else, open that folder in File Explorer,
-click its address bar, and copy its full path. In PowerShell, type
-`Set-Location -LiteralPath '`, paste the path, type the closing `'`, and press
-Enter. Keep the single quotes, especially if the path contains spaces.
-
-To check your location, enter:
-
-```powershell
 Get-Location
-```
-
-The result must be your `la_housing_database` folder. Then enter:
-
-```powershell
 Get-ChildItem -Name
 ```
 
-You should see `README.md`, `requirements.txt`, and `Open_Data_Browser.cmd`
-among the names. If they are missing, correct your location before step 2.
-Keep this PowerShell window open.
+**macOS/Linux Terminal:**
+
+```bash
+cd "$HOME/Downloads/la_housing_database"
+pwd
+ls
+```
+
+The folder listing must include `README.md`, `requirements.txt`, and
+`run_snapshot.py`. An older clone without `run_snapshot.py` needs the current
+project code. On its normal working branch, the collaborator runs:
+
+```text
+git status --short
+git pull --ff-only
+```
+
+The pull runs only if `git status --short` prints nothing. Local work is preserved
+and reconciled before proceeding; a failed pull is not bypassed by discarding
+files. A copy already checked out at a published release uses step 8 for later
+updates. The same terminal stays open for step 2.
 
 ## 2. Set up the project
 
-**Where to type:** in the **PowerShell window from step 1**, with its prompt ending
-in `\la_housing_database>`. If that window is closed, follow
-[Return to the project folder](#return-to-the-project-folder-in-powershell) first.
+The collaborator remains in `la_housing_database` in the terminal from step 1.
+A Python environment named `.venv` holds this project's packages. It is created
+once for each local copy; an existing working `.venv` can be reused.
 
-A Python *environment* is a folder containing the Python program and packages used
-by this project, including DuckDB's Python library and its separate SQL command-line
-client. Its name here is `.venv`. Set it up once for each new local copy.
-Follow the next four steps in order, entering each command **separately**.
-
-**A. Create the environment.** Copy this one line into PowerShell and press Enter:
+**Windows PowerShell:**
 
 ```powershell
 py -3.11 -m venv .venv
-```
-
-Wait for the prompt to return; this command may finish without printing a message.
-It creates `.venv` inside the project folder. Do not open or edit files inside it.
-
-**B. Update the package installer.** In the same PowerShell window, run:
-
-```powershell
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-```
-
-Wait for it to finish without an error. “Successfully installed” or
-“Requirement already satisfied” messages are normal.
-
-**C. Install the project's packages.** Still in the same window, run:
-
-```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-This step needs an internet connection and can take several minutes. It reads
-`requirements.txt`; you do not need to open that file or install its entries by
-hand. Wait for installation to finish before continuing.
-
-**D. Check that setup worked.** Run:
-
-```powershell
 .\.venv\Scripts\python.exe run_query.py --help
-```
-
-You should see help text starting with `usage:` and listing commands such as
-`catalog`, `observations`, and `table`. This checks the project's Python packages.
-Also check the DuckDB SQL program in the same PowerShell window:
-
-```powershell
 .\.venv\Scripts\duckdb.exe --version
 ```
 
-Expect a DuckDB version number. `requirements.txt` installs the official
-`duckdb-cli` package as well as the Python library; installing `duckdb` alone does
-not provide this executable. Neither check installs housing observations.
-Continue to step 3.
+**macOS/Linux Terminal:**
 
-The longer commands select Python from `.venv` directly. No separate environment
-activation or PowerShell execution-policy change is needed. Keep this window open
-for the database check in step 3.
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python run_query.py --help
+.venv/bin/duckdb --version
+```
+
+Each line runs separately and must finish successfully before the next line.
+Environment creation may be silent. The final two commands should show query-tool
+help and a DuckDB version. `requirements.txt` installs both DuckDB's Python library
+and its command-line client. These checks do not install housing observations.
+The terminal stays in the same folder for step 3; environment activation is not
+required because the commands name the environment's Python directly.
 
 ## 3. Get a local database
 
-The project uses **database snapshots**: complete database files published after
-validation. No snapshot is bundled with the Git clone. A publisher must create
-the first private release before automatic installation can succeed; adding the
-snapshot tools alone does not publish any data. Raw source archives are not
-included in a database release.
+This step receives a completed, validated snapshot. It does not run provider
+downloads or rebuild the database. GitHub authentication and Python setup were
+completed in steps 1–2, so no later section is a prerequisite.
 
-### Install a published snapshot
+**A. Check the available release.** All database sessions are closed. In the
+project folder, the collaborator runs the matching command:
 
-After steps 1–2, a collaborator completes the
-[one-time GitHub CLI setup](#one-time-setup-for-publishers-and-collaborators). From
-the project folder in **PowerShell**, the collaborator runs:
+**Windows PowerShell:**
 
 ```powershell
-.\.venv\Scripts\python.exe run_snapshot.py update
+.\.venv\Scripts\python.exe run_snapshot.py check
 ```
 
-The command installs the newest published `housing-db-` release at
-`database/housing.duckdb`, verifies its checksum and database structure, and
-requires the clean local Git revision to match the release's recorded revision.
-The [collaboration workflow](#collaborate-through-database-snapshots) explains
-later updates, local edits, and publisher responsibilities. macOS/Linux commands
-appear in the [Terminal walkthrough](#macos-and-linux).
+**macOS/Linux Terminal:**
 
-An existing database is preserved when its origin is unknown or its contents have
-changed locally. The tool does not overwrite that work. The
-[existing-database instructions](#existing-databases-and-local-changes) explain the
-next step. A missing release requires the publisher to complete a first release;
-recloning will not create one.
+```bash
+.venv/bin/python run_snapshot.py check
+```
 
-### Manually supplied snapshot alternative
+The result includes `latest_tag` and `validated_with_code_commit`. The first
+published release is **`housing-db-20260927-01`**. The commands below use that tag;
+if `check` reports a newer tag, the collaborator substitutes the reported tag in
+both the Git switch and snapshot download commands. If no release exists or
+authentication fails, the collaborator stops and resolves that error first.
 
-A maintainer may instead supply a compatible permitted database file. Its build
-information, coverage, and access restrictions must accompany it. The full
-research database may contain licensed HUD-USPS detail; private repository access
-does not itself confer redistribution permission. An existing manually supplied
-database can continue to use the direct DuckDB commands below without enrolling
-in automatic updates.
+**B. Select the release's matching code.** The README may be newer than the code
+used to validate the database. A successful `git pull` alone does not establish
+compatibility. The collaborator keeps this guide open on GitHub and runs:
+
+```text
+git status --short
+git fetch origin --tags
+git switch --detach housing-db-20260927-01
+```
+
+The fetch and switch run only after `git status --short` prints nothing. Existing
+uncommitted work is preserved and reconciled first. The switch selects the
+release's exact code in the same project folder. Git may describe this as a
+**detached HEAD**; this is expected for a selected release, and saved branches
+remain available. It does not make the database read-only. A contributor creates
+a named working branch before making code changes.
+
+**C. Install the selected code's packages and download its database.** Each line
+runs separately, using the same tag selected above.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe run_snapshot.py update --tag housing-db-20260927-01
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python run_snapshot.py update --tag housing-db-20260927-01
+```
+
+The updater downloads the database, verifies its checksum and structure, and
+installs it at **`database/housing.duckdb`**. A result of `installed`, `unchanged`,
+or `adopted` means this step succeeded. The active path stays the same on later
+updates. Raw source archives are not included. The collaborator proceeds directly
+to step 4 after success.
+
+An unknown or locally changed existing database is preserved and causes the
+updater to stop. After normal closure of its applications, that local work must
+be preserved separately before an intentional switch to the managed snapshot.
+A remaining `.wal` file stays with its database for recovery; it is never deleted
+to bypass the check. A failed update is not followed by opening a missing file.
+
+<details>
+<summary>Alternative: a maintainer supplies a database file manually</summary>
+
+This alternative is used instead of the automatic download when the maintainer
+has supplied a compatible, permitted file with its build information, coverage,
+and access restrictions. The full research database can contain licensed detail.
 
 ### Place the supplied file using File Explorer
 
-1. The collaborator opens **File Explorer** with **Windows key + E**, then opens
-   **Downloads → la_housing_database → database**, or the actual clone location.
-2. The collaborator locates the supplied file. For a ZIP archive, **Extract All**
-   exposes the actual `.duckdb` file. Its name must be exactly **`housing.duckdb`**.
-3. The collaborator copies the supplied file into the project's **database** folder. The result is
-   `la_housing_database\database\housing.duckdb`. The file stays directly in `database`,
-   without an extra containing folder. Any existing database must be preserved
-   before an intentional replacement; the maintainer identifies the correct snapshot.
+The collaborator extracts any ZIP archive and uses Windows File Explorer,
+macOS Finder, or Linux Files to place the file directly at
+`la_housing_database/database/housing.duckdb`, with no extra containing folder.
+An existing database is preserved before replacement. The file must be named
+exactly `housing.duckdb`.
 
 ### Check the database in PowerShell
 
-Switch back to **PowerShell**, in the project folder. If necessary, use
-[Return to the project folder](#return-to-the-project-folder-in-powershell).
-First, paste this command and press Enter:
+On Windows, `Test-Path -LiteralPath '.\database\housing.duckdb'` should return
+`True`. On macOS/Linux, `ls -lh database/housing.duckdb` should list the supplied
+file. A successful file check permits the direct local opening command in step 4.
+The maintainer confirms the file's compatible code version. Manual files do not
+automatically enroll in snapshot updates.
 
-```powershell
-Test-Path -LiteralPath '.\database\housing.duckdb'
-```
-
-Expect `True`. If it says `False`, check the folder and filename in File Explorer;
-do not continue until this check says `True`. Step 4 opens this exact database,
-and step 5 shows how to inspect its contents. If queries report missing tables or
-metadata, give that error to the maintainer and request a compatible snapshot.
-
-**To build from provider files instead**, follow
-[Database build and refresh](docs/database_build_and_refresh.md). This is a
-maintainer workflow with source archives, manual files, access requirements,
-and validation; it is not a one-command installation of the full snapshot.
-`--offline` needs existing archives, and the finance layers need frozen benchmark
-inputs. A one-source download does not build a complete working database.
+</details>
 
 ## 4. Open DuckDB and run your first query
 
-**Where to start:** in **Windows PowerShell**, in the project folder. If you
-closed it, follow [Return to the project folder](#return-to-the-project-folder-in-powershell).
-Complete steps 1–3 first. For an older checkout, rerun step 2's package-install
-command once to add the DuckDB command-line client.
+Step 3 must have succeeded. In the same project folder, the collaborator opens
+the installed database using the matching terminal command:
 
-Paste this **PowerShell command** and press Enter:
+**Windows PowerShell:**
 
 ```powershell
-.\.venv\Scripts\duckdb.exe -readonly .\database\housing.duckdb
+.\.venv\Scripts\duckdb.exe .\database\housing.duckdb
 ```
 
-DuckDB opens inside that window and displays a **`D` prompt**. You are now talking
-to DuckDB, so enter SQL rather than PowerShell commands. `-readonly` lets you
-inspect the supplied database without altering its tables. A missing file causes
-an error rather than creating an empty database.
+**macOS/Linux Terminal:**
 
-At the **DuckDB `D` prompt**, copy this entire SQL statement, including the final
-semicolon, and press Enter:
+```bash
+.venv/bin/duckdb database/housing.duckdb
+```
+
+DuckDB displays a **`D` prompt** inside that terminal. SQL goes at this prompt;
+PowerShell and shell commands do not. The local session permits writes. An
+optional `-readonly` flag before the file path provides a viewing-only session.
+Local database edits are not sent to collaborators and will block a later
+automatic replacement; permanent shared changes belong in reproducible Python
+or SQL contributions.
+
+At **`D`**, the collaborator runs:
 
 ```sql
 SELECT current_database() AS database_name;
 ```
 
-Expect a small table containing `housing`. Now paste this whole SQL block at `D`:
+The result should contain `housing`. The first data query is:
 
 ```sql
 SELECT date::DATE AS month, county_fips, zori
@@ -374,39 +378,34 @@ ORDER BY date DESC
 LIMIT 10;
 ```
 
-Expect up to ten LA County rows, with the most recent month first. `zori` is the
-Zillow Observed Rent Index in USD/month; a blank/null cell means the value is
-missing. The panel's `zori` column corresponds to variable ID `zori_smoothed_sa`.
-Your results depend on the installed snapshot. This query displays data directly
-from DuckDB; it does not create a CSV.
+The result contains up to ten LA County rows, most recent first. `zori` is the
+Zillow Observed Rent Index in USD/month; a blank/null cell remains missing. The
+panel column corresponds to variable ID `zori_smoothed_sa`. Results depend on the
+selected snapshot; the query does not export a CSV.
 
-SQL can span several lines. DuckDB waits until you finish the statement with `;`.
-After the result, another `D` prompt means it is ready for the next query. If a
-paste is incomplete, press **Ctrl+C** to cancel it and paste the complete query.
-Do not paste another launch command at `D`.
-
-When you want to return to PowerShell, enter this **DuckDB command**, with no
-semicolon, and press Enter:
+SQL statements finish with a semicolon. **Ctrl+C** cancels an incomplete statement.
+The session stays open for exploration in step 5. A collaborator stopping here
+can close the session and return to the terminal with:
 
 ```text
 .quit
 ```
 
-Continue with the full [DuckDB SQL guide](docs/duckdb_sql_guide.md) to explore the
-database, choose variables, check data quality, save queries, and use Python.
-It also explains [DuckDB's graphical table viewer and SQL editor](docs/duckdb_sql_guide.md#10-view-tables-in-duckdbs-graphical-interface).
+**Initial setup is complete.** Step 5 covers exploration. Steps 6–7 are optional
+uses of the installed database. Step 8 is for later releases, not an additional
+first-time requirement.
 
 ## 5. Find tables, datasets, and variables
 
-Reopen DuckDB using step 4 if you have exited it. At the **DuckDB `D` prompt**,
-first enter this display command and press Enter, **without a semicolon**:
+The collaborator continues in the DuckDB session from step 4. At the **DuckDB
+`D` prompt**, the following display command runs **without a semicolon**:
 
 ```text
 .mode table
 ```
 
-This prints the complete result instead of DuckDB's shortened preview. Now paste
-the whole SQL block below, including its final semicolon, and press Enter:
+This prints the complete result instead of DuckDB's shortened preview. The next
+SQL block runs at the same prompt, including its final semicolon:
 
 ```sql
 SELECT table_schema, table_name, table_type
@@ -415,10 +414,10 @@ WHERE table_catalog = current_database()
 ORDER BY table_schema, table_name;
 ```
 
-This lists **every table and view in every schema of the open database**. Scroll
-up in the terminal to see the beginning of the list; the output can extend beyond
-one screen. Maximize the window if long names wrap. After reading it, restore the
-usual compact display by entering this at **`D`**, without a semicolon:
+This lists **every table and view in every schema of the open database**. The
+output can extend beyond one screen; scrolling up reveals the beginning of the
+list, and a wider terminal helps with long names. The following command restores
+the usual compact display at **`D`**, without a semicolon:
 
 ```text
 .mode duckbox
@@ -429,8 +428,8 @@ tables; `analytics.county_monthly_panel` means the `county_monthly_panel` table
 inside the `analytics` schema. A *view* is a saved query presented like a table.
 A table's presence does not guarantee non-missing values for every variable/date.
 
-The [DuckDB SQL guide](docs/duckdb_sql_guide.md) is the main usage tutorial. Follow it
-in order to learn how to:
+The [DuckDB SQL guide](docs/duckdb_sql_guide.md) is the main usage tutorial. It
+explains, in order, how to:
 
 1. Inspect column names, data types, sample rows, and variable definitions.
 2. Select geography, frequency, Domain, Layer, Proxy, Constructed, units, and temporal type.
@@ -438,36 +437,77 @@ in order to learn how to:
 4. Check missingness and duplicate keys before joining tables or modeling.
 5. Reuse saved SQL and load its results directly into a Python DataFrame.
 
-Read the [data inventory](docs/data_inventory_and_limitations.md) when choosing a
-product, and its source/finance methods before interpreting modeled values.
+The [data inventory](docs/data_inventory_and_limitations.md) describes product
+choices and links to source/finance methods for interpreting modeled values.
+After exploration, `.quit` closes DuckDB and returns to the terminal.
 
 ## 6. Use query results for modeling
 
+This section is optional after initial setup. The first example reads the
+installed snapshot. Source refresh is a separate publisher workflow afterward;
+its inputs are not supplied by a database download.
+
+### Load model inputs from DuckDB
+
+The collaborator can load the installed snapshot into Python without a CSV.
+The repository includes a small, reproducible example:
+
+- [sql/model_input.sql](sql/model_input.sql) selects LA County monthly rent data.
+- [scripts/load_model_data.py](scripts/load_model_data.py) runs that query against
+  the local database and returns a pandas DataFrame, a table in Python memory.
+
+The collaborator closes DuckDB with `.quit` and runs the matching command in
+the project folder. **Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe scripts/load_model_data.py
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python scripts/load_model_data.py
+```
+
+The program prints the result's size and a preview; it does not fit a forecasting
+model, fill missing values, or modify the database. The
+[modeling section of the SQL guide](docs/duckdb_sql_guide.md#8-use-the-query-result-in-python)
+explains how to use the function in an analysis and change the saved query.
+
+For forecasting, historical observation dates alone do not establish what was
+known at a past forecast date. Provider revisions, release dates, finance cutoffs,
+missing months, and model-training periods matter. The
+[forecasting guidance](docs/duckdb_sql_guide.md#9-prepare-for-forecasting-without-using-future-information)
+describes these considerations before a training sample is created.
+
 ### Refresh the data before modeling
 
-**For a whole-project update before modeling, use `run_system_refresh.py`.**
+**Publisher maintenance only.** This source-acquisition workflow requires the
+source archives and permissions described below. It is not a collaborator setup
+step; a collaborator needing newer inputs receives a newly published snapshot
+through step 8 before choosing the analysis sample.
+
+**The whole-project update command is `run_system_refresh.py`.**
 It refreshes the configured general sources and tables, rebuilds finance B,
 builds or validates the finance C cutoff, and validates the integrated database.
 `run_pipeline.py --stage refresh` is the narrower choice for general data only;
-it does not recompute finance B/C. Choose one workflow, rather than running both.
+it does not recompute finance B/C. The publisher chooses one workflow.
 
 The whole-project command requires a **fully provisioned research workspace**:
 installed packages, existing source archives, permitted
 source access, and the frozen finance A files. A supplied DuckDB snapshot by itself
-does not include these prerequisites; follow the
+does not include these prerequisites. The
 [complete refresh guide](docs/database_build_and_refresh.md#refresh-everything-before-modeling)
-if you are setting up acquisition for the first time.
+describes acquisition setup for a new publisher workspace.
 
-First exit **every DuckDB session** with `.quit`, including the terminal running
-DuckDB's graphical interface. Stop the CSV Data Browser with **Ctrl+C** in its
-terminal, and close Python connections to the database. Closing a web-browser tab
-alone does not stop either server.
+First, the publisher closes **every DuckDB session** with `.quit`, including the
+terminal running DuckDB's graphical interface, stops the CSV Data Browser with
+**Ctrl+C** in its terminal, and closes Python database connections. Closing a
+web-browser tab alone does not stop either server.
 
-**Where to type:** in **Windows PowerShell** or **macOS Terminal**, inside the
-`la_housing_database` project folder. On Windows, use
-[Return to the project folder](#return-to-the-project-folder-in-powershell) if needed;
-on macOS, use the [Terminal walkthrough](#macos-and-linux). Run only the command
-for your operating system, then wait for the prompt to return.
+**Where the command runs:** in **Windows PowerShell** or **macOS/Linux Terminal**,
+inside the existing `la_housing_database` project folder. The publisher runs only
+the command for the matching operating system and waits for the prompt to return.
 
 **Windows PowerShell — whole-project update:**
 
@@ -482,12 +522,13 @@ for your operating system, then wait for the prompt to return.
 ```
 
 The default finance C information cutoff is **today's UTC date**. To choose a
-specific cutoff, follow the guide's `--information-cutoff` instructions. Existing
+specific cutoff, the publisher uses the guide's `--information-cutoff` instructions. Existing
 C vintages and frozen A remain preserved. Fixed source editions are checked within
 their configured scope; this command does not silently replace them with newer
 products or make unavailable manual inputs current.
 
-Immediately after the command finishes, check its exit code in the same window.
+Immediately after the command finishes, the publisher checks its exit code in
+the same window.
 
 **Windows PowerShell:**
 
@@ -508,12 +549,12 @@ echo $?
 | `1` | Refresh failed and may have updated only some products. Read the reported error and refresh reports; do not treat this as a completed update. |
 
 **The CSV Data Browser uses this refreshed database too.** After a successful
-refresh, reopen it and use the new page, or reload an existing tab, to load current
-dataset and filter choices. Previews and CSV downloads read the database at the
-time you request them; there is no separate browser update command. Previously
-downloaded CSVs remain saved copies. Follow the
+refresh, reopening the browser and using the new page, or reloading an existing
+tab, loads current dataset and filter choices. Previews and CSV downloads read
+the database at the time of the request; there is no separate browser update
+command. Previously downloaded CSVs remain saved copies. The
 [Windows/macOS reopening steps](docs/database_build_and_refresh.md#use-the-refreshed-data-in-the-csv-browser)
-to download updated data.
+explain how to download updated data.
 
 The complete [dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
 is directly in the refresh guide. It lists all **73 configured datasets, finance
@@ -531,10 +572,10 @@ successful ZIP acquisition does not clear it. See
 [Redfin downloads](docs/database_build_and_refresh.md#redfin-downloads) for the
 current source status and the independent ZIP refresh.
 
-If you deliberately want **only the general sources and tables**, use the
+For **only the general sources and tables**, the publisher can choose the
 following alternative. It includes cleaning, rebuilding, validation, and exports,
-but leaves finance B/C unrecomputed. Do not run it before or after the
-whole-project command as an additional setup step.
+but leaves finance B/C unrecomputed. It is an alternative to the whole-project
+command, not an additional setup step.
 
 **Windows PowerShell — general data only:**
 
@@ -569,41 +610,14 @@ also covers individual-source updates. A successful complete refresh already
 includes cleaning; separate cleaning commands are for the documented maintenance
 workflow.
 
-### Load model inputs from DuckDB
-
-You can move data directly from DuckDB into Python, without downloading a CSV.
-The repository includes a small, reproducible example:
-
-- [sql/model_input.sql](sql/model_input.sql) selects LA County monthly rent data.
-- [scripts/load_model_data.py](scripts/load_model_data.py) runs that query against
-  the local database and returns a pandas DataFrame, a table in Python memory.
-
-**Where to run it:** in **PowerShell**, in the project folder. If the window shows
-DuckDB's `D` prompt, enter `.quit` first. Then run:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/load_model_data.py
-```
-
-The program prints the result's size and a preview; it does not fit a forecasting
-model, fill missing values, or modify the database. The
-[modeling section of the SQL guide](docs/duckdb_sql_guide.md#8-use-the-query-result-in-python)
-explains how to use the function in your own analysis and change the saved query.
-
-For forecasting, historical observation dates alone do not establish what was
-known at a past forecast date. Provider revisions, release dates, finance cutoffs,
-missing months, and model-training periods matter. Read the
-[forecasting guidance](docs/duckdb_sql_guide.md#9-prepare-for-forecasting-without-using-future-information)
-before creating a training sample.
-
 ## 7. CSV downloads as an alternative
 
-If you prefer to inspect data in Excel or share permitted tables as files, use the
-[step-by-step CSV browser tutorial](docs/query_and_export_commands.md#browser-downloads).
-It explains where to double-click `Open_Data_Browser.cmd`, how to choose a whole
-dataset or selected variables, where the files are saved, and how to import them into
-Excel without losing leading zeros. The same guide covers saved command-line
-exports and their companion variable definitions.
+For inspecting data in Excel or sharing permitted tables as files, the
+[step-by-step CSV browser tutorial](docs/query_and_export_commands.md#browser-downloads)
+provides Windows launcher and macOS/Linux Terminal instructions. It explains
+how to choose a whole dataset or selected variables, where files are saved, and
+how to import them into Excel without losing leading zeros. The same guide covers
+saved command-line exports and their companion variable definitions.
 
 This is an alternative interface to the local database. SQL queries and Python
 modeling do not require a CSV export first. The browser does not fetch new provider
@@ -611,54 +625,69 @@ releases or install a missing database.
 
 ## 8. Update an existing copy
 
-Use this when you already have the project and want the latest programs and
-documentation. You do not need to clone a second copy.
+This step is used later, when the collaborator wants a newer published database.
+The existing folder and `.venv` are reused. An existing publisher instead keeps
+the build workspace on its working branch and follows the publisher sequence
+below; downloading over that built database is not a refresh procedure.
 
-1. Close any DuckDB SQL session with `.quit`. If you also have the CSV browser
-   running, click its terminal window and press **Ctrl+C**; closing only its browser
-   tab does not stop the program. Close Python sessions connected to the database.
-2. Open **Windows PowerShell** from Start and
-   [return to the project folder](#return-to-the-project-folder-in-powershell).
-3. In that PowerShell window, check for local file changes:
+**A. Close active sessions and enter the project folder.** DuckDB closes with
+`.quit`; the Data Browser stops with **Ctrl+C** in its terminal; Python database
+connections close normally. Closing a browser tab alone does not stop a server.
+
+**Windows PowerShell:**
 
 ```powershell
+Set-Location -LiteralPath (Join-Path $HOME 'Downloads\la_housing_database')
 git status --short
+.\.venv\Scripts\python.exe run_snapshot.py check
 ```
 
-If it prints nothing and returns to the prompt, there are no local Git changes.
-If it lists files, stop and ask the maintainer to help preserve and reconcile those
-changes before updating. Local databases and generated exports are excluded from
-Git, so they normally do not appear in this list.
+**macOS/Linux Terminal:**
 
-4. If that check is clear, download the latest project changes:
-
-```powershell
-git pull --ff-only
+```bash
+cd "$HOME/Downloads/la_housing_database"
+git status --short
+.venv/bin/python run_snapshot.py check
 ```
 
-Wait for a successful update summary or `Already up to date.` If Git refuses the
-update, stop and retain its error message for the maintainer; do not discard local
-work to force it through.
+The collaborator preserves and reconciles any code changes before proceeding.
+The check reports the newest `latest_tag`. If the installed file already matches
+the desired release, a new download is unnecessary. Local database edits must be
+preserved separately before replacement; they are not listed by `git status`.
 
-5. After a successful update, update the installed packages in the same window:
+**B. Fetch and select the reported release.** These commands are the same on both
+platforms. The example tag is replaced with the `latest_tag` just reported:
+
+```text
+git fetch origin --tags
+git switch --detach housing-db-20260927-01
+```
+
+A release checkout uses fetch/select rather than `git pull`, because it names a
+specific published version. Existing contribution branches remain available.
+
+**C. Update packages and open the matching snapshot.** The same reported tag is
+used in the command below, with each line run separately.
+
+**Windows PowerShell:**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe run_snapshot.py open --tag housing-db-20260927-01
 ```
 
-After package installation succeeds, **`git pull` has updated code and
-documentation, but has not refreshed housing observations**. A collaborator using
-published releases installs the matching snapshot with:
+**macOS/Linux Terminal:**
 
-```powershell
-.\.venv\Scripts\python.exe run_snapshot.py update
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python run_snapshot.py open --tag housing-db-20260927-01
 ```
 
-A provisioned publisher workspace instead follows
-[Refresh the data before modeling](#refresh-the-data-before-modeling) before
-publishing a completed build. A manually supplied database can continue through
-the manual file handoff. Database sessions reopen only after the chosen update
-finishes. The workflow below distinguishes these roles.
+`open` verifies and installs the requested release before starting a writable
+DuckDB session. Replacing `open` with `update` installs without starting a session.
+The active file stays at `database/housing.duckdb`; the previous managed version
+is retained as one backup. Changes appear after a publisher releases a completed
+build and the collaborator runs this update sequence.
 
 ## Collaborate through database snapshots
 
@@ -676,64 +705,33 @@ databases or merge independent database edits.
 
 ### One-time setup for publishers and collaborators
 
+Required tool installation and GitHub authentication are already included in
+step 1, before cloning or downloading. Python setup is step 2. There are no
+additional collaborator setup commands hidden in this reference section.
+
 The repository owner keeps the configured repository private and confirms that
-every repository reader is authorized to receive the full database, including any
-licensed detail. [config/database_sharing.yaml](config/database_sharing.yaml)
-selects the repository, release prefix, and local paths. Publication refuses a
-public repository. The sharing acknowledgement confirms the operator's audience
-review; it does not grant data rights or sanitize the database.
-
-Both roles complete the Python setup above and install **GitHub CLI** in addition
-to Git. On **Windows PowerShell**, the installation command is:
-
-```powershell
-winget install --id GitHub.cli --exact
-```
-
-On **macOS Terminal**, with Homebrew installed:
-
-```bash
-brew install gh
-```
-
-Linux installations and alternatives are listed in the official
-[GitHub CLI installation guide](https://github.com/cli/cli#installation). A newly
-opened terminal then runs these commands, separately, on either platform:
-
-```text
-gh --version
-gh auth login
-gh auth status
-```
-
-Each person signs in to GitHub.com using that person's own account with repository
-access; the publisher additionally needs release-writing permission. Browser
-authentication is supported by [GitHub CLI](https://cli.github.com/manual/gh_auth_login).
-Credentials remain in the CLI's credential storage, outside project files.
+every repository reader may receive the included data. Repository membership does
+not grant redistribution rights. `config/database_sharing.yaml` selects the
+repository and snapshot paths. Credentials remain in GitHub CLI authentication
+storage, outside the project. The publisher additionally needs release-writing
+permission and a provisioned source/build workspace.
 
 ### Publisher: first release and every later update
 
-1. The publisher integrates reviewed code contributions and builds the intended
-   database using the [build and refresh guide](docs/database_build_and_refresh.md).
-   The command depends on the change and available source inputs. The existing
-   Redfin county refresh hold remains in force; a blocked all-source refresh is
-   not a successful complete refresh. A release of an existing validated snapshot
-   must describe that snapshot's actual coverage rather than claim new ingestion.
-2. The publisher closes database applications and runs the verification commands
-   below **before the final review and commit**. Pipeline validation regenerates
-   tracked `metadata/source_coverage.csv` and may update the database's QA tables.
-   The resulting metadata changes belong in the review; they must not be reverted
-   merely to obtain a clean checkout.
-3. The publisher reviews and commits the relevant code, configuration, and
-   metadata changes, then pushes the commit to the configured repository. The
-   working tree must be clean. Unrelated local work must be preserved and resolved
-   before publishing. The publisher closes DuckDB, Python connections, and the
-   Data Browser before packaging.
-4. From the project folder, the publisher runs the platform's publish command below.
-   `housing-db-20260927-01` is an example; each release needs a new tag using the
-   current date and an incremented suffix for additional releases that day.
+**A. Integrate and build.** In the existing build workspace, the publisher
+integrates reviewed code contributions and builds the intended database using
+the [build and refresh guide](docs/database_build_and_refresh.md). The command
+depends on the change and available source inputs. The existing Redfin county
+refresh hold remains in force; a blocked all-source refresh is not a successful
+complete refresh. A release of an existing validated snapshot must describe that
+snapshot's actual coverage rather than claim new ingestion.
 
-**Verification before the final commit — Windows PowerShell:**
+**B. Validate before the final review and commit.** The publisher closes DuckDB
+with `.quit`, stops the Data Browser with **Ctrl+C** in its terminal, and closes
+Python database connections. The following commands run in the project folder,
+one at a time, stopping on any failed check.
+
+**Windows PowerShell:**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests
@@ -741,7 +739,7 @@ Credentials remain in the CLI's credential storage, outside project files.
 git status --short
 ```
 
-**Verification before the final commit — macOS/Linux Terminal:**
+**macOS/Linux Terminal:**
 
 ```bash
 .venv/bin/python -m pytest -q tests
@@ -749,20 +747,38 @@ git status --short
 git status --short
 ```
 
-Each command runs separately and the publisher stops on any failed check. After
-reviewing, committing, and pushing the changes, the publisher proceeds with the
-appropriate command below.
+Pipeline validation regenerates tracked `metadata/source_coverage.csv` and may
+update the database's QA tables. The resulting metadata changes belong in the
+review; they must not be reverted merely to obtain a clean checkout.
+
+**C. Review, commit, and push.** The publisher reviews the relevant code,
+configuration, and metadata changes, stages the intended files, commits them,
+and pushes the working branch to the configured repository. Unrelated local work
+is preserved and resolved before publishing. After the push, the following
+command must print nothing:
+
+```text
+git status --short
+```
+
+If there are no changes to commit, the publisher confirms that the existing
+commit has already been pushed. Database applications remain closed.
+
+**D. Publish a new release.** From the same project folder, the publisher runs
+the matching command below. `housing-db-20260927-02` is an example; each release
+needs a new tag using the current date and an incremented suffix for additional
+releases that day. The already published `housing-db-20260927-01` is not reused.
 
 **Windows PowerShell:**
 
 ```powershell
-.\.venv\Scripts\python.exe run_snapshot.py publish --tag housing-db-20260927-01 --acknowledge-authorized-sharing
+.\.venv\Scripts\python.exe run_snapshot.py publish --tag housing-db-20260927-02 --acknowledge-authorized-sharing
 ```
 
 **macOS/Linux Terminal:**
 
 ```bash
-.venv/bin/python run_snapshot.py publish --tag housing-db-20260927-01 --acknowledge-authorized-sharing
+.venv/bin/python run_snapshot.py publish --tag housing-db-20260927-02 --acknowledge-authorized-sharing
 ```
 
 `publish` runs `pytest` and `run_pipeline.py --stage validate` against the existing
@@ -783,83 +799,24 @@ the collaborator's temporary download staging. An upload failure can leave a dra
 release for inspection; it must not be reported as a successful publication.
 
 For local review without an upload, the publisher can replace `publish` and its
-acknowledgement with `prepare --tag housing-db-20260927-01`. This still runs the
+acknowledgement with `prepare --tag housing-db-20260927-02`. This still runs the
 validation gates and requires a clean committed checkout. Preparation alone does
 not make a release available to collaborators. It retains a package for that tag;
 a later publish command uses a new unused tag rather than overwriting the prepared
-package, for example a suffix of `-02` after a preparation ending in `-01`.
+package, for example a suffix of `-03` after a preparation ending in `-02`.
 
 ### Collaborator: first download and every later update
 
-1. The collaborator closes all sessions using `database/housing.duckdb`, including
-   Python, DuckDB, and the Data Browser. Local code work is saved, committed, and
-   reconciled through Git before updating; generated database edits are handled
-   separately as described below.
-2. From the project folder, the collaborator checks `git status --short`. Once the
-   working tree is clean, the collaborator runs `git pull --ff-only`, then the
-   platform's package-install command from step 2. A divergent branch requires
-   normal Git reconciliation rather than discarding local work. The snapshot
-   installer never changes Git branches or discards files to force a match.
-3. The collaborator runs one of the following commands. The first run downloads
-   the published database; later runs reuse the local file when its checksum is
-   unchanged. `open` checks for a new
-   snapshot, installs it when needed, and starts DuckDB in the same terminal.
+The complete first-time sequence is steps 1–4 above. Step 8 contains the complete
+later-update sequence. This reference section adds no required actions after
+either sequence.
 
-**Windows PowerShell:**
-
-```powershell
-.\.venv\Scripts\python.exe run_snapshot.py open
-```
-
-**macOS/Linux Terminal:**
-
-```bash
-.venv/bin/python run_snapshot.py open
-```
-
-At DuckDB's `D` prompt, SQL statements run as in step 4; `.quit` returns to the
-terminal. The default local session permits edits. `open --read-only` is an
-optional viewing mode that prevents accidental local changes; it does not alter
-GitHub collaborator permissions. Direct local changes stay on that computer and
-cause later replacement to be refused. Durable shared changes belong in reviewed
-Python or SQL scripts so a publisher can reproduce them in the next build.
-The `open` command needs the DuckDB CLI included in `requirements.txt`. If it is
-missing, the collaborator reruns the platform's package-install command; the
-snapshot command stops before installation rather than starting without a client.
-
-Replacing `open` with `update` installs the snapshot without launching DuckDB.
-`check` reads the remote manifest without downloading or installing the database;
-it reports the required code revision even when local code does not match.
-`status` reports local installation state without contacting GitHub. An optional
-`--tag housing-db-20260927-01` on `check`, `update`, or `open` selects a particular
-release. The clean local Git commit must equal that release's
-`validated_with_code_commit`; a newer unrelated code revision is not automatically
-compatible. A mismatch reports the needed revision. A collaborator retaining an
-older release can use a separate checkout at its recorded commit after preserving
-local work. If the main branch has advanced since the most recent snapshot, a
-successful `git pull` alone may still leave a mismatch. The publisher can publish
-a snapshot validated with the new code; otherwise the collaborator selects the
-existing release's code. For example, a separate Git worktree avoids switching or
-discarding the working branch:
-
-```text
-git fetch origin --tags
-git worktree add --detach ../la_housing_database_snapshot housing-db-20260927-01
-cd ../la_housing_database_snapshot
-```
-
-The example tag must be replaced by the tag reported by `check`, and the new
-folder name must be unused. The collaborator then enters that folder, repeats
-the Python environment and package setup there, and runs `run_snapshot.py open`
-with that environment's Python. This is an optional compatibility checkout, not
-a new download folder created on every snapshot update. Normal contributions
-continue in the collaborator's working branch; a detached checkout is for using
-the matching published snapshot.
-
-There is no background scheduler. An update check happens when `check`, `update`,
-or `open` runs. `open` checks before starting the session; it does not interrupt an
-existing session. A collaborator who launches DuckDB directly continues using the
-currently installed file until an update command runs.
+The clean code checkout must match the selected release's recorded revision.
+Documentation on `main` can be newer than the latest database; selecting the
+reported release tag before installation handles that difference without another
+project folder or a forced reset. There is no background scheduler or live
+database merge. A local writable session permits experiments; shared changes
+enter the next build through reproducible code contributions.
 
 ### Contributing changes to the shared database
 
@@ -908,15 +865,15 @@ remains in place until recovery succeeds; it is not a substitute for backups.
 
 ## Troubleshooting
 
-| What you see | What to do |
+| Symptom | Resolution |
 |---|---|
-| `'Set-Location'`, `'Get-Location'`, `'Test-Path'`, or `'$HousingPython'` is not recognized as a command | You are using Command Prompt. Enter `powershell`, press Enter, and confirm the prompt starts with `PS` before retrying the guide's PowerShell commands. |
+| `'Set-Location'`, `'Get-Location'`, or `'Test-Path'` is not recognized as a command | Command Prompt is open. The collaborator enters `powershell` and confirms the prompt starts with `PS` before retrying the guide's PowerShell commands. |
 | `git` or `py` is not recognized | Install the tool, reopen PowerShell, and repeat the version check. |
 | `pymanager` is not recognized | This command requires the Python install manager. Complete its installation and reopen PowerShell; if Python 3.11 is already installed, use the version check in step 1 instead. |
-| A prompt showing `>>>` | You opened Python. Enter `exit()` and press Enter, then open Windows PowerShell from Start. |
+| A prompt showing `>>>` | Python is open. The collaborator enters `exit()` and then opens Windows PowerShell from Start or Terminal on macOS/Linux. |
 | A prompt showing `>>` after pasting | PowerShell is waiting for the rest of an incomplete command. Press Ctrl+C, then copy the complete command again, including both closing quotes and parentheses. |
-| Cannot find `requirements.txt` or `run_query.py` | You are probably in the wrong folder. Follow [Return to the project folder](#return-to-the-project-folder-in-powershell), then retry the failed command. |
-| Clone destination already exists | Use the existing project folder and step 8. |
+| Cannot find `requirements.txt` or `run_query.py` | The terminal is probably in the wrong folder. The collaborator follows [Return to the project folder](#return-to-the-project-folder-in-powershell), then retries the failed command. |
+| Clone destination already exists | The collaborator enters the existing folder and continues with step 2. Step 8 applies only after initial setup is complete. |
 | Python environment is missing | Run step 2 inside the project folder. |
 | Package installation reports an error | Stop before the next step. Check the internet connection and Python version; give the complete error to the maintainer if retrying does not resolve it. |
 | Database not found | Complete step 3; cloning alone does not provide the database. |
@@ -936,164 +893,9 @@ remains in place until recovery succeeds; it is not a substitute for backups.
 | Snapshot refuses an unmanaged or locally changed database | The local file is preserved. The collaborator follows the existing-database instructions before intentionally switching, or keeps using that working copy. |
 | Snapshot reports an active database or WAL | Applications close normally before retrying. A remaining WAL is retained with its database for recovery, never deleted to bypass the check. |
 
-When asking for help, include the step number, the command you entered, and the
-full error text. A screenshot can help for a browser or File Explorer problem.
-Keep the original message so the maintainer can identify the cause.
-
-## macOS and Linux
-
-<details>
-<summary>Open the Terminal walkthrough for macOS/Linux</summary>
-
-Use this section instead of the Windows setup and update commands. The SQL
-statements in step 4 and the DuckDB SQL guide are the same on these platforms.
-
-**Where to type:** on macOS, press **Command+Space**, type **Terminal**, and press
-Return. On Linux, open **Terminal** from your applications menu. Use that window
-for the commands below, one line at a time, pressing Return/Enter and waiting for
-the prompt after each. Do not enter the Windows `Set-Location`, `py`, or `.exe`
-commands in this Terminal.
-
-Install Git and Python 3.11 or newer using the official
-[Git downloads](https://git-scm.com/downloads) and
-[Python downloads](https://www.python.org/downloads/), or your Linux distribution's
-package manager. Check them in Terminal:
-
-```bash
-git --version
-```
-
-```bash
-python3 --version
-```
-
-Continue only if both work and the second shows Python 3.11 or newer. Some Linux
-distributions provide the Python `venv` component separately; install that
-component using the distribution's package manager if environment creation below
-reports that it is missing.
-
-For a new copy, move into Downloads, clone the project, then enter its folder.
-Before cloning this private repository, configure **Git Credential Manager** or
-**GitHub CLI** by following [GitHub's sign-in setup for your platform](https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git).
-Git alone on macOS/Linux may not include a browser sign-in helper. Use the account
-granted repository access. Then run these three commands separately:
-
-```bash
-cd "$HOME/Downloads"
-```
-
-```bash
-git clone https://github.com/ciciiiyaoyf/la_housing_database.git
-```
-
-```bash
-cd la_housing_database
-```
-
-For an existing copy or a newly opened Terminal, enter this instead of cloning
-again. Replace the path if you saved the project somewhere else:
-
-```bash
-cd "$HOME/Downloads/la_housing_database"
-```
-
-Type `pwd` and press Enter to check the current folder. Type `ls` and press Enter;
-you should see `README.md`, `requirements.txt`, and `run_query.py`. In this project
-folder, run each setup command separately:
-
-```bash
-python3 -m venv .venv
-```
-
-```bash
-.venv/bin/python -m pip install --upgrade pip
-```
-
-```bash
-.venv/bin/python -m pip install -r requirements.txt
-```
-
-```bash
-.venv/bin/python run_query.py --help
-```
-
-Environment creation may be silent; package installation prints progress. Wait
-for completion without errors. The last command should show query-tool help.
-
-For published releases, the collaborator completes the
-[one-time GitHub CLI setup](#one-time-setup-for-publishers-and-collaborators), then
-runs the following from the project folder in **Terminal**:
-
-```bash
-.venv/bin/python run_snapshot.py update
-```
-
-The publisher must have created the first release, and the collaborator's clean
-code revision must match it. The file is installed directly at
-`database/housing.duckdb`. The
-[collaboration workflow](#collaborate-through-database-snapshots) covers later
-updates and preservation of local edits. For the manual alternative, the
-collaborator uses **Finder** or the Linux **Files** application to place a permitted
-snapshot at that same path, following step 3's requirements.
-
-The catalog check in Terminal is:
-
-```bash
-.venv/bin/python run_query.py catalog --variable zori_smoothed_sa
-```
-
-Expect the rent variable's metadata. Once that works, open DuckDB from the same
-Terminal:
-
-```bash
-.venv/bin/duckdb -readonly database/housing.duckdb
-```
-
-At DuckDB's `D` prompt, use the SQL in step 4 and the
-[DuckDB SQL guide](docs/duckdb_sql_guide.md). Enter `.quit` to return to Terminal.
-Before modeling on a provisioned workspace, close all database connections and
-follow [Refresh the data before modeling](#refresh-the-data-before-modeling).
-That section provides paired Windows/macOS commands, recommends the whole-project
-workflow, and explains exit codes and the current county-source hold. Use its
-**macOS Terminal** blocks here. See the
-[dataset update schedule](docs/database_build_and_refresh.md#dataset-update-schedule)
-for the full list and source-specific actions. Once you have reviewed the refresh
-result, run the modeling example:
-
-```bash
-.venv/bin/python scripts/load_model_data.py
-```
-
-The CSV browser is an alternative described in the
-[CSV guide](docs/query_and_export_commands.md#browser-downloads). Its Windows
-`.cmd` launcher is not used on macOS/Linux; that guide supplies a Python command.
-
-For later updates, exit DuckDB with `.quit`, return to the project folder with `cd`, then
-run `git status --short`. Continue only if it lists no local changes. Run these
-two commands separately, stopping if any fails:
-
-```bash
-git pull --ff-only
-```
-
-```bash
-.venv/bin/python -m pip install -r requirements.txt
-```
-
-These commands update programs and packages. A collaborator using private
-database releases then runs:
-
-```bash
-.venv/bin/python run_snapshot.py open
-```
-
-This checks for and installs the matching snapshot before starting a local
-writable DuckDB session. `open --read-only` is available for viewing, and `update`
-installs without opening a session. A provisioned publisher instead follows the
-documented refresh/build steps, then publishes the validated result. A manually
-supplied file can continue through the manual handoff alternative.
-
-</details>
+When asking for help, the collaborator includes the step number, the command
+entered, and the full error text. A screenshot can help for a browser or File
+Explorer problem. The original message helps the maintainer identify the cause.
 
 ## Where to find things
 
@@ -1139,7 +941,7 @@ which contains 559 IDs. The generated Excel catalog is `metadata/data_catalog.xl
 in a local build.
 [Source coverage](metadata/source_coverage.csv) and the
 [dataset inventory](metadata/analytical_dataset_inventory.csv) describe the
-maintained build. Check your local database for the data you actually have.
+maintained build. The local database's contents determine which data are available.
 
 The [housing finance guide](docs/housing_finance_versions.md) compares Versions A/B/C.
 Historical workbooks and previews from the former `outputs/` folder are retained
