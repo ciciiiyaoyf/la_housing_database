@@ -11,7 +11,9 @@ Snapshot distribution checks cover manifest validation, private-release selectio
 checksum and schema verification, code-revision compatibility, preservation of
 unmanaged or modified local databases, active-file/WAL refusal, and a single
 backup during protected same-path installation. Release transport tests use
-controlled fixtures rather than uploading production data.
+controlled fixtures rather than uploading production data. Real subprocess
+fixtures also check UTF-8 GitHub output under a GBK default encoding, readable
+error messages, and controlled rejection of malformed UTF-8.
 
 Run from the project root:
 

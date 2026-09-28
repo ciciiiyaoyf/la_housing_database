@@ -145,7 +145,8 @@ def git_revision(root: Path, require_clean: bool = True) -> str:
     def git(*args: str) -> str:
         try:
             result = subprocess.run(["git", "-C", str(root), *args], check=True,
-                                    text=True, capture_output=True, timeout=30)
+                                    text=True, encoding="utf-8", errors="replace",
+                                    capture_output=True, timeout=30)
         except (OSError, subprocess.SubprocessError) as exc:
             raise SnapshotError("Git checkout unavailable; install Git and use the cloned project") from exc
         return result.stdout.strip()
@@ -178,15 +179,21 @@ class GhClient:
         environment["GH_HOST"] = "github.com"
         environment["GH_PROMPT_DISABLED"] = "1"
         try:
+            # GitHub CLI emits UTF-8 regardless of the Windows locale. Capture
+            # bytes so decoding cannot fail silently in subprocess reader threads.
             result = subprocess.run(["gh", *args], cwd=self.config.root, env=environment,
-                                    text=True, capture_output=True, timeout=1800, check=False)
+                                    capture_output=True, timeout=1800, check=False)
         except FileNotFoundError as exc:
             raise SnapshotError("GitHub CLI is missing. Install gh and run gh auth login once.") from exc
         except subprocess.TimeoutExpired as exc:
             raise SnapshotError("GitHub request timed out; installed data was not replaced. Retry when online.") from exc
         if result.returncode:
-            raise SnapshotError(f"GitHub command failed. Check gh auth status and repository access. {result.stderr.strip()}")
-        return result.stdout
+            diagnostic = result.stderr.decode("utf-8", errors="replace").strip()
+            raise SnapshotError(f"GitHub command failed. Check gh auth status and repository access. {diagnostic}")
+        try:
+            return result.stdout.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise SnapshotError("GitHub returned output that is not valid UTF-8") from exc
 
     def json(self, args: list[str]):
         try:

@@ -930,6 +930,7 @@ remains in place until recovery succeeds; it is not a substitute for backups.
 | No matching rows or variables | Reset filters, check coverage, and widen the date range. |
 | Restricted HUD-USPS download refused | Licensed detail is excluded from ordinary exports; select public measures. |
 | Snapshot tool cannot find `gh` or authenticate | The collaborator completes the one-time GitHub CLI setup and checks `gh auth status` with the repository-authorized account. |
+| Snapshot reports a GBK `UnicodeDecodeError` followed by a `NoneType` JSON error | The collaborator updates the project code to obtain the UTF-8 decoding fix. GitHub CLI responses use UTF-8 independently of the Windows display language; changing the system language is unnecessary. |
 | No published database snapshot found | The publisher must complete the first `run_snapshot.py publish` release. A Git clone alone does not include the database. |
 | Snapshot code revision mismatch | The collaborator preserves local code work, updates Git, and uses the exact clean revision recorded in the selected release. No forced reset is required. |
 | Snapshot refuses an unmanaged or locally changed database | The local file is preserved. The collaborator follows the existing-database instructions before intentionally switching, or keeps using that working copy. |

@@ -21,6 +21,7 @@ from src.distribution.common import (
     validate_manifest,
 )
 from src.distribution.update import install_snapshot
+from src.distribution import common as snapshot_common
 from src.distribution import publish as snapshot_publish
 from src.distribution import update as snapshot_update
 
@@ -115,6 +116,65 @@ def _snapshot(config: SnapshotConfig, version: int) -> tuple[Path, dict]:
 
 def _saved_state(config: SnapshotConfig) -> dict:
     return json.loads(config.state_path.read_text(encoding="utf-8"))
+
+
+def _github_bytes_under_gbk(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    stdout: bytes = b"",
+    stderr: bytes = b"",
+    returncode: int = 0,
+) -> None:
+    """Run an actual child process, while emulating Windows' GBK text default."""
+    real_run = subprocess.run
+    monkeypatch.setattr(subprocess, "_text_encoding", lambda: "gbk")
+    emitter = (
+        "import sys; "
+        f"sys.stdout.buffer.write({stdout!r}); "
+        f"sys.stderr.buffer.write({stderr!r}); "
+        f"sys.exit({returncode})"
+    )
+
+    def run(command, **kwargs):
+        if command[0] == "gh":
+            return real_run([sys.executable, "-c", emitter], **kwargs)
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(snapshot_common.subprocess, "run", run)
+
+
+def test_github_json_preserves_utf8_under_gbk_default(
+    snapshot_config: SnapshotConfig, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = {"commit": {"message": "Snapshot \u2014 \u66f4\u65b0\u6570\u636e"}}
+    _github_bytes_under_gbk(
+        monkeypatch, stdout=json.dumps(expected, ensure_ascii=False).encode("utf-8"),
+    )
+
+    assert snapshot_common.GhClient(snapshot_config).json(["api", "fixture"]) == expected
+
+
+def test_github_failed_command_decodes_utf8_diagnostics_under_gbk_default(
+    snapshot_config: SnapshotConfig, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    diagnostic = "Access denied \u2014 \u8bf7\u91cd\u65b0\u767b\u5f55"
+    _github_bytes_under_gbk(
+        monkeypatch, stderr=diagnostic.encode("utf-8") + b" \xff", returncode=1,
+    )
+
+    with pytest.raises(SnapshotError, match="GitHub command failed") as error:
+        snapshot_common.GhClient(snapshot_config).run(["api", "fixture"])
+    assert diagnostic in str(error.value)
+    assert "\ufffd" in str(error.value)
+
+
+def test_github_malformed_utf8_stops_with_controlled_error(
+    snapshot_config: SnapshotConfig, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _github_bytes_under_gbk(monkeypatch, stdout=b'{"message":"\xff"}')
+
+    with pytest.raises(SnapshotError, match="not valid UTF-8"):
+        snapshot_common.GhClient(snapshot_config).json(["api", "fixture"])
 
 
 def test_first_install_records_verified_snapshot(snapshot_config: SnapshotConfig) -> None:
