@@ -7,6 +7,63 @@ For optional CSV downloads, use the [Data Browser instructions](query_and_export
 The commands here rebuild or update local research products; they are not a
 complete database installation recipe for a fresh clone.
 
+## Pull the current code before refreshing
+
+The publisher follows this sequence **before** a new refresh, while the checkout
+is clean. It assumes the GitHub CLI installation and sign-in in README step 1
+are complete. The publisher closes DuckDB with `.quit`, stops the Data Browser
+with **Ctrl+C** in its terminal, and closes Python database connections.
+
+The existing build folder is opened in the appropriate terminal.
+**Windows PowerShell:**
+
+```powershell
+Set-Location -LiteralPath (Join-Path $HOME 'Downloads\la_housing_database')
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+cd "$HOME/Downloads/la_housing_database"
+```
+
+The following Git commands work on both platforms. First:
+
+```text
+git status --short
+```
+
+The status must print nothing. Any existing local work is preserved and reconciled
+before proceeding. For a publisher working on `main`, the next commands are:
+
+```text
+git switch main
+git pull --ff-only origin main
+```
+
+Each line runs separately. A failed pull stops the sequence; a forced reset or
+force push is not a remedy. This downloads accepted code and tracked metadata,
+not provider observations or the DuckDB file. A collaborator only receiving a
+published database uses README step 8's fetch/select/download sequence instead.
+
+The publisher installs the pulled code's packages. **Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+The publisher then chooses the refresh scope below. A code or method change
+requiring review starts on a contribution branch before editing or refreshing;
+the [branch and pull-request commands](../README.md#contributing-changes-to-the-shared-database)
+describe that route. Pulling or switching branches is not an extra step after a
+refresh has already generated uncommitted metadata.
+
 ## Choose the right refresh command
 
 **For the usual whole-project update before modeling, use `run_system_refresh.py`.**
@@ -976,6 +1033,87 @@ Structural failures stop validation. Plausible economic outliers, freshness, and
 expected gaps remain review warnings. Check
 `output/qa/qa_summary.csv`, `qa_failures.csv`, `raw_repository_completeness.csv`,
 and the source/time/ZIP/missingness reports under `output/coverage/`.
+
+## Commit, push, and publish a validated refresh
+
+This sequence follows a successful refresh and both validation commands above.
+It applies to the publisher's `main` branch when direct pushes are permitted.
+Database applications remain closed. A failed or partial refresh is not presented
+as a complete update; the actual source coverage and unresolved actions are reviewed.
+
+**1. Review the resulting tracked changes.** These commands work in Windows
+PowerShell and macOS/Linux Terminal, inside the project folder:
+
+```text
+git status --short
+git diff
+```
+
+Validation regenerates `metadata/source_coverage.csv` and may update the database's
+QA tables. Resulting tracked changes are reviewed and retained when appropriate;
+they are not reverted merely to get an empty Git status.
+
+**2. Stage and commit the intended files.** The following path and commit message
+are examples. The publisher replaces or extends the path list with the actual
+reviewed files, including relevant configuration, dictionary, and transformation
+log changes. New files are inspected before staging. Raw archives, credentials,
+and `.duckdb` files remain outside Git.
+
+```text
+git add -- metadata/source_coverage.csv
+git diff --cached
+```
+
+After the staged diff contains only the intended changes:
+
+```text
+git commit -m "Update database build and source coverage"
+```
+
+If there are no intended code or metadata changes to commit, staging and
+committing are skipped.
+Unrelated or untracked local work is preserved and resolved before publication.
+
+**3. Push the code and metadata to GitHub.**
+
+```text
+git push origin main
+git status --short
+```
+
+The push must succeed and the status must be empty. `Everything up-to-date` means
+that commit is already on GitHub. A rejection stops publication; the existing
+local commit is preserved and reconciled with the maintainer before retrying.
+A force push is not used. The [pull-request sequence](../README.md#contributing-changes-to-the-shared-database)
+is chosen before editing or building when review is required. Its new branch
+starts from remote `main` and does not transfer an unpublished local `main`
+commit. After a reviewed request is merged, the
+[post-merge commands](../README.md#review-a-pull-request-and-receive-the-merged-code)
+retrieve the accepted code for the publisher's build.
+
+**4. Publish the database as a separate release.** A Git push does not upload
+`housing.duckdb`. The publisher chooses a new, unused release tag and confirms
+that the repository's readers may receive the included data. The example tag
+below is replaced with the current date and an unused suffix.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe run_snapshot.py publish --tag housing-db-20260930-01 --acknowledge-authorized-sharing
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python run_snapshot.py publish --tag housing-db-20260930-01 --acknowledge-authorized-sharing
+```
+
+Publication reruns the validation gates against the existing build and uploads
+the snapshot only after they succeed. It does not fetch provider data or rebuild
+the database. If those checks change tracked metadata, the publisher reviews,
+commits, and pushes the intended result before retrying. Collaborators then use
+[README step 8](../README.md#8-update-an-existing-copy) to select and download the
+new release. Previously downloaded CSVs must be downloaded again for updated data.
 
 ## Change a source or method
 

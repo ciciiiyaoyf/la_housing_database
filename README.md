@@ -718,9 +718,47 @@ permission and a provisioned source/build workspace.
 
 ### Publisher: first release and every later update
 
-**A. Integrate and build.** In the existing build workspace, the publisher
-integrates reviewed code contributions and builds the intended database using
-the [build and refresh guide](docs/database_build_and_refresh.md). The command
+This sequence uses the publisher's `main` branch when direct pushes are permitted.
+If a change requires a pull request, the publisher starts with the contribution
+branch sequence below **before editing or building**, keeping local `main`
+unchanged until that request is merged.
+
+**A. Pull the accepted code, then build.** The publisher closes database
+applications and enters the existing build workspace. GitHub CLI sign-in from
+step 1 must already be complete. The following Git commands work in both Windows
+PowerShell and macOS/Linux Terminal, one line at a time:
+
+```text
+git status --short
+```
+
+The status must be empty before switching branches or pulling. Existing local
+work is preserved and reconciled first. Once reviewed contributions have been
+merged into GitHub's `main`, the publisher runs:
+
+```text
+git switch main
+git pull --ff-only origin main
+```
+
+If the pull fails, the publisher stops and resolves the reported issue before
+building. `git pull` retrieves code and tracked metadata; it does not download
+provider observations or replace `database/housing.duckdb`.
+
+The publisher installs the pulled code's requirements. **Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+The publisher then builds the intended database using the
+[build and refresh guide](docs/database_build_and_refresh.md). The command
 depends on the change and available source inputs. The existing Redfin county
 refresh hold remains in force; a blocked all-source refresh is not a successful
 complete refresh. A release of an existing validated snapshot must describe that
@@ -751,18 +789,46 @@ Pipeline validation regenerates tracked `metadata/source_coverage.csv` and may
 update the database's QA tables. The resulting metadata changes belong in the
 review; they must not be reverted merely to obtain a clean checkout.
 
-**C. Review, commit, and push.** The publisher reviews the relevant code,
-configuration, and metadata changes, stages the intended files, commits them,
-and pushes the working branch to the configured repository. Unrelated local work
-is preserved and resolved before publishing. After the push, the following
-command must print nothing:
+**C. Review, commit, and push.** After both checks pass, the publisher reviews
+the resulting files. These commands work on both platforms:
 
 ```text
 git status --short
+git diff
 ```
 
-If there are no changes to commit, the publisher confirms that the existing
-commit has already been pushed. Database applications remain closed.
+The example below stages `metadata/source_coverage.csv`. The publisher replaces
+or extends that path list with the actual reviewed code, configuration, and
+metadata files reported above. New files also require inspection before staging.
+Raw archives, credentials, and `.duckdb` files stay outside the Git commit.
+
+```text
+git add -- metadata/source_coverage.csv
+git diff --cached
+```
+
+The staged diff must contain only the intended changes. The publisher then
+commits them with a message describing the actual update:
+
+```text
+git commit -m "Update database build and source coverage"
+```
+
+If there are no changes to commit, the publisher skips staging and committing.
+For a publisher authorized to push directly to `main`, the next commands are:
+
+```text
+git push origin main
+git status --short
+```
+
+The push must succeed and the final status must be empty before publication.
+An `Everything up-to-date` response is normal when that commit is already on
+GitHub. A rejected push stops publication. The existing local commit is preserved
+and reconciled with the maintainer before retrying; a force push is not used.
+The new-contribution recipe below starts from remote `main` and does not carry
+over an unpublished commit already made on local `main`. Unrelated local work is
+preserved and resolved. Database applications remain closed.
 
 **D. Publish a new release.** From the same project folder, the publisher runs
 the matching command below. `housing-db-20260927-02` is an example; each release
@@ -820,16 +886,129 @@ enter the next build through reproducible code contributions.
 
 ### Contributing changes to the shared database
 
-1. The collaborator makes a Git branch for the proposed change and keeps database
-   experiments in a separate local copy. Reusable SQL belongs in `sql/`; Python
-   changes belong in the appropriate existing module under `src/`.
-2. The collaborator commits the scripts and any required tests, variable dictionary,
-   and transformation-log updates, then pushes the branch and opens a pull request.
-   Changes typed only into a DuckDB session are not captured by Git or the updater.
-3. The publisher reviews and integrates the contribution, runs the relevant build
-   with the required source inputs, validates the result, and publishes a new tag.
-4. Collaborators obtain the integrated code and run `open` or `update` to receive
-   the resulting shared database. Independent database files are never merged.
+A **pull request** proposes merging a branch's changes into `main`. It is
+different from `git pull`, which updates a local branch from GitHub. This sequence
+is for contributing code or documentation; downloading a database remains the
+step 8 workflow. All Git and `gh` commands below work in both Windows PowerShell
+and macOS/Linux Terminal, inside the project folder, after GitHub sign-in.
+
+**A. Start a new contribution before editing.** The collaborator closes database
+applications and checks for local code changes:
+
+```text
+git status --short
+```
+
+The status must be empty. Existing work is preserved first; an existing proposal
+continues on its own branch. For a new proposal, the collaborator runs:
+
+```text
+git fetch origin
+git switch -c codex/update-model-query origin/main
+```
+
+`codex/update-model-query` is an example new branch name. The collaborator chooses
+a distinct descriptive name for each proposal and uses the same name in the push
+and pull-request commands below. This works from a clean release checkout too;
+it starts the proposal from current remote `main` without deleting saved branches.
+
+**B. Install requirements, edit, and check the change.** The collaborator runs
+the matching package command. **Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+**macOS/Linux Terminal:**
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Reusable SQL belongs in `sql/`; Python changes belong in the appropriate existing
+module under `src/`. The collaborator makes the proposed edits, runs applicable
+checks, and updates tests, variable definitions, and the transformation log when
+methods change. The pull request states the checks actually run and any missing
+build inputs. A provisioned publisher performs the required build and database
+validation before releasing the result. Database experiments use a separate local
+copy; edits typed only into DuckDB are not captured by Git.
+
+**C. Commit and push the proposal branch.** The collaborator reviews the changes:
+
+```text
+git status --short
+git diff
+```
+
+The next example assumes `sql/model_input.sql` is the edited file. The collaborator
+substitutes the actual reviewed paths and includes the relevant tests and metadata.
+
+```text
+git add -- sql/model_input.sql
+git diff --cached
+```
+
+After confirming the staged diff and choosing an accurate commit message:
+
+```text
+git commit -m "Update model input query"
+git push --set-upstream origin codex/update-model-query
+```
+
+**D. Open the pull request after the push succeeds.**
+
+```text
+gh pr create --base main --head codex/update-model-query
+```
+
+The terminal prompts for a title and description. The collaborator describes the
+change, its purpose, actual validation, and remaining limitations, then submits
+the request. The command prints its GitHub URL. For requested revisions, the
+collaborator edits on the same branch, repeats review/staging/commit, and runs
+`git push`. Those commits update the existing pull request; a second request is
+unnecessary.
+
+### Review a pull request and receive the merged code
+
+**A. The maintainer locates and reviews the request.** These commands run in the
+project folder on either platform:
+
+```text
+gh pr list --base main --state open
+```
+
+The list includes each request's number. `123` below is only an example and is
+replaced with the actual number:
+
+```text
+gh pr view 123 --web
+```
+
+The maintainer reviews the diff, validation evidence, and any required checks or
+approvals on GitHub. Opening the request does not merge it. After review is
+complete, an authorized maintainer can merge from the terminal:
+
+```text
+gh pr merge 123
+```
+
+The command prompts for an allowed merge method. A blocked or queued merge must
+finish before the publisher proceeds; the GitHub request must show **Merged**.
+
+**B. The publisher retrieves the merged code.** After closing database
+applications and confirming `git status --short` is empty:
+
+```text
+git switch main
+git pull --ff-only origin main
+```
+
+The publisher then follows the publisher sequence above: install requirements,
+build, validate, review/commit/push generated metadata, and publish a new database
+tag. A merged pull request alone does not update any collaborator's DuckDB file.
+Collaborators receive the resulting release through step 8. A contributor saves
+work on the named branch before returning to a clean published release checkout;
+the snapshot installer requires that release's exact code revision.
 
 ### Existing databases and local changes
 
@@ -890,6 +1069,8 @@ remains in place until recovery succeeds; it is not a substitute for backups.
 | Snapshot reports a GBK `UnicodeDecodeError` followed by a `NoneType` JSON error | The collaborator updates the project code to obtain the UTF-8 decoding fix. GitHub CLI responses use UTF-8 independently of the Windows display language; changing the system language is unnecessary. |
 | No published database snapshot found | The publisher must complete the first `run_snapshot.py publish` release. A Git clone alone does not include the database. |
 | Snapshot code revision mismatch | The collaborator preserves local code work, updates Git, and uses the exact clean revision recorded in the selected release. No forced reset is required. |
+| macOS `git status --short` lists only untracked `.DS_Store` files | These are Finder display settings. In Terminal inside the project, the collaborator runs `printf '\n.DS_Store\n' >> .git/info/exclude`, then repeats `git status --short`. This ignores those filenames throughout the local checkout without deleting files or changing the shared project. |
+| `git commit` reports `Author identity unknown` | The contributor sets a repository-local identity with `git config user.name "Contributor Name"` and `git config user.email "GITHUB_EMAIL_ADDRESS"`, replacing both example values with the contributor's name and GitHub-associated email or GitHub-provided no-reply address, then retries the commit. |
 | Snapshot refuses an unmanaged or locally changed database | The local file is preserved. The collaborator follows the existing-database instructions before intentionally switching, or keeps using that working copy. |
 | Snapshot reports an active database or WAL | Applications close normally before retrying. A remaining WAL is retained with its database for recovery, never deleted to bypass the check. |
 
