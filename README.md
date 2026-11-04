@@ -5,6 +5,11 @@ tables or individual series with SQL, and load query results directly into Pytho
 for modeling and forecasting research. The database includes observations,
 analytical panels, variable definitions, and provenance.
 
+To reproduce the completed housing forecasting exercises, run
+`python run_forecasting.py` in the project environment with the working DuckDB
+provisioned. The [Week 1 forecast guide](docs/forecasting_week1.md) explains the
+sample split and links the memo, model estimates, accuracy tables, and figures.
+
 **First-time collaborator setup: steps 1–4, in order.** Each step contains its
 Windows and macOS/Linux commands; the collaborator uses only the matching
 platform's block. GitHub sign-in, Python setup, release selection, database

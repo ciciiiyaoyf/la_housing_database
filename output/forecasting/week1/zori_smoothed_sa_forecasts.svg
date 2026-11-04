@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="744" height="626" preserveAspectRatio="xMinYMin meet" viewBox="0 0 744 626" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="744" height="626"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-626)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="0" y="0" width="744" height="626" style="stroke: none; stroke-linecap: butt; stroke-width: 0; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<text x="24" y="595" style="font-family: Helvetica-Bold; font-size: 21px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,1190) scale(1,-1)">Rent index in Los Angeles County</text>
+			<text x="24" y="572" style="font-family: Helvetica; font-size: 10px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,1144) scale(1,-1)">Held-out monthly targets. Each forecast uses observations dated through its origin in the revised series.</text>
+			<g transform=" matrix(1,0,0,1,24,545)">
+				<path d="M 0,6 L 17,6 Z" style="stroke: rgb(7%,17%,21%); stroke-linecap: butt; stroke-width: 1.8;"/>
+				<text x="21" y="3" style="font-family: Helvetica; font-size: 9px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,6) scale(1,-1)">Observed</text>
+				<path d="M 213.333333,6 L 230.333333,6 Z" style="stroke: rgb(0%,49%,46%); stroke-linecap: butt; stroke-width: 1.8;"/>
+				<text x="234.33333333333334" y="3" style="font-family: Helvetica; font-size: 9px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,6) scale(1,-1)">Growth AR(3)</text>
+				<path d="M 426.666667,6 L 443.666667,6 Z" style="stroke: rgb(62%,36%,8%); stroke-linecap: butt; stroke-width: 1.8; stroke-dasharray: 3, 3;"/>
+				<text x="447.6666666666667" y="3" style="font-family: Helvetica; font-size: 9px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,6) scale(1,-1)">No change</text>
+			</g>
+			<text x="24" y="512" style="font-family: Helvetica-Bold; font-size: 11px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,1024) scale(1,-1)">3 months ahead</text>
+			<g transform=" matrix(1,0,0,1,24,368)">
+				<text x="0" y="128" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,256) scale(1,-1)">Dollars per month</text>
+				<text x="17.535999999999998" y="19.0" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,38) scale(1,-1)">$2,600</text>
+				<path d="M 47,22 L 688,22 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="51.333333333333336" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,102) scale(1,-1)">$2,700</text>
+				<path d="M 47,54.333333 L 688,54.333333 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="83.66666666666667" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,167) scale(1,-1)">$2,800</text>
+				<path d="M 47,86.666667 L 688,86.666667 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="116.0" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,232) scale(1,-1)">$2,900</text>
+				<path d="M 47,119 L 688,119 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="34.552" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Mar 23</text>
+				<text x="211.15558620689654" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Nov 23</text>
+				<text x="389.98317241379306" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Jul 24</text>
+				<text x="565.0347586206897" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Mar 25</text>
+				<text x="662.648" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Aug 25</text>
+				<polyline points="47 30.66452, 69.10345 31.74646, 91.2069 32.79328, 113.3103 35.49556, 135.4138 37.496, 157.5172 39.14686, 179.6207 39.12227, 201.7241 39.6903, 223.8276 40.48546, 245.931 40.87537, 268.0345 42.26101, 290.1379 42.98876, 312.2414 44.68607, 334.3448 45.21847, 356.4483 46.13378, 378.5517 47.2947, 400.6552 49.99584, 422.7586 52.64565, 444.8621 55.0957, 466.9655 57.32203, 489.069 58.81177, 511.1724 60.71953, 533.2759 62.03295, 555.3793 63.92042, 577.4828 65.71935, 599.5862 71.46565, 621.6897 76.05998, 643.7931 79.19385, 665.8966 77.36444, 688 76.68771" style="stroke: rgb(62%,36%,8%); stroke-linecap: butt; stroke-width: 1.3; fill: None; fill-rule: evenodd; stroke-dasharray: 3, 3;"/>
+				<polyline points="47 37.33567, 69.10345 35.51845, 91.2069 37.28442, 113.3103 45.39959, 135.4138 46.13815, 157.5172 44.61115, 179.6207 40.22737, 201.7241 42.09138, 223.8276 45.60952, 245.931 44.21188, 268.0345 48.06198, 290.1379 47.73241, 312.2414 50.86503, 334.3448 49.1677, 356.4483 49.54191, 378.5517 52.81455, 400.6552 59.73587, 422.7586 62.74042, 444.8621 62.95893, 466.9655 64.49533, 489.069 63.954, 511.1724 66.92435, 533.2759 67.48273, 555.3793 70.28377, 577.4828 72.72445, 599.5862 89.30531, 621.6897 92.7081, 643.7931 87.14243, 665.8966 71.26773, 688 73.5746" style="stroke: rgb(0%,49%,46%); stroke-linecap: butt; stroke-width: 1.7; fill: None; fill-rule: evenodd;"/>
+				<polyline points="47 35.49556, 69.10345 37.496, 91.2069 39.14686, 113.3103 39.12227, 135.4138 39.6903, 157.5172 40.48546, 179.6207 40.87537, 201.7241 42.26101, 223.8276 42.98876, 245.931 44.68607, 268.0345 45.21847, 290.1379 46.13378, 312.2414 47.2947, 334.3448 49.99584, 356.4483 52.64565, 378.5517 55.0957, 400.6552 57.32203, 422.7586 58.81177, 444.8621 60.71953, 466.9655 62.03295, 489.069 63.92042, 511.1724 65.71935, 533.2759 71.46565, 555.3793 76.05998, 577.4828 79.19385, 599.5862 77.36444, 621.6897 76.68771, 643.7931 77.07836, 665.8966 78.49951, 688 79.27501" style="stroke: rgb(7%,17%,21%); stroke-linecap: butt; stroke-width: 2.1; fill: None; fill-rule: evenodd;"/>
+			</g>
+			<text x="24" y="347" style="font-family: Helvetica-Bold; font-size: 11px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,694) scale(1,-1)">6 months ahead</text>
+			<g transform=" matrix(1,0,0,1,24,203)">
+				<text x="0" y="128" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,256) scale(1,-1)">Dollars per month</text>
+				<text x="17.535999999999998" y="19.0" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,38) scale(1,-1)">$2,600</text>
+				<path d="M 47,22 L 688,22 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="51.333333333333336" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,102) scale(1,-1)">$2,700</text>
+				<path d="M 47,54.333333 L 688,54.333333 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="83.66666666666667" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,167) scale(1,-1)">$2,800</text>
+				<path d="M 47,86.666667 L 688,86.666667 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="116.0" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,232) scale(1,-1)">$2,900</text>
+				<path d="M 47,119 L 688,119 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="34.992" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Jun 23</text>
+				<text x="211.37558620689654" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Feb 24</text>
+				<text x="388.8711724137931" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Oct 24</text>
+				<text x="565.4747586206896" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Jun 25</text>
+				<text x="662.656" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Nov 25</text>
+				<polyline points="47 30.66452, 69.10345 31.74646, 91.2069 32.79328, 113.3103 35.49556, 135.4138 37.496, 157.5172 39.14686, 179.6207 39.12227, 201.7241 39.6903, 223.8276 40.48546, 245.931 40.87537, 268.0345 42.26101, 290.1379 42.98876, 312.2414 44.68607, 334.3448 45.21847, 356.4483 46.13378, 378.5517 47.2947, 400.6552 49.99584, 422.7586 52.64565, 444.8621 55.0957, 466.9655 57.32203, 489.069 58.81177, 511.1724 60.71953, 533.2759 62.03295, 555.3793 63.92042, 577.4828 65.71935, 599.5862 71.46565, 621.6897 76.05998, 643.7931 79.19385, 665.8966 77.36444, 688 76.68771" style="stroke: rgb(62%,36%,8%); stroke-linecap: butt; stroke-width: 1.3; fill: None; fill-rule: evenodd; stroke-dasharray: 3, 3;"/>
+				<polyline points="47 45.78082, 69.10345 41.94556, 91.2069 44.5748, 113.3103 57.13255, 135.4138 56.04003, 157.5172 52.09813, 179.6207 44.31453, 201.7241 47.98055, 223.8276 53.54975, 245.931 50.42033, 268.0345 56.44268, 290.1379 54.76765, 312.2414 59.28847, 334.3448 55.30028, 356.4483 55.63033, 378.5517 60.54048, 400.6552 70.83403, 422.7586 73.42048, 444.8621 71.72501, 466.9655 72.78584, 489.069 70.68253, 511.1724 74.84178, 533.2759 74.62921, 555.3793 78.39999, 577.4828 81.14618, 599.5862 106.6149, 621.6897 107.256, 643.7931 95.18232, 665.8966 69.22903, 688 75.87713" style="stroke: rgb(0%,49%,46%); stroke-linecap: butt; stroke-width: 1.7; fill: None; fill-rule: evenodd;"/>
+				<polyline points="47 39.12227, 69.10345 39.6903, 91.2069 40.48546, 113.3103 40.87537, 135.4138 42.26101, 157.5172 42.98876, 179.6207 44.68607, 201.7241 45.21847, 223.8276 46.13378, 245.931 47.2947, 268.0345 49.99584, 290.1379 52.64565, 312.2414 55.0957, 334.3448 57.32203, 356.4483 58.81177, 378.5517 60.71953, 400.6552 62.03295, 422.7586 63.92042, 444.8621 65.71935, 466.9655 71.46565, 489.069 76.05998, 511.1724 79.19385, 533.2759 77.36444, 555.3793 76.68771, 577.4828 77.07836, 599.5862 78.49951, 621.6897 79.27501, 643.7931 80.62257, 665.8966 82.19246, 688 83.44529" style="stroke: rgb(7%,17%,21%); stroke-linecap: butt; stroke-width: 2.1; fill: None; fill-rule: evenodd;"/>
+			</g>
+			<text x="24" y="182" style="font-family: Helvetica-Bold; font-size: 11px;fill: rgb(7%,17%,21%); stroke:none;" transform="translate(0,364) scale(1,-1)">12 months ahead</text>
+			<g transform=" matrix(1,0,0,1,24,38)">
+				<text x="0" y="128" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,256) scale(1,-1)">Dollars per month</text>
+				<text x="17.535999999999998" y="19.0" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,38) scale(1,-1)">$2,600</text>
+				<path d="M 47,22 L 688,22 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="67.5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,135) scale(1,-1)">$2,800</text>
+				<path d="M 47,70.5 L 688,70.5 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="17.535999999999998" y="116.0" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,232) scale(1,-1)">$3,000</text>
+				<path d="M 47,119 L 688,119 Z" style="stroke: rgb(85%,89%,89%); stroke-linecap: butt; stroke-width: 0.5;"/>
+				<text x="34.328" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Dec 23</text>
+				<text x="211.15158620689655" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Aug 24</text>
+				<text x="388.8711724137931" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Apr 25</text>
+				<text x="564.8107586206896" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">Dec 25</text>
+				<text x="661.768" y="5" style="font-family: Helvetica; font-size: 8px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,10) scale(1,-1)">May 26</text>
+				<polyline points="47 28.49839, 69.10345 29.30984, 91.2069 30.09496, 113.3103 32.12167, 135.4138 33.622, 157.5172 34.86015, 179.6207 34.8417, 201.7241 35.26773, 223.8276 35.8641, 245.931 36.15653, 268.0345 37.19576, 290.1379 37.74157, 312.2414 39.01455, 334.3448 39.41385, 356.4483 40.10034, 378.5517 40.97103, 400.6552 42.99688, 422.7586 44.98423, 444.8621 46.82177, 466.9655 48.49152, 489.069 49.60882, 511.1724 51.03964, 533.2759 52.02472, 555.3793 53.44032, 577.4828 54.78951, 599.5862 59.09923, 621.6897 62.54498, 643.7931 64.89539, 665.8966 63.52333, 688 63.01579" style="stroke: rgb(62%,36%,8%); stroke-linecap: butt; stroke-width: 1.3; fill: None; fill-rule: evenodd; stroke-dasharray: 3, 3;"/>
+				<polyline points="47 55.54923, 69.10345 51.16077, 91.2069 53.73469, 113.3103 66.1351, 135.4138 64.00055, 157.5172 59.19065, 179.6207 50.91275, 201.7241 54.92761, 223.8276 60.56729, 245.931 56.7188, 268.0345 62.77994, 290.1379 60.42402, 312.2414 64.75442, 334.3448 59.97601, 356.4483 60.06225, 378.5517 64.98679, 400.6552 75.15499, 422.7586 76.73888, 444.8621 73.97682, 466.9655 74.42883, 489.069 71.69929, 511.1724 75.6987, 533.2759 74.96781, 555.3793 78.47725, 577.4828 80.7611, 599.5862 106.0158, 621.6897 104.6606, 643.7931 90.95964, 665.8966 65.57361, 688 73.18167" style="stroke: rgb(0%,49%,46%); stroke-linecap: butt; stroke-width: 1.7; fill: None; fill-rule: evenodd;"/>
+				<polyline points="47 39.01455, 69.10345 39.41385, 91.2069 40.10034, 113.3103 40.97103, 135.4138 42.99688, 157.5172 44.98423, 179.6207 46.82177, 201.7241 48.49152, 223.8276 49.60882, 245.931 51.03964, 268.0345 52.02472, 290.1379 53.44032, 312.2414 54.78951, 334.3448 59.09923, 356.4483 62.54498, 378.5517 64.89539, 400.6552 63.52333, 422.7586 63.01579, 444.8621 63.30877, 466.9655 64.37463, 489.069 64.95626, 511.1724 65.96693, 533.2759 67.14435, 555.3793 68.08396, 577.4828 68.76671, 599.5862 67.64427, 621.6897 66.98502, 643.7931 66.83033, 665.8966 68.9581, 688 70.53347" style="stroke: rgb(7%,17%,21%); stroke-linecap: butt; stroke-width: 2.1; fill: None; fill-rule: evenodd;"/>
+			</g>
+			<text x="24" y="12" style="font-family: Helvetica; font-size: 9px;fill: rgb(29%,39%,44%); stroke:none;" transform="translate(0,24) scale(1,-1)">Source data from the local housing DuckDB, revised provider series. The horizontal axis shows the target month.</text>
+		</g>
+	</g>
+</svg>

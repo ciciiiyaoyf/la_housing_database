@@ -1,5 +1,9 @@
 # Verification tests
 
+The Week 1 forecasting tests verify calendar and provenance checks, recursive
+forecasts, common evaluation samples, validation-only selection, and agreement
+with an independent calculation on the provisioned database.
+
 Checks acquisition, source cleaning, identifiers, formulas, missingness, geography,
 frequency, provenance, finance vintages, query/export behavior, and structural QA.
 Combined nine-construction checks also cover source-row reconciliation, retained

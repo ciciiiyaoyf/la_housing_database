@@ -3,7 +3,7 @@
 Start with the [project README](../README.md) for installation and your
 [first DuckDB query](../README.md#4-open-duckdb-and-run-your-first-query).
 DuckDB SQL is the primary analysis workflow; the CSV browser and export commands
-are optional alternatives. These are the seven detailed references:
+are optional alternatives. Use these guides for specific project tasks.
 
 | Guide | Purpose |
 |---|---|
@@ -14,6 +14,7 @@ are optional alternatives. These are the seven detailed references:
 | [Source definitions and methods](source_definitions_and_methods.md) | Source-specific formulas, assumptions, and restrictions. |
 | [Housing finance versions](housing_finance_versions.md) | Benchmark A, retrospective B, and real-time C. |
 | [County and ZIP housing indicators](county_and_zip_housing_indicators.md) | Momentum, tightness, valuation, heat, and regimes. |
+| [Week 1 forecasting](forecasting_week1.md) | Historical forecast results, model definitions, common test dates and reproduction commands. |
 
 Folder READMEs describe local responsibilities and point here; they do not repeat
 the tutorials. Dated narrative reports are consolidated into these guides.

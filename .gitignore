@@ -37,6 +37,17 @@ output/**
 !output/README.md
 !output/exports/
 !output/exports/variable_dictionary.csv
+# The reviewed Week 1 submission is shared. Row-level source extracts stay local.
+!output/forecasting/
+!output/forecasting/week1/
+!output/forecasting/week1/week1_memo.pdf
+!output/forecasting/week1/*_forecasts.svg
+!output/forecasting/week1/accuracy.csv
+!output/forecasting/week1/selections.csv
+!output/forecasting/week1/regressions.csv
+!output/forecasting/week1/forecasts.csv
+!output/forecasting/week1/inventory.csv
+!output/forecasting/week1/transformation_log.csv
 metadata/pipeline_run_log.csv
 metadata/raw_file_manifest.csv
 metadata/version_a_raw_file_manifest.csv

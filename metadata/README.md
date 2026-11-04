@@ -7,6 +7,7 @@ provenance records. Do not treat this folder as disposable progress reports.
 | Start with | Question answered |
 |---|---|
 | [data_dictionary.csv](data_dictionary.csv) | What does each variable mean? |
+| [week1_forecast_dictionary.csv](week1_forecast_dictionary.csv) | How are the Week 1 analytical targets, forecasts, fit statistics and scores calculated? |
 | [system_variable_inventory.csv](system_variable_inventory.csv) | Which variables are materialized? |
 | [analytical_dataset_inventory.csv](analytical_dataset_inventory.csv) | What tables, keys, and coverage exist? |
 | [system_source_inventory.csv](system_source_inventory.csv) | Which providers and acquisition contracts supply them? |

@@ -2,18 +2,21 @@
 
 This README belongs to `output/` and describes the whole module.
 
-**On GitHub and in a fresh clone**, this module contains only:
+**On GitHub and in a fresh clone**, this module contains:
 
 ```text
 output/
   README.md
   exports/
     variable_dictionary.csv
+  forecasting/week1/
+    # Week 1 memo, figures, inventory, regression and evaluation tables, run log
 ```
 
 The [variable dictionary](exports/variable_dictionary.csv) contains definitions,
-not housing observations. Other exports and reports are generated locally and
-excluded from Git, so their folders do not appear on GitHub.
+not housing observations. The [Week 1 forecasting submission](forecasting/week1/)
+contains the reviewed historical backtests. Its row-level input extract and
+the working database are provisioned or regenerated locally.
 
 | Local folder | Purpose and when it appears |
 |---|---|

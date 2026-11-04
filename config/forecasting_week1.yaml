@@ -1,0 +1,17 @@
+# Historical forecast origins. All series share these dates and target months.
+train_start: "2015-01"
+horizons: [3, 6, 12]
+validation: ["2020-12", "2021-12"]
+test: ["2022-12", "2025-05"]
+selection_metric: rmse
+la_price_window_starts: ["2010-01", "2019-01"]
+county_comparisons: [COUNTY_06059, COUNTY_06065, COUNTY_06073]
+model_sets:
+  la_price: [naive, seasonal_naive, level_ar1, growth_ar1, growth_ar3, growth_ar6, arima011]
+  other_price: [naive, growth_ar1, growth_ar3]
+  state_price: [naive, growth_ar1]
+  rent: [naive, seasonal_naive, growth_ar1, growth_ar3, growth_ar6]
+  permits: [naive, seasonal_naive, level_ar1]
+  permits_mean3: [naive_mean3, seasonal_naive_mean3, mean3_ar1, raw_ar1_mean3]
+  inventory: [naive, seasonal_naive, level_ar1, level_ar3]
+  positive_inventory: [growth_ar1, growth_ar3]

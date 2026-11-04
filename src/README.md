@@ -7,6 +7,11 @@ not a ready-to-query database.
 
 ## Entry points and data flow
 
+- [run_forecasting.py](../run_forecasting.py) runs the separate Week 1 exercises.
+  Within `forecasting/`, `data.py` verifies monthly facts and source lineage,
+  `models.py` fits and iterates univariate models, `week1.py` evaluates common
+  historical targets, and `report.py` renders the memo and figures.
+
 - [run_pipeline.py](../run_pipeline.py) calls [pipeline.py](pipeline.py) for
   discovery, download, clean, harmonize, database, validation, catalog, and export stages.
 - [run_system_refresh.py](../run_system_refresh.py) calls [system_refresh.py](system_refresh.py)

@@ -2,6 +2,9 @@
 
 Defines which sources, variables, geographies, and methods the pipeline uses.
 
+`forecasting_week1.yaml` fixes the monthly validation and test origins, horizons,
+training windows, county comparison and candidate models for the Week 1 backtest.
+
 | Files | Role |
 |---|---|
 | `sources.yaml`, `pipeline.yaml` | Provider acquisition contracts, named source groups, output paths, method settings, and refresh holds. |
