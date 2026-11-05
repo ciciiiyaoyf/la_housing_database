@@ -161,6 +161,7 @@ def evaluate(forecasts, calendar, horizons=(3, 6, 12)):
 
 
 def run_week1(database: Path, config_path: Path, output: Path):
+    from src.forecasting.exercises import write_exercise_report
     from src.forecasting.report import write_report
 
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -176,6 +177,7 @@ def run_week1(database: Path, config_path: Path, output: Path):
         for name, frame in tables.items():
             frame.to_csv(stage / f"{name}.csv", index=False)
         write_report(stage)
+        write_exercise_report(stage)
         write_transformation_log(stage, observations, forecasts, config)
         # The previous submission stays usable if analysis or rendering raises.
         publish_results(stage, output)
@@ -231,7 +233,7 @@ def write_transformation_log(stage, observations, forecasts, config):
             **spec, "executed_at_utc": stamp,
             "source_ids": json.dumps(sorted(inputs.source_id.dropna().unique().tolist())),
             "source_vintages": json.dumps(sorted(inputs.source_vintage.dropna().astype(str).unique().tolist())),
-            "lineage_file": "observations.csv", "code_module": "src.forecasting.data|src.forecasting.week1|src.forecasting.models|src.forecasting.report",
+            "lineage_file": "observations.csv", "code_module": "src.forecasting.data|src.forecasting.week1|src.forecasting.models|src.forecasting.report|src.forecasting.exercises",
             "dictionary": "metadata/week1_forecast_dictionary.csv",
             "operations": "extract monthly levels with lineage; fit/iterate model; score signed error, MAE, RMSE and MAPE; select on validation RMSE",
             "report_diagnostics": ", ".join(diagnostics),

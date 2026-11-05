@@ -40,7 +40,7 @@ def _ticks(low, high):
     return np.arange(math.floor(low / step), math.ceil(high / step) + 1) * step
 
 
-def _chart(panel, *, width, height, ylabel, dollar=False):
+def _chart(panel, *, width, height, ylabel, dollar=False, traces=None):
     """Draw one horizon. The index holds target months; lines break at gaps."""
     drawing = Drawing(width, height)
     left, right, bottom, top = 47, width - 6, 22, height - 15
@@ -75,10 +75,12 @@ def _chart(panel, *, width, height, ylabel, dollar=False):
     for i in marks:
         drawing.add(_text(x(positions[i]), 5, index[i].strftime("%b %y"), size=8,
                           color=MUTED, anchor="end" if i == len(index)-1 else "middle"))
-    for name, color, dash, line_width in (
-        ("benchmark", OCHRE, [3, 3], 1.3), ("forecast", TEAL, None, 1.7),
-        ("actual", INK, None, 2.1),
-    ):
+    if traces is None:
+        traces = (
+            ("benchmark", OCHRE, [3, 3], 1.3), ("forecast", TEAL, None, 1.7),
+            ("actual", INK, None, 2.1),
+        )
+    for name, color, dash, line_width in traces:
         points = []
         for i, value in enumerate(panel[name]):
             if (i and positions[i] != positions[i-1] + 1) or not np.isfinite(value):
@@ -126,6 +128,15 @@ def _heading(pdf, top, title):
     pdf.setFillColor(INK)
     pdf.drawString(46, top - 12, title)
     return top - 21
+
+
+def _question(pdf, top, number, question):
+    item = Paragraph(f"{number}. {question}", ParagraphStyle(
+        "question", fontName="Helvetica-Bold", fontSize=11.5, leading=14.5, textColor=INK,
+    ))
+    _, height = item.wrap(520, 735)
+    item.drawOn(pdf, 46, top - height)
+    return top - height - 8
 
 
 def _body(pdf, top, text, *, size=10, width=520, x=46):
@@ -238,6 +249,47 @@ def _plots(output_dir, test):
         renderSVG.drawToFile(fig, str(output_dir / f"{var}_forecasts.svg"))
 
 
+def _lag_comparison_plot(output_dir, test):
+    """Exercise 3 compares all growth regressions to the same observed levels."""
+    frame = _los_angeles(test, "zhvi")
+    traces = (
+        ("naive", OCHRE, [3, 3], 1.3),
+        ("growth_ar1", colors.HexColor("#9b57a3"), [6, 2], 1.5),
+        ("growth_ar3", TEAL, [2, 2], 1.6),
+        ("growth_ar6", colors.HexColor("#376cc6"), None, 1.7),
+        ("actual", INK, None, 2.1),
+    )
+    fig = Drawing(744, 646)
+    fig.add(Rect(0, 0, 744, 646, fillColor=colors.white, strokeWidth=0, strokeColor=None))
+    fig.add(_text(24, 615, "Exercise 3   Expanding-window home-value forecasts", size=20, bold=True))
+    fig.add(_text(24, 592, "Los Angeles County. Common monthly targets and training response dates.",
+                  color=MUTED))
+    for i, (name, color, dash, _) in enumerate(reversed(traces)):
+        x = 24 + i * 140
+        fig.add(Line(x, 572, x + 17, 572, strokeColor=color, strokeWidth=1.8, strokeDashArray=dash))
+        fig.add(_text(x + 21, 569, "Observed" if name == "actual" else LABELS[name], size=9))
+    models = [row[0] for row in traces if row[0] != "actual"]
+    for i, horizon in enumerate(HORIZONS):
+        base = 378 - 165 * i
+        fig.add(_text(24, base + 144, f"{horizon} months ahead", size=11, bold=True))
+        rows = frame.loc[(frame.train_start == _main_start(frame))
+                         & (frame.horizon == horizon) & frame.model.isin(models)]
+        panel = rows.pivot(index="target_date", columns="model", values="forecast")
+        actual = rows.groupby("target_date").actual
+        if not set(models).issubset(panel.columns) or panel.isna().any().any() or not actual.nunique().eq(1).all():
+            raise ValueError("Exercise 3 plots require all four models on identical observed targets.")
+        panel["actual"] = actual.first()
+        chart = _chart(panel.sort_index(), width=694, height=134, ylabel="Typical home value in dollars",
+                       dollar=True, traces=traces)
+        chart.translate(24, base)
+        fig.add(chart)
+    fig.add(_text(24, 23, "Each forecast uses observations dated through its origin in the revised source history.",
+                  size=9, color=MUTED))
+    fig.add(_text(24, 10, "Growth forecasts are compounded into dollars. The horizontal axis shows the target month.",
+                  size=9, color=MUTED))
+    renderSVG.drawToFile(fig, str(output_dir / "zhvi_lag_comparison_forecasts.svg"))
+
+
 def _growth(observations, geo_id, variable):
     rows = observations.loc[(observations.geo_id == geo_id)
                             & (observations.variable_id == variable)]
@@ -286,10 +338,14 @@ def _memo(output_dir, forecasts, scores, fits, selected, observations):
                   "on test RMSE at all three horizons.")
     else:
         result = "None of the validation-selected models improved on the no-change benchmark."
-    top = _body(pdf, 664,
+    top = _question(pdf, 664, 1,
+        "How much of future housing-market behavior can be predicted from the variable’s own past?")
+    improvement = 100 * (1 - _point(price, "growth_ar6", 3).rmse / _point(price, "naive", 3).rmse)
+    top = _body(pdf, top,
+        f"Past prices helped over short horizons. Growth AR(6) reduced three-month test "
+        f"RMSE by {improvement:.1f}% relative to holding the last home value constant. "
         f"<b>{result}</b> We tested {la.origin.nunique()} monthly forecast origins "
-        f"from {la.origin.min()} through {la.origin.max()}. Each model uses the county's own "
-        "price history to predict Zillow's typical-home value in dollars.")
+        f"from {la.origin.min()} through {la.origin.max()}.")
     top = _heading(pdf, top, "Independent test against the no-change benchmark")
     rows = []
     for h in HORIZONS:
@@ -310,7 +366,8 @@ def _memo(output_dir, forecasts, scores, fits, selected, observations):
     _legend(legend, 2, "Growth AR(3)", "No change", 475)
     renderPDF.draw(legend, pdf, 46, top - 134)
     top -= 148
-    top = _heading(pdf, top, "Lag length, horizon and training window")
+    top = _question(pdf, top, 2,
+        "How sensitive are the results to lag length, training period, and prediction horizon?")
     first = fits.loc[(fits.geo_id == LA) & (fits.variable_id == "zhvi")
                      & (fits.train_start == start) & (fits.origin == val.origin.min())
                      & fits.model.isin(["growth_ar1", "growth_ar3", "growth_ar6"])]
@@ -345,20 +402,23 @@ def _memo(output_dir, forecasts, scores, fits, selected, observations):
         f"At six months, AR(1) in price levels had RMSE of {_money(_point(price, 'level_ar1').rmse)}, "
         f"versus {_money(_point(price, 'growth_ar1').rmse)} for AR(1) in growth and "
         f"{_money(_point(price, 'arima011').rmse)} for ARIMA(0,1,1) on log levels.")
-    longest = chosen.loc[12]
-    long_run = la.loc[(la.model == longest.model) & (la.train_start == longest.train_start)
-                      & (la.horizon == 12)]
-    miss = long_run.loc[long_run.error.abs().idxmax()]
     top = _body(pdf, top,
-        f"The largest miss for the selected 12-month model came from the {miss.origin} origin. "
-        f"It predicted {_money(miss.forecast)} for {miss.target_date}, when the observed value "
-        f"was {_money(miss.actual)}.")
+        f"Horizon mattered strongly. Growth AR(6) test RMSE rose from "
+        f"{_money(_point(price, 'growth_ar6', 3).rmse)} at three months to "
+        f"{_money(_point(price, 'growth_ar6', 12).rmse)} at twelve months, exceeding the "
+        f"twelve-month no-change error of {_money(_point(price, 'naive', 12).rmse)}.")
     _check_bottom(top)
     pdf.showPage()
 
     _page_header(pdf, 2, "How forecasts varied by market",
                  "Common target months   |   Six-month horizon")
-    top = _heading(pdf, 664, "California counties")
+    top = _question(pdf, 664, 3,
+        "Do the same simple models work across home prices, rents, permits, inventory, and California counties?")
+    top = _body(pdf, top,
+        "The same autoregressive method could be applied to every available outcome and county. "
+        "Its accuracy varied with the market, outcome transformation and horizon, so a common "
+        "model did not give a uniform forecasting advantage.")
+    top = _heading(pdf, top, "California counties")
     county_rows = []
     county_scores = scores.loc[(scores.variable_id == "zhvi") & (scores.target == "level")
                                & (scores.split == "test") & scores.geo_id.str.startswith("COUNTY_")]
@@ -375,6 +435,13 @@ def _memo(output_dir, forecasts, scores, fits, selected, observations):
     expensive = max(county_rows, key=lambda x: x[2].mape_pct)[0]
     volatile = max(county_rows, key=lambda x: x[3])[0]
     ar3_count = sum(r[2].rmse < r[1].rmse for r in county_rows)
+    reversed_counties = []
+    for geo_id, group in county_scores.groupby("geo_id"):
+        if _point(group, "growth_ar1", 12).rmse < _point(group, "growth_ar3", 12).rmse:
+            name = observations.loc[observations.geo_id == geo_id, "geo_name"].iloc[0]
+            reversed_counties.append(str(name).replace(" County", "").split(",")[0])
+    reversals = (f"At twelve months AR(1) beat AR(3) in {', '.join(reversed_counties)}."
+                 if reversed_counties else "AR(3) also beat AR(1) at twelve months in all counties.")
     geography = (f"{expensive} had both the highest AR(3) mean absolute percentage error "
                  "(MAPE) and the most variable monthly price growth." if expensive == volatile
                  else f"{expensive} had the highest AR(3) mean absolute percentage error (MAPE). "
@@ -388,18 +455,23 @@ def _memo(output_dir, forecasts, scores, fits, selected, observations):
     top = _body(pdf, top,
         f"All {len(county_rows)} counties had observations at every target month. "
         f"AR(3) beat AR(1) on six-month RMSE in {ar3_count} of them. "
-        f"{geography} Growth SD is the standard deviation of monthly log changes on the "
-        f"target dates, in percentage points (pp). {statewide}")
+        f"{reversals} {geography} Growth SD measures monthly log-change volatility in percentage points. {statewide}")
     top = _heading(pdf, top, "Rents, permits and homes for sale")
     rent = _los_angeles(scores.loc[scores.split == "test"], "zori_smoothed_sa")
     p = _point(price, "growth_ar3")
     if not rent.empty:
         r = _point(rent, "growth_ar3")
+        rent_best = []
+        for h in HORIZONS:
+            candidates = [_point(rent, m, h) for m in ("growth_ar1", "growth_ar3", "growth_ar6")]
+            rent_best.append(LABELS[min(candidates, key=lambda row: row.rmse).model])
+        rent_ranking = (f"{rent_best[0]} had the lowest test RMSE of the three growth models "
+                        "at all horizons." if len(set(rent_best)) == 1 else
+                        f"The best growth models at 3, 6 and 12 months were {', '.join(rent_best)}.")
         top = _body(pdf, top,
-            f"<b>Rent.</b> On identical six-month dates the three-lag model missed the "
-            f"smoothed, seasonally adjusted Zillow rent index by {r.mape_pct:.2f}% on average, "
-            f"versus {p.mape_pct:.2f}% for home values. Both models forecast monthly log "
-            "growth and compound it from the observed level at the origin.")
+            f"<b>Rent.</b> On identical six-month dates AR(3) missed Zillow's smoothed, "
+            f"seasonally adjusted rent index by {r.mape_pct:.2f}% on average, versus "
+            f"{p.mape_pct:.2f}% for home values. {rent_ranking}")
     permits = _los_angeles(scores.loc[scores.split == "test"], "permits_total", "mean3")
     if not permits.empty:
         m, raw, seasonal = (_point(permits, model).rmse for model in
@@ -414,18 +486,22 @@ def _memo(output_dir, forecasts, scores, fits, selected, observations):
     if not inventory.empty:
         s = _seasonality(observations, start, la.origin.min())
         seasonal, ar3 = (_point(inventory, model).rmse for model in ("seasonal_naive", "level_ar3"))
+        inventory_lags = [1 if _point(inventory, "level_ar1", h).rmse < _point(inventory, "level_ar3", h).rmse
+                          else 3 for h in HORIZONS]
+        inventory_ranking = (f"Level AR({inventory_lags[0]}) beat the other level model at every horizon."
+                             if len(set(inventory_lags)) == 1 else
+                             f"The better level AR models used {', '.join(map(str, inventory_lags))} "
+                             "lags at 3, 6 and 12 months.")
         top = _body(pdf, top,
             f"<b>Inventory.</b> Six-month RMSE was {seasonal:,.0f} homes for seasonal naive "
-            f"and {ar3:,.0f} for level AR(3). Through the first test origin, calendar month "
+            f"and {ar3:,.0f} for level AR(3). {inventory_ranking} Through the first test origin, calendar month "
             f"accounted for {s.active_inventory:.0f}% of monthly log-change variation in "
             f"unadjusted inventory versus {s.zhvi:.0f}% in Zillow's already smoothed and "
             "seasonally adjusted home values. The benchmark uses the level twelve months before the target.")
     top = _heading(pdf, top, "How to read the backtest")
     top = _body(pdf, top,
-        f"Validation used monthly origins {val.origin.min()} to {val.origin.max()}. Each "
-        "regression fits current growth or level to earlier months (its lags). A fitted value "
-        "uses that estimation sample. A forecast instead predicts beyond the origin, using its "
-        "own predictions when future lags are needed. Error is forecast minus actual. MAE "
+        f"Validation used origins {val.origin.min()} to {val.origin.max()}. Models use their own "
+        "predictions when future lagged values are needed. Error is forecast minus actual. MAE "
         "averages absolute errors. RMSE gives large misses more weight.")
     top = _body(pdf, top,
         "Provider histories in the current DuckDB incorporate revisions and smoothing. These "
@@ -446,4 +522,5 @@ def write_report(output_dir: Path) -> None:
     selected = pd.read_csv(output_dir / "selections.csv")
     observations = pd.read_csv(output_dir / "observations.csv")
     _plots(output_dir, forecasts.loc[forecasts.split == "test"])
+    _lag_comparison_plot(output_dir, forecasts.loc[forecasts.split == "test"])
     _memo(output_dir, forecasts, scores, fits, selected, observations)

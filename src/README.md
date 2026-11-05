@@ -11,6 +11,7 @@ not a ready-to-query database.
   Within `forecasting/`, `data.py` verifies monthly facts and source lineage,
   `models.py` fits and iterates univariate models, `week1.py` evaluates common
   historical targets, and `report.py` renders the memo and figures.
+  `exercises.py` generates the seven exercise responses from the verified tables.
 
 - [run_pipeline.py](../run_pipeline.py) calls [pipeline.py](pipeline.py) for
   discovery, download, clean, harmonize, database, validation, catalog, and export stages.

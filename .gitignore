@@ -41,6 +41,7 @@ output/**
 !output/forecasting/
 !output/forecasting/week1/
 !output/forecasting/week1/week1_memo.pdf
+!output/forecasting/week1/week1_exercises.md
 !output/forecasting/week1/*_forecasts.svg
 !output/forecasting/week1/accuracy.csv
 !output/forecasting/week1/selections.csv
