@@ -1,2 +1,4 @@
 # Preserve PDF cross-reference byte offsets on Windows checkouts.
 output/forecasting/week1/week1_memo.pdf binary
+output/forecasting/week1/week1_exercises.pdf binary
+output/forecasting/week1/week1_exercises.docx binary

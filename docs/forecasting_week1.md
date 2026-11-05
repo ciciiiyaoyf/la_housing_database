@@ -1,8 +1,12 @@
 # Week 1 housing forecasts
 
-Read the [complete answers to Exercises 1 through 7 and the three final questions](../output/forecasting/week1/week1_exercises.md).
-Each numbered exercise has its own regression results, accuracy comparisons and
-interpretation. The two-page memo answers the three final questions directly.
+Read the complete answers in [Word](../output/forecasting/week1/week1_exercises.docx),
+[PDF](../output/forecasting/week1/week1_exercises.pdf), or
+[Markdown](../output/forecasting/week1/week1_exercises.md).
+Each task and question within Exercises 1 through 7 has a separate numbered
+response, followed by the three final interpretation answers. The submission
+includes the regression coefficients, sample dates, accuracy tables and charts.
+The separate two-page memo covers only the three final questions.
 
 The held-out results favor a simple benchmark for LA home values. At every horizon, carrying the last observed value forward had lower test RMSE than the model chosen using earlier validation dates. At six months, the benchmark missed by $27,766 on RMSE, compared with $30,160 for the selected level AR(1). Several alternatives did better on those later dates. The two-page [results memo](../output/forecasting/week1/week1_memo.pdf) separates those retrospective comparisons from the models that could have been selected at the time.
 
@@ -33,6 +37,21 @@ python run_pipeline.py --stage validate
 ```
 
 The command also generates a local `observations.csv` with one row per series/month, source vintage, retrieval timestamp, filenames, checksum, archive location and provider flags. Its geography IDs remain strings. A repeat using the same database and configuration reproduces the model estimates. Refreshing the database can revise inputs and results. Each execution records its own timestamp in the run log.
+
+`run_forecasting.py` generates the complete Markdown answers. To rebuild the Word
+and PDF editions, run `scripts/report_authoring/build_week1_answers.py` with a
+Python environment containing `python-docx`, plus Node and Sharp for the SVG charts:
+
+```text
+python scripts/report_authoring/build_week1_answers.py --node <node-executable> --node-modules <node_modules-directory> --render-script <documents-skill>/render_docx.py --renderer-bin <renderer-directory>
+```
+
+The authoring run used the bundled document runtime. On Windows, the renderer
+directory was `scripts/report_authoring`, containing the local Microsoft Word
+bridge compiled from `SofficeWordBridge.cs`; Word must be installed for that bridge.
+The compiled bridge and bundled dependencies are local prerequisites and are not
+transferred by Git. Omitting the render arguments creates the DOCX only. Rendered
+page images remain under `tmp/pdfs/week1_answers/render` for visual inspection.
 
 ## Evaluation dates and model selection
 

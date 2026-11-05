@@ -23,6 +23,11 @@ are invoked manually instead of by the main runner.
 
 ## Optional document tools
 
+The [Week 1 answer builder](report_authoring/build_week1_answers.py) converts the
+generated exercise Markdown and charts into the complete Word/PDF submission.
+It requires optional `python-docx`, Node/Sharp and a document renderer; see the
+[forecast guide](../docs/forecasting_week1.md#reproduce-the-run) for the command.
+
 The former metro report's findings are in the
 [data guide](../docs/data_inventory_and_limitations.md#metro-variables-and-finer-geography-alternatives).
 Its building tools remain in `report_authoring/`:

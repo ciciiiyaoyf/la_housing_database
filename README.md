@@ -9,8 +9,11 @@ To reproduce the completed housing forecasting exercises, run
 `python run_forecasting.py` in the project environment with the working DuckDB
 provisioned. The [Week 1 forecast guide](docs/forecasting_week1.md) explains the
 sample split and links the memo, model estimates, accuracy tables, and figures.
-The [complete exercise answers](output/forecasting/week1/week1_exercises.md)
-follow Exercises 1–7 in order and answer all three final interpretation questions.
+The complete answers are available in [Word](output/forecasting/week1/week1_exercises.docx),
+[PDF](output/forecasting/week1/week1_exercises.pdf), and
+[Markdown](output/forecasting/week1/week1_exercises.md). Every task and question
+within Exercises 1–7 has its own numbered response, followed by the three final
+interpretation answers.
 
 **First-time collaborator setup: steps 1–4, in order.** Each step contains its
 Windows and macOS/Linux commands; the collaborator uses only the matching
