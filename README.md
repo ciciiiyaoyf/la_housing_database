@@ -16,6 +16,8 @@ within Exercises 1–7 has its own numbered response, followed by the three fina
 interpretation answers.
 The final answers quantify forecast-horizon and specification sensitivity, with
 separate comparisons for prices, rents, permits, inventory, and counties.
+The [full-project model design](docs/forecasting_model_design.md) translates those
+results into proposed lag structures, growth measures, inputs, and validation steps.
 
 **First-time collaborator setup: steps 1–4, in order.** Each step contains its
 Windows and macOS/Linux commands; the collaborator uses only the matching

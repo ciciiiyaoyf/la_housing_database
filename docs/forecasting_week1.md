@@ -15,6 +15,12 @@ on matched targets. Positive means lower error, not the percentage of future beh
 explained. Descriptive test winners are reported separately from the models chosen
 using earlier validation data; no universal maximum forecast horizon is established.
 
+The submission concludes with [implications for the full forecasting project](forecasting_model_design.md):
+outcome-specific starting lags and growth measures, a small candidate input set,
+sample and publication-timing requirements, and the next evaluation design.
+These are proposed specifications for development, separate from the fitted Week 1 models.
+The report generator embeds this maintained design note in the complete submission.
+
 The held-out results favor a simple benchmark for LA home values. At every horizon, carrying the last observed value forward had lower test RMSE than the model chosen using earlier validation dates. At six months, the benchmark missed by $27,766 on RMSE, compared with $30,160 for the selected level AR(1). Several alternatives did better on those later dates. The two-page [results memo](../output/forecasting/week1/week1_memo.pdf) separates those retrospective comparisons from the models that could have been selected at the time.
 
 ## Read the submission

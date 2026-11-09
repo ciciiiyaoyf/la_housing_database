@@ -25,7 +25,9 @@ from docx.shared import Inches, Pt, RGBColor
 
 INLINE = re.compile(r"(\*\*.*?\*\*|`[^`]+`|\[[^\]]+\]\([^\)]+\))")
 TABLE_RULE = re.compile(r"^\|[\s:|-]+\|$")
-SUBSCRIPT = re.compile(r"\b([A-Za-z]+)_(t|\(t[−-][0-9pj]+\))(?![A-Za-z0-9_])")
+SUBSCRIPT = re.compile(
+    r"\b([A-Za-z]+)(_hat)?_(t|\(t(?:[−+-][0-9pjh]+|,[hj])?\))(?![A-Za-z0-9_])"
+)
 
 
 def math_text(paragraph, text):
@@ -35,13 +37,24 @@ def math_text(paragraph, text):
         paragraph.add_run(text[cursor:match.start()])
         equation = OxmlElement("m:oMath")
         subscript = OxmlElement("m:sSub")
-        for tag, value in (("e", match.group(1)), ("sub", match.group(2).strip("()"))):
+        for tag, value in (("e", match.group(1)), ("sub", match.group(3).strip("()"))):
             element = OxmlElement(f"m:{tag}")
+            destination = element
+            if tag == "e" and match.group(2):
+                accent = OxmlElement("m:acc")
+                properties = OxmlElement("m:accPr")
+                character = OxmlElement("m:chr")
+                character.set(qn("m:val"), "\u0302")
+                properties.append(character)
+                accent.append(properties)
+                destination = OxmlElement("m:e")
+                accent.append(destination)
+                element.append(accent)
             run = OxmlElement("m:r")
             content = OxmlElement("m:t")
             content.text = value
             run.append(content)
-            element.append(run)
+            destination.append(run)
             subscript.append(element)
         equation.append(subscript)
         paragraph._p.append(equation)
@@ -131,6 +144,10 @@ def format_document(document):
 
 
 def table_widths(headers):
+    if headers == ["Outcome", "Starting model", "Outcome definition", "Comparisons to retain"]:
+        return [1.3, 1.1, 2.05, 2.75]
+    if headers == ["Input", "Geography and proposed representation", "Initial role"]:
+        return [1.35, 3.8, 2.05]
     if len(headers) == 4 and headers[0] == "Horizon":
         return [.7, 2.05, 2.15, 2.3]
     if len(headers) == 4 and headers[0] == "Outcome":
@@ -237,7 +254,10 @@ def build(markdown, output, assets, node, modules):
         if heading:
             depth, title = len(heading.group(1)), heading.group(2)
             paragraph = document.add_paragraph(style="Title" if depth == 1 else f"Heading {depth - 1}")
-            if depth == 2 and (title.startswith("Exercise 1 ") or title == "Final interpretation questions"):
+            if depth == 2 and (
+                title.startswith("Exercise 1 ")
+                or title in {"Final interpretation questions", "Implications for the full forecasting project"}
+            ):
                 paragraph.paragraph_format.page_break_before = True
             inline(paragraph, title)
         elif line.startswith("|"):

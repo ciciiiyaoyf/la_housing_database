@@ -85,13 +85,14 @@ def _interpretation_answers(test, snapshot, selections, observations):
     parts = [
         "## Final interpretation questions\n",
         "### 1. How much of future housing-market behavior can be predicted from the variable’s own past?\n",
-        "**What the question means.** I interpret 'how much' as the amount of useful predictive "
-        "information in a variable's history. How far ahead that information remains useful is one "
-        "part of the answer; the technical term for months ahead is the forecast horizon. The "
-        "assignment tests 3, 6 and 12 months, rather than asking for one maximum number of "
-        "predictable months. We should therefore report both forecast accuracy and its change with "
-        "the horizon. A forecast can be calculated farther ahead without being accurate enough to use.\n",
-        "**How predictive value is measured here.** Compare errors on later observations with the "
+        "The exercises identify useful predictive information in housing-market histories, but "
+        "do not establish a maximum useful forecasting horizon. LA price-growth dynamics provide "
+        "their strongest benchmark improvement at short horizons, while some rent and inventory "
+        "specifications retain an advantage at one year. Forecasts can be calculated beyond one "
+        "year, but their usefulness requires further evaluation across longer horizons and a "
+        "specified tolerance for forecast error. The evidence below describes the range tested "
+        "and the stability of the observed forecasting gains.\n",
+        "**Measurement of predictive value.** Forecast errors on later observations are compared with the "
         "no-change forecast, which carries the last observed level forward. RMSE is in the outcome's "
         "units and gives more weight to large misses. In the following tables, RMSE reduction = "
         "100 × (1 − model RMSE / benchmark RMSE). Positive values indicate improvement; negative "
@@ -124,8 +125,8 @@ def _interpretation_answers(test, snapshot, selections, observations):
                 for h in HORIZONS]),
         "In this run, the validation-selected LA price models lose to no change at all three "
         "horizons. This means the process did not reliably identify in advance the model that would "
-        "perform best in the later market period. It would therefore overstate the evidence to say "
-        "'we can reliably predict prices six months ahead.' No change itself uses the variable's "
+        "perform best in the later market period. These results do not establish a reliably useful "
+        "six-month forecasting range. No change itself uses the variable's "
         "past, so failing to beat it does not mean historical information is useless.\n",
         "**The useful horizon also depends on the outcome.** The fixed-model test comparisons "
         "give the following reductions relative to each outcome's own no-change forecast. These "
@@ -653,4 +654,8 @@ def write_exercise_report(output_dir: Path):
         "an official statewide series.\n",
     ]
     parts += _interpretation_answers(test, snapshot, selections, observations)
+    design_path = Path(__file__).resolve().parents[2] / "docs/forecasting_model_design.md"
+    design = design_path.read_text(encoding="utf-8")
+    # Embed the maintained design note one heading level below its standalone form.
+    parts.append("\n".join("#" + line if line.startswith("#") else line for line in design.splitlines()))
     (output_dir / "week1_exercises.md").write_text("\n".join(parts), encoding="utf-8")
