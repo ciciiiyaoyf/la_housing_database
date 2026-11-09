@@ -14,6 +14,8 @@ The complete answers are available in [Word](output/forecasting/week1/week1_exer
 [Markdown](output/forecasting/week1/week1_exercises.md). Every task and question
 within Exercises 1–7 has its own numbered response, followed by the three final
 interpretation answers.
+The final answers quantify forecast-horizon and specification sensitivity, with
+separate comparisons for prices, rents, permits, inventory, and counties.
 
 **First-time collaborator setup: steps 1–4, in order.** Each step contains its
 Windows and macOS/Linux commands; the collaborator uses only the matching

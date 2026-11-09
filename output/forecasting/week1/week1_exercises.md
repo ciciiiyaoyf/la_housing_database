@@ -426,14 +426,104 @@ No. These four counties do not cover California, and equal county weights ignore
 
 ### 1. How much of future housing-market behavior can be predicted from the variable’s own past?
 
-Past levels and growth contain useful short-horizon information, but the advantage over a simple benchmark varies. For LA home values, growth AR(3) has six-month test RMSE of $25,911, compared with $27,766 for carrying the last observed value forward. The validation-selected specifications have equal or larger test RMSE than no change at all three horizons. No change itself uses past information. The comparison measures how much estimating additional dynamics improves the forecasts in this sample. Rent AR(3) had six-month MAPE 0.83%, compared with 2.41% for home values. These are sample-specific forecast errors, not estimates of a universal share of future housing behavior that is predictable.
+**What the question means.** I interpret 'how much' as the amount of useful predictive information in a variable's history. How far ahead that information remains useful is one part of the answer; the technical term for months ahead is the forecast horizon. The assignment tests 3, 6 and 12 months, rather than asking for one maximum number of predictable months. We should therefore report both forecast accuracy and its change with the horizon. A forecast can be calculated farther ahead without being accurate enough to use.
+
+**How predictive value is measured here.** Compare errors on later observations with the no-change forecast, which carries the last observed level forward. RMSE is in the outcome's units and gives more weight to large misses. In the following tables, RMSE reduction = 100 × (1 − model RMSE / benchmark RMSE). Positive values indicate improvement; negative values indicate larger errors. A 36% RMSE reduction means a 36% smaller error measure, not that 36% of future market behavior has been explained. Training R squared likewise describes fit to known outcomes, not a percentage of future behavior that we can predict. This distinction follows the treatment of held-out forecast accuracy in [Forecasting: Principles and Practice, Section 5.8](https://otexts.com/fpp3/toolbox.html#evaluating-point-forecast-accuracy).
+
+**LA home values: useful short-horizon dynamics, weaker evidence at one year.** For the main 2015-start comparison, the following are test results for growth AR(6), the strongest of the three tested growth-lag models in this run.
+
+| Horizon | AR(6) RMSE, USD | No-change RMSE, USD | RMSE reduction |
+| --- | --- | --- | --- |
+| 3 | 11,590 | 18,241 | +36.5% |
+| 6 | 25,467 | 27,766 | +8.3% |
+| 12 | 46,323 | 31,587 | -46.7% |
+
+At three months, the reduction is 36.5%; at six months it is 8.3%. At twelve months, the growth-model error is 46.7% larger than no change. Within this comparison, estimating recent growth dynamics helps most at three months and provides a smaller gain at six months. Extending the same growth dynamics to one year does not improve the forecast. The log ARIMA benchmark has twelve-month RMSE $31,380, only 0.7% below no change. Thus the data do not show a substantial, broadly shared one-year improvement for the fitted LA price models.
+
+**The distinction between an observed winner and a usable selection rule matters.** The AR(6) comparison above is descriptive: its relative success is observed on the test period. The specifications chosen using only earlier validation results perform as follows.
+
+| Horizon | Validation-selected model | Selected test RMSE, USD | RMSE reduction vs no change |
+| --- | --- | --- | --- |
+| 3 | Level AR(1) | 20,147 | -10.4% |
+| 6 | Level AR(1) | 30,160 | -8.6% |
+| 12 | Growth AR(1) | 54,856 | -73.7% |
+
+In this run, the validation-selected LA price models lose to no change at all three horizons. This means the process did not reliably identify in advance the model that would perform best in the later market period. It would therefore overstate the evidence to say 'we can reliably predict prices six months ahead.' No change itself uses the variable's past, so failing to beat it does not mean historical information is useless.
+
+**The useful horizon also depends on the outcome.** The fixed-model test comparisons give the following reductions relative to each outcome's own no-change forecast. These are descriptive comparisons, not the performance of the validation-selected procedure.
+
+| Outcome and model | 3m RMSE reduction | 6m RMSE reduction | 12m RMSE reduction |
+| --- | --- | --- | --- |
+| Rent: growth AR(1) | +17.4% | +17.0% | +9.9% |
+| Inventory: level AR(1) | +3.1% | +9.8% | +20.0% |
+
+These rent and inventory models improve on no change even at twelve months, so six months is not a universal cutoff across housing variables. Our evidence is limited to the tested 3-, 6- and 12-month horizons. We have not established accuracy beyond twelve months, an exact cutoff between the tested horizons, or a single percentage of predictable behavior. Whether an error is tolerable also depends on the purpose of the forecast.
 
 ### 2. How sensitive are the results to lag length, training period, and prediction horizon?
 
-The LA growth-lag comparison favors Growth AR(6) at all three horizons. Keeping AR(3) fixed, alternative starts yield six-month RMSEs of $23,469, $25,911, $27,720. For the main AR(3), RMSE is $11,761 at three months and $47,851 at twelve months. Longer forecasts accumulate uncertainty and expose the model to changes in market dynamics. The short recent window changes the coefficients and sacrifices observations. Training fit alone is insufficient to choose a forecast model, and an earlier validation winner can lose on the later test.
+**Lag length: most of the LA price gain comes from moving from one to three lags.** Hold the raw start at January 2015 and use identical response months and forecast origins. The table reports RMSE in dollars for recovered home-value levels.
+
+| Growth specification | 3m RMSE | 6m RMSE | 12m RMSE |
+| --- | --- | --- | --- |
+| Growth AR(1) | 14,938.09 | 35,224.48 | 54,855.57 |
+| Growth AR(3) | 11,761.14 | 25,910.80 | 47,851.26 |
+| Growth AR(6) | 11,589.69 | 25,467.32 | 46,322.93 |
+
+At six months, moving from AR(1) to AR(3) lowers RMSE by 26.4%. Moving from AR(3) to AR(6) provides a further 1.7% reduction. The additional AR(3)-to-AR(6) reduction is 1.5% at three months and 3.2% at twelve months. More lags help within this family, but the incremental gains after three lags are small, and none of these main-window growth models beats no change at twelve months. A six-lag model uses six past monthly growth rates; it is not limited to forecasting six months ahead.
+
+**Training period: more recent data do not automatically yield better forecasts.** Keep the AR(3) specification and evaluation dates fixed. The sample sizes and training RMSE below are the December 2022 fit snapshot; training RMSE is in percentage points of monthly log growth, while test RMSE is in dollars.
+
+| Raw start | Fitted N | Training RMSE, pp | 6m test RMSE, USD | 12m test RMSE, USD |
+| --- | --- | --- | --- | --- |
+| 2010-01 | 149 | 0.308 | 23,469 | 41,869 |
+| 2015-01 | 89 | 0.310 | 25,911 | 47,851 |
+| 2019-01 | 41 | 0.232 | 27,720 | 48,776 |
+
+Extending the start from 2015 to 2010 lowers six-month RMSE by 9.4%; shortening it from 2015 to 2019 raises that error by 7.0%. The recent window has the smallest training residuals but larger forecast errors. Because these windows contain different response months, their training errors describe different samples; the matched test errors provide the fair forecast comparison.
+
+The coefficients also change. At the common December 2022 origin, the first-lag coefficients for starts 2010-01, 2015-01, 2019-01 are 1.498, 1.486, 1.610, and the second-lag coefficients are -0.672, -0.705, -0.901. The recent fit estimates a stronger immediate response and a larger subsequent reversal. It contains fewer observations and puts more weight on pandemic-era and rate-transition conditions. Those differences can change fitted persistence, but these regressions do not identify which economic shock caused the coefficient changes.
+
+**Prediction horizon: the dollar errors grow substantially and benchmark rankings change.** For the main AR(3), RMSE rises from $11,761 at three months to $25,911 at six months and $47,851 at twelve months. The twelve-month error is 4.07 times the three-month error. Recursive forecasts use predicted growth as future lag inputs, so errors can accumulate; changes in market dynamics also matter. Models share target dates within each horizon. Across horizons, the target calendar shifts, so the observed increase reflects both distance ahead and the market months being forecast.
+
+The same model is therefore not uniformly preferable across horizons or estimation periods. Earlier validation selected level AR(1) at three and six months and growth AR(1) at twelve months, but those selections underperformed no change on the later test. The main practical finding is sensitivity of the model choice itself, not merely a gradual increase in error as forecasts extend farther ahead.
 
 ### 3. Do the same simple models work across home prices, rents, permits, inventory, and California counties?
 
-Among the tested growth models, LA price accuracy favors Growth AR(6) at all three horizons, while rent accuracy favors Growth AR(1) at all three horizons. The better inventory level model is Level AR(1) at all three horizons. Permit models must be compared on a common raw or trailing-mean target because averaging changes both persistence and the outcome's volatility. At twelve months, the lower-error growth model is Los Angeles Growth AR(3), Orange Growth AR(3), Riverside Growth AR(1), San Diego Growth AR(3). Seasonality, provider adjustments, volatility and the estimation period all matter. These results support separate validation for each outcome and horizon.
+**The modeling framework transfers; the best specification and its advantage do not.** Each outcome can be studied with univariate lag models and common backtesting rules, but the suitable transformation, lag length, benchmark and target definition differ. Dollar errors for home values, monthly rent errors, permit flows and inventory counts must be interpreted in their own units.
+
+**Prices versus rents.** Among the growth models with the common January 2015 start, LA price accuracy favors Growth AR(6) at all three horizons, while rent accuracy favors Growth AR(1) at all three horizons. At six months, rent AR(1) has RMSE $25.77 per month, compared with $31.16 for AR(3), $29.49 for AR(6), and $31.06 for no change. Training fit and test accuracy answer different questions; the winning rent lag length is stated above. Using the same AR(3) specification and dates, six-month MAPE is 0.83% for rents and 2.41% for home values. Rent levels are more predictable on this proportional-error metric; this is not a comparison of explained monthly-growth variance. Both indexes are provider-smoothed and seasonally adjusted.
+
+**Permits: a volatile monthly flow and a target-definition issue.** At six months, raw permit AR(1) has RMSE 444.5 units, compared with 574.9 for no change and 491.6 for seasonal naive. On the common trailing-three-month-mean target, the direct mean AR(1) has RMSE 277.4, forecasting raw flows then averaging has 275.7, and seasonal naive has 362.5. The direct mean model does better at three months, whereas the raw-then-average method does slightly better at six and twelve. The lower error of an averaged series cannot itself establish a better method: adjacent means share two months, creating persistence and reducing volatility. Provider imputation and the 2022 coverage change also qualify the economic interpretation.
+
+**Inventory: a level model works better than these growth models.** Level AR(1) has six-month RMSE 2,549 homes, compared with 2,777 for level AR(3), 3,094 for growth AR(1), 3,021 for growth AR(3), and 3,522 for seasonal naive. The level AR(1) also has the lowest fitted-model test RMSE at three and twelve months. Inventory is an unadjusted stock with pronounced seasonal movement, but repeating last year's calendar month still performs poorly when the overall level changes. The presence of seasonality does not guarantee that seasonal naive is the strongest benchmark.
+
+**Counties: short-horizon transfer is stronger than one-year transfer.** The following table compares the same 2015-start growth AR(3) with each county's no-change forecast. Relative RMSE reductions put counties with different price levels on a comparable benchmark-relative scale.
+
+| County | 3m RMSE reduction | 6m RMSE reduction | 12m RMSE reduction |
+| --- | --- | --- | --- |
+| Los Angeles | +35.5% | +6.7% | -51.5% |
+| Orange | +54.1% | +40.2% | +33.3% |
+| Riverside | +45.4% | +5.1% | -63.5% |
+| San Diego | +49.7% | +18.1% | -16.4% |
+
+AR(3) beats AR(1) in all four counties at three and six months. At twelve months, Riverside favors AR(1), while the other three still favor AR(3). However, being the better AR model does not guarantee beating the benchmark: only Orange County's AR(3) improves on no change at twelve months. The same lag structure therefore has more consistent benchmark gains at short horizons than at one year. LA's high volatility and Riverside's low volatility align with their six-month proportional errors, but Orange and San Diego reverse that ranking. Four counties provide descriptive evidence rather than a general volatility-error law. Statewide ZHVI is unavailable in this run; an unweighted average of these counties is not a California index.
+
+**Can the observed winning specification be selected in advance?** The following summarizes the actual validation-selection procedure. It guards against treating the best model observed after the test as a model we would necessarily have chosen beforehand.
+
+| Outcome | Horizon | Validation-selected model | Test RMSE reduction vs no change |
+| --- | --- | --- | --- |
+| Prices | 3 | Level AR(1) | -10.4% |
+| Prices | 6 | Level AR(1) | -8.6% |
+| Prices | 12 | Growth AR(1) | -73.7% |
+| Rents | 3 | Growth AR(3) | +5.1% |
+| Rents | 6 | Growth AR(6) | +5.1% |
+| Rents | 12 | Growth AR(6) | -10.4% |
+| Inventory | 3 | Growth AR(3) | -1.4% |
+| Inventory | 6 | Seasonal naive | -24.7% |
+| Inventory | 12 | No change | +0.0% |
+
+For rents, validation selections improve slightly at three and six months but lose at twelve; inventory selections lose at three and six months and tie the benchmark at twelve because no change was selected. Useful fixed-model relationships therefore coexist with instability in model selection. The evidence supports outcome- and horizon-specific evaluation, keeping simple benchmarks in the candidate set.
+
+**Scope of the conclusions.** These are point-forecast comparisons from 30 test origins per horizon. Adjacent multi-month errors overlap. We have not established statistical significance of small RMSE differences or calibrated prediction intervals. Revised provider histories and smoothing make the exercise retrospective. The results describe how the tested methods performed in this sample; they do not guarantee future accuracy or identify causal economic mechanisms.
 
 Full numerical evidence is retained in [accuracy.csv](accuracy.csv), [regressions.csv](regressions.csv), [forecasts.csv](forecasts.csv), [selections.csv](selections.csv) and [transformation_log.csv](transformation_log.csv).

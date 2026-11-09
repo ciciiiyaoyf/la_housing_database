@@ -21,6 +21,7 @@ forecast/actual,target unit,"Forecast at the origin and observed target at the t
 error,target unit,"Forecast minus actual. Positive means the model forecast above the observed target."
 mae,target unit,"Mean absolute forecast error for one series/target/model/window/horizon/split on matched dates."
 rmse,target unit,"Square root of mean squared forecast error for the same matched group."
+rmse_reduction_pct,percent,"Report comparison calculated as 100 times (1 minus model RMSE divided by reference RMSE) on identical target dates and target definitions. The reference is stated in each table, usually no change; negative means larger error. Undefined when reference RMSE is zero. This is not a share of explained future behavior."
 mape_pct,percent,"100 times the mean of |forecast minus actual| / |actual| over matched dates. Blank if any actual is zero."
 n,forecasts,"Number of monthly origins scored within the split for one specification and horizon."
 validation_rmse/test_rmse/test_mae/test_mape_pct,metric-specific,"Choose the lowest validation RMSE for each geography/variable/target/horizon. Break exact ties by model ID then training start. Join that frozen choice to held-out scores."

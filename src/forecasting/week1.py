@@ -224,7 +224,7 @@ def write_transformation_log(stage, observations, forecasts, config):
         month = inputs.observation_date.dt.to_period("M")
         inputs = inputs[month.between(pd.Period(spec["train_start"], "M"),
                                      pd.Period(runs.target_date.max(), "M"))]
-        diagnostics = []
+        diagnostics = ["rmse_reduction_pct"]
         if spec["geo_id"].startswith("COUNTY_") and spec["variable_id"] == "zhvi":
             diagnostics.append("county_growth_sd")
         if spec["geo_id"] == LA and spec["variable_id"] in {"zhvi", "active_inventory"}:

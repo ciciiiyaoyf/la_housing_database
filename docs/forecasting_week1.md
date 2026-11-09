@@ -8,6 +8,13 @@ response, followed by the three final interpretation answers. The submission
 includes the regression coefficients, sample dates, accuracy tables and charts.
 The separate two-page memo covers only the three final questions.
 
+The detailed final answers distinguish forecast horizon from predictive accuracy,
+quantify sensitivity to lags and training dates, and compare each outcome and county.
+Their benchmark-relative RMSE reductions use `100 * (1 - model_rmse / reference_rmse)`
+on matched targets. Positive means lower error, not the percentage of future behavior
+explained. Descriptive test winners are reported separately from the models chosen
+using earlier validation data; no universal maximum forecast horizon is established.
+
 The held-out results favor a simple benchmark for LA home values. At every horizon, carrying the last observed value forward had lower test RMSE than the model chosen using earlier validation dates. At six months, the benchmark missed by $27,766 on RMSE, compared with $30,160 for the selected level AR(1). Several alternatives did better on those later dates. The two-page [results memo](../output/forecasting/week1/week1_memo.pdf) separates those retrospective comparisons from the models that could have been selected at the time.
 
 ## Read the submission

@@ -62,6 +62,227 @@ def _winner_text(winners):
     return f"{', '.join(winners)} at 3, 6 and 12 months, respectively"
 
 
+def _rmse_reduction(model_rmse, reference_rmse):
+    """Report relative error reduction; it is not a share of explained variation."""
+    return 100 * (1 - model_rmse / reference_rmse) if reference_rmse > 0 else float("nan")
+
+
+def _interpretation_answers(test, snapshot, selections, observations):
+    price = _series(test)
+    rent = _series(test, "zori_smoothed_sa")
+    stock = _series(test, "active_inventory")
+    permits = _series(test, "permits_total")
+    means = _series(test, "permits_total", target="mean3")
+    windows = _series(snapshot).query("model == 'growth_ar3'").sort_values("train_start")
+    chosen = _series(selections).set_index("horizon")
+
+    def reduction(frame, model, horizon, benchmark="naive"):
+        return _rmse_reduction(_point(frame, model, horizon).rmse, _point(frame, benchmark, horizon).rmse)
+
+    def rmse_row(frame, model, label):
+        return [label, *[f"{_point(frame, model, h).rmse:,.2f}" for h in HORIZONS]]
+
+    parts = [
+        "## Final interpretation questions\n",
+        "### 1. How much of future housing-market behavior can be predicted from the variable’s own past?\n",
+        "**What the question means.** I interpret 'how much' as the amount of useful predictive "
+        "information in a variable's history. How far ahead that information remains useful is one "
+        "part of the answer; the technical term for months ahead is the forecast horizon. The "
+        "assignment tests 3, 6 and 12 months, rather than asking for one maximum number of "
+        "predictable months. We should therefore report both forecast accuracy and its change with "
+        "the horizon. A forecast can be calculated farther ahead without being accurate enough to use.\n",
+        "**How predictive value is measured here.** Compare errors on later observations with the "
+        "no-change forecast, which carries the last observed level forward. RMSE is in the outcome's "
+        "units and gives more weight to large misses. In the following tables, RMSE reduction = "
+        "100 × (1 − model RMSE / benchmark RMSE). Positive values indicate improvement; negative "
+        "values indicate larger errors. A 36% RMSE reduction means a 36% smaller error measure, "
+        "not that 36% of future market behavior has been explained. Training R squared likewise "
+        "describes fit to known outcomes, not a percentage of future behavior that we can predict. "
+        "This distinction follows the treatment of held-out forecast accuracy in "
+        "[Forecasting: Principles and Practice, Section 5.8](https://otexts.com/fpp3/toolbox.html#evaluating-point-forecast-accuracy).\n",
+        "**LA home values: useful short-horizon dynamics, weaker evidence at one year.** "
+        "For the main 2015-start comparison, the following are test results for growth AR(6), "
+        "the strongest of the three tested growth-lag models in this run.\n",
+        _table(["Horizon", "AR(6) RMSE, USD", "No-change RMSE, USD", "RMSE reduction"],
+               [[h, f"{_point(price, 'growth_ar6', h).rmse:,.0f}",
+                 f"{_point(price, 'naive', h).rmse:,.0f}", f"{reduction(price, 'growth_ar6', h):+.1f}%"]
+                for h in HORIZONS]),
+        f"At three months, the reduction is {reduction(price, 'growth_ar6', 3):.1f}%; at six months "
+        f"it is {reduction(price, 'growth_ar6', 6):.1f}%. At twelve months, the growth-model error is "
+        f"{-reduction(price, 'growth_ar6', 12):.1f}% larger than no change. Within this comparison, "
+        "estimating recent growth dynamics helps most at three months and provides a smaller gain "
+        "at six months. Extending the same growth dynamics to one year does not improve the forecast. "
+        f"The log ARIMA benchmark has twelve-month RMSE ${_point(price, 'arima011', 12).rmse:,.0f}, "
+        f"only {reduction(price, 'arima011', 12):.1f}% below no change. Thus the data do not show "
+        "a substantial, broadly shared one-year improvement for the fitted LA price models.\n",
+        "**The distinction between an observed winner and a usable selection rule matters.** "
+        "The AR(6) comparison above is descriptive: its relative success is observed on the test "
+        "period. The specifications chosen using only earlier validation results perform as follows.\n",
+        _table(["Horizon", "Validation-selected model", "Selected test RMSE, USD", "RMSE reduction vs no change"],
+               [[h, LABELS[chosen.loc[h, "model"]], f"{chosen.loc[h, 'test_rmse']:,.0f}",
+                 f"{_rmse_reduction(chosen.loc[h, 'test_rmse'], _point(price, 'naive', h).rmse):+.1f}%"]
+                for h in HORIZONS]),
+        "In this run, the validation-selected LA price models lose to no change at all three "
+        "horizons. This means the process did not reliably identify in advance the model that would "
+        "perform best in the later market period. It would therefore overstate the evidence to say "
+        "'we can reliably predict prices six months ahead.' No change itself uses the variable's "
+        "past, so failing to beat it does not mean historical information is useless.\n",
+        "**The useful horizon also depends on the outcome.** The fixed-model test comparisons "
+        "give the following reductions relative to each outcome's own no-change forecast. These "
+        "are descriptive comparisons, not the performance of the validation-selected procedure.\n",
+        _table(["Outcome and model", "3m RMSE reduction", "6m RMSE reduction", "12m RMSE reduction"],
+               [[label, *[f"{reduction(frame, model, h):+.1f}%" for h in HORIZONS]]
+                for frame, model, label in [(rent, "growth_ar1", "Rent: growth AR(1)"),
+                                            (stock, "level_ar1", "Inventory: level AR(1)")]]),
+        "These rent and inventory models improve on no change even at twelve months, so six months "
+        "is not a universal cutoff across housing variables. Our evidence is limited to the tested "
+        "3-, 6- and 12-month horizons. We have not established accuracy beyond twelve months, an "
+        "exact cutoff between the tested horizons, or a single percentage of predictable behavior. "
+        "Whether an error is tolerable also depends on the purpose of the forecast.\n",
+        "### 2. How sensitive are the results to lag length, training period, and prediction horizon?\n",
+        "**Lag length: most of the LA price gain comes from moving from one to three lags.** "
+        "Hold the raw start at January 2015 and use identical response months and forecast origins. "
+        "The table reports RMSE in dollars for recovered home-value levels.\n",
+        _table(["Growth specification", "3m RMSE", "6m RMSE", "12m RMSE"],
+               [rmse_row(price, model, LABELS[model]) for model in GROWTH_MODELS]),
+        f"At six months, moving from AR(1) to AR(3) lowers RMSE by "
+        f"{_rmse_reduction(_point(price, 'growth_ar3').rmse, _point(price, 'growth_ar1').rmse):.1f}%. "
+        f"Moving from AR(3) to AR(6) provides a further "
+        f"{_rmse_reduction(_point(price, 'growth_ar6').rmse, _point(price, 'growth_ar3').rmse):.1f}% reduction. "
+        f"The additional AR(3)-to-AR(6) reduction is "
+        f"{_rmse_reduction(_point(price, 'growth_ar6', 3).rmse, _point(price, 'growth_ar3', 3).rmse):.1f}% "
+        f"at three months and {_rmse_reduction(_point(price, 'growth_ar6', 12).rmse, _point(price, 'growth_ar3', 12).rmse):.1f}% "
+        "at twelve months. More lags help within this family, but the incremental gains after three "
+        "lags are small, and none of these main-window growth models beats no change at twelve months. "
+        "A six-lag model uses six past monthly growth rates; it is not limited to forecasting six months ahead.\n",
+        "**Training period: more recent data do not automatically yield better forecasts.** "
+        "Keep the AR(3) specification and evaluation dates fixed. The sample sizes and training "
+        "RMSE below are the December 2022 fit snapshot; training RMSE is in percentage points of "
+        "monthly log growth, while test RMSE is in dollars.\n",
+        _table(["Raw start", "Fitted N", "Training RMSE, pp", "6m test RMSE, USD", "12m test RMSE, USD"],
+               [[r.train_start, r.nobs, f"{r.train_rmse:.3f}",
+                 f"{_point(price, 'growth_ar3', 6, r.train_start).rmse:,.0f}",
+                 f"{_point(price, 'growth_ar3', 12, r.train_start).rmse:,.0f}"] for r in windows.itertuples()]),
+        f"Extending the start from 2015 to 2010 lowers six-month RMSE by "
+        f"{_rmse_reduction(_point(price, 'growth_ar3', 6, '2010-01').rmse, _point(price, 'growth_ar3', 6, '2015-01').rmse):.1f}%; "
+        f"shortening it from 2015 to 2019 raises that error by "
+        f"{-_rmse_reduction(_point(price, 'growth_ar3', 6, '2019-01').rmse, _point(price, 'growth_ar3', 6, '2015-01').rmse):.1f}%. "
+        "The recent window has the smallest training residuals but larger forecast errors. "
+        "Because these windows contain different response months, their training errors describe "
+        "different samples; the matched test errors provide the fair forecast comparison.\n",
+        "The coefficients also change. At the common December 2022 origin, the first-lag "
+        f"coefficients for starts {', '.join(windows.train_start)} are "
+        f"{', '.join(format(json.loads(r.coefficients)['log_growth_pct_lag_1'], '.3f') for r in windows.itertuples())}, "
+        "and the second-lag coefficients are "
+        f"{', '.join(format(json.loads(r.coefficients)['log_growth_pct_lag_2'], '.3f') for r in windows.itertuples())}. "
+        "The recent fit estimates a stronger immediate response and a larger subsequent reversal. "
+        "It contains fewer observations and puts more weight on pandemic-era and rate-transition "
+        "conditions. Those differences can change fitted persistence, but these regressions do not "
+        "identify which economic shock caused the coefficient changes.\n",
+        "**Prediction horizon: the dollar errors grow substantially and benchmark rankings change.** "
+        f"For the main AR(3), RMSE rises from ${_point(price, 'growth_ar3', 3).rmse:,.0f} at three months "
+        f"to ${_point(price, 'growth_ar3', 6).rmse:,.0f} at six months and "
+        f"${_point(price, 'growth_ar3', 12).rmse:,.0f} at twelve months. The twelve-month error is "
+        f"{_point(price, 'growth_ar3', 12).rmse / _point(price, 'growth_ar3', 3).rmse:.2f} times the "
+        "three-month error. Recursive forecasts use predicted growth as future lag inputs, so "
+        "errors can accumulate; changes in market dynamics also matter. Models share target dates "
+        "within each horizon. Across horizons, the target calendar shifts, so the observed increase "
+        "reflects both distance ahead and the market months being forecast.\n",
+        "The same model is therefore not uniformly preferable across horizons or estimation "
+        "periods. Earlier validation selected level AR(1) at three and six months and growth "
+        "AR(1) at twelve months, but those selections underperformed no change on the later test. "
+        "The main practical finding is sensitivity of the model choice itself, not merely a gradual "
+        "increase in error as forecasts extend farther ahead.\n",
+        "### 3. Do the same simple models work across home prices, rents, permits, inventory, and California counties?\n",
+        "**The modeling framework transfers; the best specification and its advantage do not.** "
+        "Each outcome can be studied with univariate lag models and common backtesting rules, "
+        "but the suitable transformation, lag length, benchmark and target definition differ. "
+        "Dollar errors for home values, monthly rent errors, permit flows and inventory counts "
+        "must be interpreted in their own units.\n",
+        f"**Prices versus rents.** Among the growth models with the common January 2015 start, LA price accuracy favors "
+        f"{_winner_text(_winner_labels(price, GROWTH_MODELS))}, while rent accuracy favors "
+        f"{_winner_text(_winner_labels(rent, GROWTH_MODELS))}. "
+        f"At six months, rent AR(1) has RMSE ${_point(rent, 'growth_ar1').rmse:.2f} per month, "
+        f"compared with ${_point(rent, 'growth_ar3').rmse:.2f} for AR(3), "
+        f"${_point(rent, 'growth_ar6').rmse:.2f} for AR(6), and ${_point(rent, 'naive').rmse:.2f} "
+        "for no change. Training fit and test accuracy answer different questions; the winning "
+        "rent lag length is stated above. Using the same AR(3) specification and dates, six-month MAPE is "
+        f"{_point(rent, 'growth_ar3').mape_pct:.2f}% for rents and {_point(price, 'growth_ar3').mape_pct:.2f}% "
+        "for home values. Rent levels are more predictable on this proportional-error metric; "
+        "this is not a comparison of explained monthly-growth variance. Both indexes are "
+        "provider-smoothed and seasonally adjusted.\n",
+        "**Permits: a volatile monthly flow and a target-definition issue.** At six months, raw "
+        f"permit AR(1) has RMSE {_point(permits, 'level_ar1').rmse:.1f} units, compared with "
+        f"{_point(permits, 'naive').rmse:.1f} for no change and {_point(permits, 'seasonal_naive').rmse:.1f} "
+        "for seasonal naive. On the common trailing-three-month-mean target, the direct mean "
+        f"AR(1) has RMSE {_point(means, 'mean3_ar1').rmse:.1f}, forecasting raw flows then averaging "
+        f"has {_point(means, 'raw_ar1_mean3').rmse:.1f}, and seasonal naive has "
+        f"{_point(means, 'seasonal_naive_mean3').rmse:.1f}. The direct mean model does better at "
+        "three months, whereas the raw-then-average method does slightly better at six and twelve. "
+        "The lower error of an averaged series cannot itself establish a better method: adjacent "
+        "means share two months, creating persistence and reducing volatility. Provider imputation "
+        "and the 2022 coverage change also qualify the economic interpretation.\n",
+        "**Inventory: a level model works better than these growth models.** Level AR(1) has "
+        f"six-month RMSE {_point(stock, 'level_ar1').rmse:,.0f} homes, compared with "
+        f"{_point(stock, 'level_ar3').rmse:,.0f} for level AR(3), "
+        f"{_point(stock, 'growth_ar1').rmse:,.0f} for growth AR(1), "
+        f"{_point(stock, 'growth_ar3').rmse:,.0f} for growth AR(3), and "
+        f"{_point(stock, 'seasonal_naive').rmse:,.0f} for seasonal naive. "
+        "The level AR(1) also has the lowest fitted-model test RMSE at three and twelve months. "
+        "Inventory is an unadjusted stock with pronounced seasonal movement, but repeating last "
+        "year's calendar month still performs poorly when the overall level changes. The presence "
+        "of seasonality does not guarantee that seasonal naive is the strongest benchmark.\n",
+        "**Counties: short-horizon transfer is stronger than one-year transfer.** The following "
+        "table compares the same 2015-start growth AR(3) with each county's no-change forecast. "
+        "Relative RMSE reductions put counties with different price levels on a comparable "
+        "benchmark-relative scale.\n",
+    ]
+    county_rows = []
+    for geo, group in test[(test.variable_id == "zhvi") & test.geo_id.str.startswith("COUNTY_")].groupby("geo_id"):
+        name = observations.loc[observations.geo_id == geo, "geo_name"].iloc[0].replace(" County", "")
+        county_rows.append([name, *[f"{reduction(group, 'growth_ar3', h):+.1f}%" for h in HORIZONS]])
+    parts += [
+        _table(["County", "3m RMSE reduction", "6m RMSE reduction", "12m RMSE reduction"], county_rows),
+        "AR(3) beats AR(1) in all four counties at three and six months. At twelve months, "
+        "Riverside favors AR(1), while the other three still favor AR(3). However, being the "
+        "better AR model does not guarantee beating the benchmark: only Orange County's AR(3) "
+        "improves on no change at twelve months. The same lag structure therefore has more "
+        "consistent benchmark gains at short horizons than at one year. LA's high volatility "
+        "and Riverside's low volatility align with their six-month proportional errors, but "
+        "Orange and San Diego reverse that ranking. Four counties provide descriptive evidence "
+        "rather than a general volatility-error law. Statewide ZHVI is unavailable in this run; "
+        "an unweighted average of these counties is not a California index.\n",
+        "**Can the observed winning specification be selected in advance?** The following "
+        "summarizes the actual validation-selection procedure. It guards against treating the "
+        "best model observed after the test as a model we would necessarily have chosen beforehand.\n",
+    ]
+    selection_rows = []
+    for variable, frame, label in [("zhvi", price, "Prices"), ("zori_smoothed_sa", rent, "Rents"),
+                                   ("active_inventory", stock, "Inventory")]:
+        selected = _series(selections, variable).set_index("horizon")
+        for h in HORIZONS:
+            row = selected.loc[h]
+            selection_rows.append([label, h, LABELS[row.model],
+                                   f"{_rmse_reduction(row.test_rmse, _point(frame, 'naive', h).rmse):+.1f}%"])
+    parts += [
+        _table(["Outcome", "Horizon", "Validation-selected model", "Test RMSE reduction vs no change"], selection_rows),
+        "For rents, validation selections improve slightly at three and six months but lose at "
+        "twelve; inventory selections lose at three and six months and tie the benchmark at "
+        "twelve because no change was selected. Useful fixed-model relationships therefore "
+        "coexist with instability in model selection. The evidence supports outcome- and "
+        "horizon-specific evaluation, keeping simple benchmarks in the candidate set.\n",
+        "**Scope of the conclusions.** These are point-forecast comparisons from 30 test origins "
+        "per horizon. Adjacent multi-month errors overlap. We have not established statistical "
+        "significance of small RMSE differences or calibrated prediction intervals. Revised "
+        "provider histories and smoothing make the exercise retrospective. The results describe "
+        "how the tested methods performed in this sample; they do not guarantee future accuracy "
+        "or identify causal economic mechanisms.\n",
+        "Full numerical evidence is retained in [accuracy.csv](accuracy.csv), [regressions.csv](regressions.csv), "
+        "[forecasts.csv](forecasts.csv), [selections.csv](selections.csv) and [transformation_log.csv](transformation_log.csv).\n",
+    ]
+    return parts
+
+
 def write_exercise_report(output_dir: Path):
     """Write a readable answer to every task using the published fit and score rows."""
     output_dir = Path(output_dir)
@@ -430,35 +651,6 @@ def write_exercise_report(output_dir: Path):
         "No. These four counties do not cover California, and equal county weights ignore differences "
         "in housing stock and the provider's index construction. No county average is substituted for "
         "an official statewide series.\n",
-        "## Final interpretation questions\n",
-        "### 1. How much of future housing-market behavior can be predicted from the variable’s own past?\n",
-        f"Past levels and growth contain useful short-horizon information, but the advantage over a simple "
-        f"benchmark varies. For LA home values, growth AR(3) has six-month test RMSE of "
-        f"${_point(price, 'growth_ar3').rmse:,.0f}, compared with ${_point(price, 'naive').rmse:,.0f} "
-        f"for carrying the last observed value forward. {selection_result} No change itself uses past information. "
-        "The comparison measures how much estimating additional dynamics improves the forecasts in this sample. "
-        f"Rent AR(3) had six-month MAPE {_point(rent, 'growth_ar3').mape_pct:.2f}%, compared with "
-        f"{_point(price, 'growth_ar3').mape_pct:.2f}% for home values. These are sample-specific forecast "
-        "errors, not estimates of a universal share of future housing behavior that is predictable.\n",
-        "### 2. How sensitive are the results to lag length, training period, and prediction horizon?\n",
-        f"The LA growth-lag comparison favors {_winner_text(lag_winners)}. "
-        f"Keeping AR(3) fixed, alternative starts yield six-month RMSEs of "
-        f"{', '.join('$' + format(v, ',.0f') for v in window_errors)}. "
-        f"For the main AR(3), RMSE is ${_point(price, 'growth_ar3', 3).rmse:,.0f} at three months "
-        f"and ${_point(price, 'growth_ar3', 12).rmse:,.0f} at twelve months. "
-        "Longer forecasts accumulate uncertainty and expose the model to changes in market dynamics. "
-        "The short recent window changes the coefficients and sacrifices observations. Training fit alone "
-        "is insufficient to choose a forecast model, and an earlier validation winner can lose on the later test.\n",
-        "### 3. Do the same simple models work across home prices, rents, permits, inventory, and California counties?\n",
-        f"Among the tested growth models, LA price accuracy favors {_winner_text(lag_winners)}, "
-        f"while rent accuracy favors {_winner_text(_winner_labels(rent, GROWTH_MODELS))}. "
-        f"The better inventory level model is {_winner_text(_winner_labels(stock, ('level_ar1', 'level_ar3')))}. "
-        "Permit models must be compared on a common raw or trailing-mean target because averaging changes "
-        "both persistence and the outcome's volatility. "
-        f"At twelve months, the lower-error growth model is {', '.join(name + ' ' + winners[-1] for name, winners in county_winners.items())}. Seasonality, "
-        "provider adjustments, volatility and the estimation period all matter. These results support "
-        "separate validation for each outcome and horizon.\n",
-        "Full numerical evidence is retained in [accuracy.csv](accuracy.csv), [regressions.csv](regressions.csv), "
-        "[forecasts.csv](forecasts.csv), [selections.csv](selections.csv) and [transformation_log.csv](transformation_log.csv).\n",
     ]
+    parts += _interpretation_answers(test, snapshot, selections, observations)
     (output_dir / "week1_exercises.md").write_text("\n".join(parts), encoding="utf-8")

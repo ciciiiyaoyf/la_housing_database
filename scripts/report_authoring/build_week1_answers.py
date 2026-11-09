@@ -56,6 +56,26 @@ def inline(paragraph, text):
         link = re.fullmatch(r"\[([^\]]+)\]\(([^\)]+)\)", piece)
         value = piece[2:-2] if bold else piece[1:-1] if code else piece
         if link:
+            if link.group(2).startswith(("https://", "http://")):
+                relationship = paragraph.part.relate_to(
+                    link.group(2),
+                    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+                    is_external=True,
+                )
+                hyperlink = OxmlElement("w:hyperlink")
+                hyperlink.set(qn("r:id"), relationship)
+                run = OxmlElement("w:r")
+                properties = OxmlElement("w:rPr")
+                color = OxmlElement("w:color")
+                color.set(qn("w:val"), "0563C1")
+                properties.append(color)
+                run.append(properties)
+                content = OxmlElement("w:t")
+                content.text = link.group(1)
+                run.append(content)
+                hyperlink.append(run)
+                paragraph._p.append(hyperlink)
+                continue
             # Evidence filenames remain meaningful in a downloaded Word/PDF copy.
             value = link.group(1)
         if not bold and not code and SUBSCRIPT.search(value):
@@ -111,6 +131,14 @@ def format_document(document):
 
 
 def table_widths(headers):
+    if len(headers) == 4 and headers[0] == "Horizon":
+        return [.7, 2.05, 2.15, 2.3]
+    if len(headers) == 4 and headers[0] == "Outcome":
+        return [1.15, .7, 2.6, 2.75]
+    if len(headers) == 4 and headers[0] in {"County", "Outcome and model", "Growth specification"}:
+        return [2.1, 1.7, 1.7, 1.7]
+    if len(headers) == 5 and headers[0] == "Raw start":
+        return [1.2, .75, 1.65, 1.8, 1.8]
     if headers == ["Model", "Raw start", "Term", "Coefficient"]:
         return [1.35, 1, 3.3, 1.55]
     if headers[:2] == ["Model", "Raw start"] and len(headers) == 7:
